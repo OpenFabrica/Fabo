@@ -1,0 +1,27 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "directions": {
+      "versions": [
+        {
+          "path": "directions.html",
+          "createdAt": "2026-11-11T07:43:41.912Z",
+          "status": "needs-review"
+        }
+      ]
+    },
+    "index": {
+      "versions": [
+        {
+          "path": "index.html",
+          "createdAt": "2026-11-11T08:03:30.911Z",
+          "status": "needs-review"
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-11-11T07:43:41.912Z",
+  "updatedAt": "2026-11-11T08:03:30.915Z"
+}

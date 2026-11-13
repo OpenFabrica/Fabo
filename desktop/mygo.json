@@ -1,0 +1,6 @@
+{
+  "name": "Kiri Desktop",
+  "identifier": "dev.kiri.desktop",
+  "version": "0.0.0",
+  "out": "build"
+}
