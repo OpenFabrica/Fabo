@@ -147,7 +147,7 @@ check "and the device works" bash -c "wait_acm 1 && echo_through /dev/ttyACM0 40
 api POST /kiri/stop >/dev/null
 check "stopping Kiri ends the device's session" gone t-wake
 perl -e 'alarm 30; exec @ARGV' "$K" usb fake serial --location t-stopped >"$LOGS/t-stopped.log" 2>&1
-check "attaching while Kiri is stopped is refused" grep -q "Kiri did not take the device" "$LOGS/t-stopped.log"
+check "attaching while Kiri is stopped is refused" grep -Eq "(Kiri|Fabo) did not take the device" "$LOGS/t-stopped.log"
 api POST /kiri/wake >/dev/null
 if [ -n "${IDLE_SECS:-}" ]; then
   fake t-idle serial; wait_acm 1

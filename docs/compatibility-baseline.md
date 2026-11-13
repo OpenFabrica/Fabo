@@ -59,6 +59,26 @@ flowchart LR
     B -->|否| H[已有 Kiri 子命令或用法提示]
 ```
 
+### Linux machine 命令行（2026-11-13 对齐）
+
+`engine/cmd/kiri/machine.go` 对照本地上游 `crates/kiri/src/machine.rs`（参考 checkout `a649319`），补齐 `create`、`list` / `ls`、`shell`、`start`、`stop`、`restart`、`delete` / `rm`，支持七种发行版、自定义镜像和 `--systemd`。沿用 `machine-NAME` 容器名与 `dev.kiri.machine` 标签、宿主用户映射、共享 home、免密 sudo、重启策略和 systemd 配置。完整规则和流程见 [machines.md](machines.md)。
+
+与上游的明确差异：参数缺值、未知参数和多余参数直接报错，避免静默使用默认值；镜像 digest 原样传递；重复启动/停止的 HTTP `304` 视为成功，匹配现有端到端用例。宿主用户名进入初始化脚本时按 shell 参数引用。shell 使用进程替换，保留 Docker 的终端、信号和退出码。
+
+验证：`make check` 通过（engine / desktop vet 与测试、engine race、Linux ARM64 交叉编译）。独立 macOS Go VM 中成功创建 Alpine machine，后续 **22 项检查全部通过**，覆盖宿主用户名及 UID/GID、共享文件、工作目录、HOME、hostname、stdin、非零退出码、sudo、真实 TTY、重复启停、重启、删除与错误参数。使用当前源码构建的启动器、daemon、guest agent；内核与空数据盘模板取自已安装 Kiri，只读使用。未连接日常 Kiri 的 socket，也未注册 context 或 LaunchAgent。
+
+Ubuntu `--systemd` 实机也已验证：首次软件包安装约 4 分钟（最初的 120 秒就绪检查未通过，安装完成后复验通过），随后 `systemctl is-system-running` 返回 `running`，PID 1 为 systemd；默认 login shell 与退出码检查通过，另外 **8 项检查全部通过**，包括 sudo、停止、再次启动和删除。测试容器与专用 VM 数据已清理，日志保留在 `target/cli-machine-check/`。
+
+Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复验。
+
+### Kubernetes、import、USB、bench、raw（2026-11-13）
+
+五组 CLI 已用 Go 实现，对照本地上游 `a649319`；公开入口为 `fabo`。`k8s` 管理 k3s 节点、设置、CoreDNS 和 kubeconfig；`import` 从指定 Docker context 复制镜像、卷和停止的容器；`usb` 提供 macOS 设备枚举、特权 helper、USB/IP 和软件测试设备，以及 Linux 设备指引；`bench` 测量 API / CLI 的完整容器生命周期；`raw` 独占独立存储并直接管理 guest。
+
+`make check`、当前源码构建通过。隔离 macOS VM 验证了 k3s Ready、TLS API、重建保留 ConfigMap、启停和 kubeconfig 清理；两套独立引擎验证迁入文件所有者/权限、网络、停止状态及源数据保留；USB 软件设备 **41 通过、0 失败**；raw 退出码 37、1 MiB 输出与三种基准路径已实测。详细契约和限制见 [CLI 工具说明](cli-tools.md)。
+
+剩余差异：kubeconfig 暂在 start/status 同步，未接 daemon 启动后台同步；raw 使用独立 Go 存储，镜像列表格式与 Rust 不同。物理 USB 捕获/helper 安装、真实 OrbStack/Docker Desktop 迁移、Linux 宿主尚未实测。未运行全量端到端套件。
+
 ### 待对齐功能
 
 上游这些功能由 Rust 实现，本仓库现在没有。对照实现在上游的 `crates/` 下。
@@ -66,13 +86,12 @@ flowchart LR
 | 模块 | 缺什么 | 上游位置 |
 | --- | --- | --- |
 | 需要管理员密码的设置 | `kiri setup --docker-socket`（把 `/var/run/docker.sock` 链到本引擎，并装开机恢复它的 LaunchDaemon），卸载时也不会清理它。`*.kiri.local` 和 HTTPS 证书信任已对齐（`kiri domains`、`kiri setup --domains`、设置 → 域名），但开启本地域名时不像上游那样用同一次密码顺带链接 `/var/run/docker.sock`；密码框由 `osascript` 和 `security` 弹出，标题不是 Kiri | `crates/kiri/src/setup.rs` 的 `docker_socket` |
-| `kiri` 命令行 | `k8s`、`machine`、`import`（从 OrbStack / Docker Desktop 迁入）、`usb`、`bench`、`raw`。引擎一侧的 Kubernetes 转发、USB、域名接口已在 Go 里，缺的是命令行入口 | `crates/kiri/src/main.rs` 及同目录各文件 |
 | 桌面高级功能 | 原 WebView 窗口的全部界面：引导、文件浏览、镜像分层与扫描、容器设置、代理与域名设置、Kubernetes、仓库登录、内嵌终端、14 种语言。对应的 `/kiri/*` 接口仍由引擎提供 | `crates/kiri/src/ui/` |
 | 自动更新与诊断 | 更新源检查与安装、崩溃报告和日志脱敏 | `crates/kiri/src/update.rs`、`diag/` |
 | Windows | `kiri-win` 宿主（named pipe、托盘、设置、更新）、WSL 里的 `kiri bridge`、MSI。`installer/windows`、`contrib/windows`、`contrib/wsl`、`scripts/kiri-linux.sh` 仍按 Rust 二进制编写 | `crates/kiri-win/`、`crates/kiri/src/bridge.rs` |
 | Linux 包 | `packaging/linux`、`scripts/ci/linux-build.sh`、`scripts/ci/linux-packages.sh`、`contrib/linux` 仍要求 Rust 的 `kiri`、`kiri-init` 和 GTK 窗口；`kiri host-access` 没有 Go 版本 | `packaging/linux`、`crates/kiri/src/hostaccess.rs` |
 | 发版 | 更新源 JSON、发版 tarball、Kiri Lite；`NOTICE` 要按 Go 依赖重新生成 | 上游 `xtask/src/main.rs` 的 `release` |
-| 测试 | `tests/e2e.sh` 里调用 `kiri` 命令的用例（machine、Kubernetes）、`tests/finder-mount.sh`、`tests/wsl.sh`、`tests/linux-host.sh` 的环境。协议交叉校验（Rust 编解码器对 Go）已随 Rust 删除，现在只有 Go 对 Go | `tests/` |
+| 测试 | `tests/e2e.sh` 全量复验（machine、Kubernetes CLI 与 USB 已通过独立专项）、`tests/finder-mount.sh`、`tests/wsl.sh`、`tests/linux-host.sh` 的环境。协议交叉校验（Rust 编解码器对 Go）已随 Rust 删除，现在只有 Go 对 Go | `tests/` |
 | CI | 没有跑 Go 测试的工作流，只剩 CodeQL | `.github/workflows` |
 
 下面各节是删除 Rust 之前的引擎回归记录。引擎代码此后只改过两处注释。
@@ -114,7 +133,7 @@ flowchart LR
 | 待修复 | `filter-images-ref`、`filter-volume-label-only` | 镜像引用筛选和卷标签筛选 |
 | 待复验 | `disconnect-dns-gone` | 断开网络后，客户端报错与用例期望不同。待使用受控上游 DNS 对照 Rust |
 | 待实现 | `search`、`search-official` | Go API 的 `/images/search` 返回 404 |
-| 待复验 | `machine-mac-files`、`machine-cwd` | 全量测试使用 `/private/tmp` 下的临时 HOME，虚拟机中的文件和工作目录检查失败。待使用可共享的用户目录复测 |
+| 修复后专项通过 | `machine-mac-files`、`machine-cwd` | 2026-11-13 使用 Go machine CLI，在真实 `/Users/mike` 下建立临时共享目录，验证文件访问及工作目录一致；原全量套件尚未重跑 |
 
 另有 6 项在隔离实例中跳过，分别是 `domain-http`、`domain-unknown`、`domain-port-yield`、`domain-port-back`、`domain-ports-old-free` 和 `compose-domain`。这些用例涉及标准实例的域名与默认监听端口。
 

@@ -1789,9 +1789,11 @@ flowchart LR
 An attached or pending device keeps an idle VM awake. An explicit stop or
 sleep closes the session before stopping the guest. Detach, helper exit,
 and device disconnect release the location so it can be attached again.
-The original `kiri usb fake` fixtures exercise the same daemon, guest and
+The Go `fabo usb fake` fixtures exercise the same daemon, guest and
 Linux driver path with software serial and HID devices. Run
-`tests/usb.sh` on an isolated Docker context to verify that path.
+`tests/usb.sh` with `KIRI` pointing to the built `fabo` and an isolated Docker
+context to verify that path. CLI contracts and host capture verification
+boundaries are documented in [CLI tools](cli-tools.md).
 
 ### Container security options
 
@@ -1804,7 +1806,9 @@ were created with. Exec and health checks use the live container policy.
 Custom seccomp profiles, AppArmor profiles and SELinux labels are
 unsupported.
 
-Linux Machines created by `kiri machine create` use the regular container
+The Go launcher's [machine commands](machines.md) support creation, listing,
+interactive shells and lifecycle operations. Linux Machines created by
+`kiri machine create` use the regular container
 API and keep their user accounts and files in the writable container layer.
 Set-ID executables in the image or writable root follow the process
 policy, so a machine's non-root user can run its passwordless `sudo`.

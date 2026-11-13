@@ -39,6 +39,27 @@ type guestConnection struct {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "usb" {
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+		defer cancel()
+		if err := usbHostCommand(ctx, os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "fabo usb:", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if len(os.Args) > 1 && os.Args[1] == "raw" {
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		code, err := rawMain(ctx, os.Args[2:])
+		cancel()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "fabo raw:", err)
+			os.Exit(1)
+		}
+		os.Exit(code)
+	}
+
 	if len(os.Args) > 1 && os.Args[1] == "migrate-rust" {
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer cancel()

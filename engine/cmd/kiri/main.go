@@ -19,6 +19,13 @@ const usage = `usage: fabo [ui [-view PAGE] [-start]]   open the desktop window
        fabo setup --uninstall            take all of that back; data stays
        fabo build-with [docker|fabo]     which builder plain docker build uses
        fabo domains [local|https on|off] container names at *.kiri.local, and HTTPS for them
+       fabo machine create NAME [--distro D] [--systemd] | list | shell NAME [-- CMD...]
+       fabo machine start|stop|restart|delete NAME
+       fabo k8s start [--use] | stop | status | delete | set [--lan on|off] [--tls-san NAME,…] [--port N]
+       fabo import [orbstack|desktop-linux] [--list | image|volume|container NAME]
+       fabo usb [list] | attach DEVICE | detach DEVICE | helper remove
+       fabo bench [--runs N] [--image IMAGE] [--network none|bridge] [--only kiri|orbstack|docker]
+       fabo raw run [OPTIONS] IMAGE [COMMAND...] | pull IMAGE | images | rmi IMAGE...
        fabo migrate-rust [OPTIONS]       import an offline Kiri (Rust) store
 `
 
@@ -41,6 +48,18 @@ func main() {
 		err = domainsCommand(args[1:])
 	case args[0] == "migrate-rust":
 		err = migrate(args)
+	case args[0] == "k8s":
+		err = k8sCommand(args[1:])
+	case args[0] == "import":
+		err = importCommand(args[1:])
+	case args[0] == "usb":
+		err = usbCommand(args[1:])
+	case args[0] == "bench":
+		err = benchCommand(args[1:])
+	case args[0] == "raw":
+		err = rawCommand(args[1:])
+	case args[0] == "machine":
+		err = machineCommand(args[1:])
 	case handlesDocker(args[0]):
 		var in installation
 		in, err = locate()

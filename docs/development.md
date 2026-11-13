@@ -75,8 +75,12 @@ exit status pass directly to the Docker CLI on PATH (or the bundled CLI).
 An explicit `BUILDX_BUILDER` is preserved; otherwise a registered builder
 for this installation is selected. On macOS, use `fabo container update`
 for container resources: `fabo update` is reserved for the app updater.
-Kiri's other commands (`k8s`, `machine`, `import`, `usb`, `bench`, `raw`) have no Go
-counterpart yet; see the [baseline](compatibility-baseline.md).
+`fabo machine` creates persistent Linux development containers with the host
+user and shared homes directory. It supports create, list, shell, start, stop,
+restart and delete, including `--systemd`; see [machines.md](machines.md).
+`fabo k8s`, `import`, `usb`, `bench` and `raw` are implemented in Go.
+See [CLI tools](cli-tools.md) for command contracts, state ownership, platform
+boundaries and verification.
 
 The engine never writes to a Kiri (Rust) store. When
 `~/Library/Application Support/Kiri` holds one that has not been imported,

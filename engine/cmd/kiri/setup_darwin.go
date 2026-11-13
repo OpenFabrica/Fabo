@@ -175,6 +175,9 @@ func (s *setup) firstLaunch() error {
 
 // uninstall takes back what setup did. The engine's data stays.
 func (s *setup) uninstall() error {
+	if err := s.removeUSBHelper(); err != nil {
+		return err
+	}
 	n := s.in.names
 	// Uninstalling stops everything this app runs: the engine the agent
 	// started, and any engine or window started another way.
