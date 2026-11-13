@@ -34,12 +34,12 @@ help:
 	@echo "make kernel    guest kernel in $(GUEST_OUT) (needs a Docker engine)"
 	@echo "make disk      empty data disk template guest/out/data.img (needs a Docker engine)"
 	@echo "make daemon    target/kiri-go-daemon, signed for Virtualization.framework"
-	@echo "make app       target/Kiri.app: engine, guest, desktop, docker CLI, Compose, buildx"
-	@echo "make app-dev   target/dev/Kiri Dev.app: a second installation with its own state"
-	@echo "               (FLAVOR=name builds Kiri <Name>.app instead)"
-	@echo "make dmg       target/Kiri-<version>-$(ARCH).dmg from the app, notarized when"
+	@echo "make app       target/Fabo.app: engine, guest, desktop, docker CLI, Compose, buildx"
+	@echo "make app-dev   target/dev/Fabo Dev.app: a second installation with its own state"
+	@echo "               (FLAVOR=name builds Fabo <Name>.app instead)"
+	@echo "make dmg       target/Fabo-<version>-$(ARCH).dmg from the app, notarized when"
 	@echo "               KIRI_NOTARY_PROFILE names a notarytool profile"
-	@echo "make linux     target/linux/release: kiri, kiri-go-daemon, kiri-go-init"
+	@echo "make linux     target/linux/release: fabo, kiri-go-daemon, kiri-go-init"
 	@echo "ARCH=x86_64 builds guest, kernel, daemon, app and dmg for Intel Macs."
 
 check:
@@ -91,7 +91,7 @@ dmg:
 # Static binaries, so one build runs on every distribution.
 linux:
 	mkdir -p target/linux/release
-	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -o $(CURDIR)/target/linux/release/kiri ./cmd/kiri
+	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -o $(CURDIR)/target/linux/release/fabo ./cmd/kiri
 	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "-X main.engineRelease=$(VERSION)" -o $(CURDIR)/target/linux/release/kiri-go-daemon ./cmd/kiri-go-daemon
 	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -o $(CURDIR)/target/linux/release/kiri-go-init ./cmd/kiri-go-init
 

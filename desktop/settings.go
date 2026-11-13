@@ -15,7 +15,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// settingsTabs are the sections of Settings, in Kiri's order. The ones Kiri
+// settingsTabs are the sections of Settings, in Fabo's order. The ones Fabo
 // has and this window lacks (registries, Kubernetes, import, diagnostics)
 // have no engine endpoint to stand on.
 var settingsTabs = []struct{ id, icon, zh, en string }{
@@ -27,7 +27,7 @@ var settingsTabs = []struct{ id, icon, zh, en string }{
 	{"about", "info", "关于", "About"},
 }
 
-// The steps of the two text sizes, as Kiri offers them.
+// The steps of the two text sizes, as Fabo offers them.
 var (
 	textScales = []float32{0.9, 1, 1.1, 1.25}
 	logSizes   = []float32{11, 13, 15}
@@ -107,7 +107,7 @@ func (s *desktop) loadSettings() {
 }
 
 // settingsView is the settings page: the sections on the left, the chosen
-// one beside them, laid out as Kiri's settings are.
+// one beside them, laid out as Fabo's settings are.
 func (s *desktop) settingsView(c *ui.Context, p palette) {
 	if s.settingsFor != strconv.FormatBool(s.connected) {
 		s.loadSettings()
@@ -167,7 +167,7 @@ func heading(c *ui.Context, p palette, title string) {
 	ui.Text(c, title).FontSize(15).FontWeight(600).TextColor(p.text)
 }
 
-// pref is one setting as Kiri lays it out: a bold title over its muted
+// pref is one setting as Fabo lays it out: a bold title over its muted
 // explanation, the control on the right, and a rule beneath.
 func pref(c *ui.Context, p palette, title, hint string, control func()) {
 	ui.Row(c).FillWidth().Padding(0, 0, 18).Gap(24).AlignItems(ui.Center).
@@ -194,7 +194,7 @@ func value(c *ui.Context, p palette, text string) {
 	ui.Text(c, text).Font(mono).FontSize(12).FontFeatures("tnum").TextColor(p.text).Selectable()
 }
 
-// choice is the segmented control of Settings, drawn as Kiri draws it: one
+// choice is the segmented control of Settings, drawn as Fabo draws it: one
 // outlined box split by hairlines, the chosen segment filled with the
 // accent. It reports a new choice.
 func choice(c *ui.Context, p palette, label string, selected *int, labels ...string) bool {
@@ -537,7 +537,7 @@ func (s *desktop) networkPane(c *ui.Context, p palette) {
 		}
 	})
 	if d.Mode == "system" && eff.PAC {
-		remark(c, p, fmt.Sprintf(tr("%s 使用的是自动代理配置（PAC）文件，Kiri 无法跟随。请选「自定义」并填写代理。", "%s uses an automatic proxy configuration (PAC) file, which Kiri can't follow. Choose Custom and enter the proxy."), osName()))
+		remark(c, p, fmt.Sprintf(tr("%s 使用的是自动代理配置（PAC）文件，Fabo 无法跟随。请选「自定义」并填写代理。", "%s uses an automatic proxy configuration (PAC) file, which Fabo can't follow. Choose Custom and enter the proxy."), osName()))
 	}
 	if d.Mode == "custom" {
 		field := func(key, title, hint string, value *string) {
@@ -571,7 +571,7 @@ func (s *desktop) networkPane(c *ui.Context, p palette) {
 // and by Settings → Builds.
 func (s *desktop) builderRows(c *ui.Context, p palette) {
 	b := s.builder
-	pref(c, p, tr("Kiri 的构建器", "Kiri's builder"), b.Image, func() {
+	pref(c, p, tr("Fabo 的构建器", "Fabo's builder"), b.Image, func() {
 		kind, text := "stopped", tr("未运行", "Not running")
 		if b.State == "running" {
 			kind, text = "running", tr("运行中", "Running")
@@ -615,9 +615,9 @@ func (s *desktop) setNames(kind string, on bool) {
 	done, failed := tr("容器现在通过 <name>.kiri.localhost 访问", "Containers answer at <name>.kiri.localhost"), tr("无法更改容器域名：", "Could not change container names: ")
 	switch {
 	case kind == "https" && on:
-		done = tr("已信任 Kiri 的证书：容器可通过 HTTPS 打开", "Kiri's certificate is trusted: containers open over HTTPS")
+		done = tr("已信任 Fabo 的证书：容器可通过 HTTPS 打开", "Fabo's certificate is trusted: containers open over HTTPS")
 	case kind == "https":
-		done = tr("已不再信任 Kiri 的证书", "Kiri's certificate is no longer trusted")
+		done = tr("已不再信任 Fabo 的证书", "Fabo's certificate is no longer trusted")
 	case on:
 		done = tr("容器现在通过 <name>.kiri.local 访问", "Containers now answer at <name>.kiri.local")
 	}
@@ -672,11 +672,11 @@ func (s *desktop) domainsPane(c *ui.Context, p palette) {
 				s.setNames("local", idx == 1)
 			}
 		})
-		hint = fmt.Sprintf(tr("信任 Kiri 的证书，让 https://myapp.%s 可用。%s 会询问你的密码。该证书只能为 Kiri 自己的域名担保。",
-			"Trust Kiri's certificate so https://myapp.%s works. %s asks for your password. The certificate can only vouch for Kiri's own names."), suffix, osName())
+		hint = fmt.Sprintf(tr("信任 Fabo 的证书，让 https://myapp.%s 可用。%s 会询问你的密码。该证书只能为 Fabo 自己的域名担保。",
+			"Trust Fabo's certificate so https://myapp.%s works. %s asks for your password. The certificate can only vouch for Fabo's own names."), suffix, osName())
 		if s.names.HTTPS {
-			hint = tr("开启：容器以 https:// 打开，使用 Kiri 自己的证书，该证书只为 .kiri.local 和 .kiri.localhost 域名担保。",
-				"On: containers open at https:// with Kiri's own certificate, which only vouches for .kiri.local and .kiri.localhost names.")
+			hint = tr("开启：容器以 https:// 打开，使用 Fabo 自己的证书，该证书只为 .kiri.local 和 .kiri.localhost 域名担保。",
+				"On: containers open at https:// with Fabo's own certificate, which only vouches for .kiri.local and .kiri.localhost names.")
 		}
 		pref(c, p, "HTTPS", hint, func() {
 			idx := 0
@@ -700,7 +700,7 @@ func (s *desktop) domainsPane(c *ui.Context, p palette) {
 // domainPorts changes the ports container names answer on.
 func (s *desktop) domainPorts(c *ui.Context, p palette, suffix string) {
 	if !s.domainsOK {
-		pref(c, p, tr("端口", "Ports"), tr("启动 Kiri 以更改域名应答的端口。", "Start Kiri to change the ports names answer on."), nil)
+		pref(c, p, tr("端口", "Ports"), tr("启动 Fabo 以更改域名应答的端口。", "Start Fabo to change the ports names answer on."), nil)
 		return
 	}
 	d := s.domains
@@ -753,15 +753,15 @@ func (s *desktop) domainPorts(c *ui.Context, p palette, suffix string) {
 // aboutPane says what is running.
 func (s *desktop) aboutPane(c *ui.Context, p palette) {
 	ui.Row(c.Key("brand")).FillWidth().Gap(14).AlignItems(ui.Center).Padding(0, 0, 18).BorderWidth(0, 0, 1, 0).BorderColor(p.line).Children(func() {
-		ui.Icon(c, markIcon).Size(52, 52).TextColor(p.accent)
+		ui.Image(c, markIcon).Size(52, 52)
 		ui.Column(c).Gap(4).Children(func() {
-			ui.Text(c, "Kiri").FontSize(20).FontWeight(700).TextColor(p.text)
+			ui.Text(c, "Fabo").FontSize(20).FontWeight(700).TextColor(p.text)
 			remark(c, p, tr("小而快的容器运行时。", "A small, fast container runtime."))
 		})
 	})
 	engine, vm := tr("未运行", "Not running"), ""
 	if s.connected {
-		engine = "Kiri " + s.version.Version + " · Docker API " + s.version.ApiVersion
+		engine = "Fabo " + s.version.Version + " · Docker API " + s.version.ApiVersion
 		switch s.engineState() {
 		case "running":
 			vm = tr("运行中", "Running")

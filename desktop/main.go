@@ -100,7 +100,7 @@ type detail struct {
 type desktop struct {
 	window *mygo.Window
 	engine engineClient
-	// launcher runs this installation's `kiri` command, which makes the
+	// launcher runs this installation's `fabo` command, which makes the
 	// machine-level changes the engine cannot. Nil when there is none.
 	launcher    func(ctx context.Context, args ...string) ([]byte, error)
 	ctx         context.Context
@@ -185,7 +185,7 @@ func newDesktop(engine engineClient) *desktop {
 
 func main() {
 	initial := flag.String("view", containersPage, "initial page")
-	wake := flag.Bool("start", false, "start the Kiri engine")
+	wake := flag.Bool("start", false, "start the Fabo engine")
 	flag.Parse()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -207,7 +207,7 @@ func main() {
 		s.prefs, s.locale = loadPrefs(s.prefsFile), mygo.App.Locale()
 		s.applyTheme()
 		s.window = mygo.NewWindow(mygo.WindowOptions{
-			Title: "Kiri", Width: 1180, Height: 760, MinWidth: 860, MinHeight: 520,
+			Title: "Fabo", Width: 1180, Height: 760, MinWidth: 860, MinHeight: 520,
 			TitleBarStyle: mygo.TitleBarHidden, TitleBarHeight: stripHeight,
 			TrafficLightPosition: &mygo.Point{X: 14, Y: 13},
 			BackgroundColor:      "light-dark(#F3F4F6, #0D1014)", StateKey: "main",
@@ -233,7 +233,7 @@ func main() {
 	}
 }
 
-// findLauncher locates the `kiri` command of this installation: the one
+// findLauncher locates the `fabo` command of this installation: the one
 // KIRI_LAUNCHER names, else the file beside this executable, as in the app
 // bundle. It returns nil when neither exists, as under `go run`.
 func findLauncher() func(ctx context.Context, args ...string) ([]byte, error) {
@@ -243,17 +243,17 @@ func findLauncher() func(ctx context.Context, args ...string) ([]byte, error) {
 		if err != nil {
 			return nil
 		}
-		path = filepath.Join(filepath.Dir(exe), "kiri")
+		path = filepath.Join(filepath.Dir(exe), "fabo")
 	}
 	if info, err := os.Stat(path); err != nil || !info.Mode().IsRegular() {
 		return nil
 	}
 	return func(ctx context.Context, args ...string) ([]byte, error) {
 		out, err := exec.CommandContext(ctx, path, args...).Output()
-		// The launcher explains a failure on stderr as "kiri: <reason>".
+		// The launcher explains a failure on stderr as "fabo: <reason>".
 		var failed *exec.ExitError
 		if errors.As(err, &failed) {
-			if reason := strings.TrimPrefix(strings.TrimSpace(string(failed.Stderr)), "kiri: "); reason != "" {
+			if reason := strings.TrimPrefix(strings.TrimSpace(string(failed.Stderr)), "fabo: "); reason != "" {
 				return out, errors.New(reason)
 			}
 		}
@@ -283,7 +283,7 @@ func (s *desktop) savePrefs() {
 
 func (s *desktop) installTray() {
 	menu := mygo.NewMenu([]*mygo.MenuItem{
-		{Label: "Open Kiri", Click: func(*mygo.MenuItem, *mygo.Window) {
+		{Label: "Open Fabo", Click: func(*mygo.MenuItem, *mygo.Window) {
 			s.window.Show()
 			s.refresh()
 		}},
@@ -291,7 +291,7 @@ func (s *desktop) installTray() {
 		{Role: mygo.RoleQuit},
 	})
 	_, err := mygo.NewTray(mygo.TrayOptions{
-		ID: "kiri", Icon: trayIcon, IconIsTemplate: true, ToolTip: "Kiri", Menu: menu,
+		ID: "kiri", Icon: trayIcon, IconIsTemplate: true, ToolTip: "Fabo", Menu: menu,
 	})
 	if err != nil {
 		// Linux desktops without an indicator can use the window directly.

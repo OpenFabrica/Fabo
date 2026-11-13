@@ -31,7 +31,7 @@ func checkStore(state, legacy string) error {
 		return err
 	}
 	if !empty {
-		return fmt.Errorf("%s holds a Kiri (Rust) store: import it with `kiri migrate-rust`, or set KIRI_ENGINE=go to start with an empty store", legacy)
+		return fmt.Errorf("%s holds a Kiri (Rust) store: import it with `fabo migrate-rust`, or set KIRI_ENGINE=go to start with an empty store", legacy)
 	}
 	return nil
 }

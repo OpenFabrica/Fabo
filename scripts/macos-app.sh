@@ -4,9 +4,9 @@
 #
 #   scripts/macos-app.sh <arm64|x86_64> <version> [flavor]
 #
-# Without a flavor: target/Kiri.app (target/intel/Kiri.app for x86_64),
+# Without a flavor: target/Fabo.app (target/intel/Fabo.app for x86_64),
 # signed for distribution when a Developer ID identity is available.
-# With one (dev, go, ...): target/dev/Kiri <Flavor>.app with the bundle
+# With one (dev, go, ...): target/dev/Fabo <Flavor>.app with the bundle
 # identifier dev.kiri.app.<flavor>, which gives it its own state directory,
 # socket and Finder folder beside the installed app (engine/cmd/kiri/names.go)
 # and a labelled band on its icon. A flavored app is never notarized.
@@ -23,10 +23,10 @@ case $arch in
   x86_64) goarch=amd64 guest=guest/out/x86_64 kernel=bzImage out=target/intel cache=target/cli-cache/x86_64 pin=X86_ docker_arch=x86_64 ;;
   *) echo "arch is arm64 or x86_64, not $arch" >&2; exit 2 ;;
 esac
-name=Kiri id=dev.kiri.app
+name=Fabo id=dev.kiri.app
 if [ -n "$flavor" ]; then
   [[ $flavor =~ ^[a-z0-9]+$ ]] || { echo "a flavor is lowercase letters and digits, not $flavor" >&2; exit 2; }
-  name="Kiri $(printf %s "${flavor:0:1}" | tr a-z A-Z)${flavor:1}" id=dev.kiri.app.$flavor out=$out/dev
+  name="Fabo $(printf %s "${flavor:0:1}" | tr a-z A-Z)${flavor:1}" id=dev.kiri.app.$flavor out=$out/dev
 fi
 for f in "$guest/$kernel" "$guest/initramfs-go.cpio" guest/out/data.img; do
   [ -f "$f" ] || { echo "no $f: run make guest, make kernel and make disk first" >&2; exit 1; }
@@ -40,7 +40,7 @@ mkdir -p "$macos" "$res/guest" "$res/bin/cli-plugins" "$cache"
 # The launcher and the window are pure Go. The engine links Apple's
 # Virtualization framework through cgo.
 export GOOS=darwin GOARCH=$goarch
-CGO_ENABLED=0 go -C engine build -trimpath -o "$root/$macos/kiri" ./cmd/kiri
+CGO_ENABLED=0 go -C engine build -trimpath -o "$root/$macos/fabo" ./cmd/kiri
 CGO_ENABLED=0 go -C desktop build -trimpath -o "$root/$macos/kiri-desktop" .
 CGO_ENABLED=1 CC="clang -arch $arch" MACOSX_DEPLOYMENT_TARGET=14.0 \
   go -C engine build -trimpath -ldflags "-X main.engineRelease=$version" -o "$root/$macos/kiri-go-daemon" ./cmd/kiri-go-daemon
@@ -78,24 +78,24 @@ install -m 755 "$cache/docker-compose-darwin-$docker_arch-$cv" "$res/bin/cli-plu
 install -m 755 "$cache/buildx-$bv.darwin-$goarch" "$res/bin/cli-plugins/docker-buildx"
 
 # The icon, from the brand PNGs. A flavor's gets its band drawn first.
-iconset=target/Kiri.iconset
+iconset=target/Fabo.iconset
 rm -rf "$iconset"
 mkdir -p "$iconset"
 if [ -n "$flavor" ]; then
-  swift scripts/dev-icon.swift brand/icon/png/kiri-app-icon-1024.png target/kiri-flavor-icon.png "$(printf %s "$flavor" | tr a-z A-Z)"
+  swift scripts/dev-icon.swift brand/icon/png/fabo-app-icon-1024.png target/fabo-flavor-icon.png "$(printf %s "$flavor" | tr a-z A-Z)"
 fi
 for size in 16 32 128 256 512; do
   for scale in 1 2; do
     px=$((size * scale)) file=icon_${size}x${size}.png
     [ $scale = 2 ] && file=icon_${size}x${size}@2x.png
     if [ -n "$flavor" ]; then
-      sips -z $px $px target/kiri-flavor-icon.png --out "$iconset/$file" >/dev/null
+      sips -z $px $px target/fabo-flavor-icon.png --out "$iconset/$file" >/dev/null
     else
-      cp "brand/icon/png/kiri-app-icon-$px.png" "$iconset/$file"
+      cp "brand/icon/png/fabo-app-icon-$px.png" "$iconset/$file"
     fi
   done
 done
-iconutil -c icns -o "$res/Kiri.icns" "$iconset"
+iconutil -c icns -o "$res/Fabo.icns" "$iconset"
 rm -rf "$iconset"
 
 # Info.plist's versions are numbers only: 0.1.3-2-g1a2b3c4 is 0.1.3 there.
@@ -108,20 +108,20 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>$name</string>
   <key>CFBundleDisplayName</key><string>$name</string>
   <key>CFBundleIdentifier</key><string>$id</string>
-  <key>CFBundleExecutable</key><string>kiri</string>
-  <key>CFBundleIconFile</key><string>Kiri</string>
+  <key>CFBundleExecutable</key><string>fabo</string>
+  <key>CFBundleIconFile</key><string>Fabo</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$plain</string>
   <key>CFBundleVersion</key><string>$plain</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSLocalNetworkUsageDescription</key><string>Kiri lets containers reach devices and services on your network, and serves the ports they publish.</string>
-  <key>NSDesktopFolderUsageDescription</key><string>Kiri shares this folder with containers you mount it into.</string>
-  <key>NSDocumentsFolderUsageDescription</key><string>Kiri shares this folder with containers you mount it into.</string>
-  <key>NSDownloadsFolderUsageDescription</key><string>Kiri saves files you download from containers here, and shares the folder with containers you mount it into.</string>
-  <key>NSRemovableVolumesUsageDescription</key><string>Kiri shares this drive with containers you mount it into.</string>
-  <key>NSNetworkVolumesUsageDescription</key><string>Kiri shares this network drive with containers you mount it into.</string>
+  <key>NSLocalNetworkUsageDescription</key><string>Fabo lets containers reach devices and services on your network, and serves the ports they publish.</string>
+  <key>NSDesktopFolderUsageDescription</key><string>Fabo shares this folder with containers you mount it into.</string>
+  <key>NSDocumentsFolderUsageDescription</key><string>Fabo shares this folder with containers you mount it into.</string>
+  <key>NSDownloadsFolderUsageDescription</key><string>Fabo saves files you download from containers here, and shares the folder with containers you mount it into.</string>
+  <key>NSRemovableVolumesUsageDescription</key><string>Fabo shares this drive with containers you mount it into.</string>
+  <key>NSNetworkVolumesUsageDescription</key><string>Fabo shares this network drive with containers you mount it into.</string>
 </dict>
 </plist>
 PLIST

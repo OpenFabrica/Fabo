@@ -21,13 +21,13 @@ func sandbox(t *testing.T, id string) *setup {
 	}
 	t.Cleanup(func() { os.RemoveAll(base) })
 	home, root := filepath.Join(base, "home"), filepath.Join(base, "root")
-	contents := filepath.Join(base, "Kiri.app", "Contents")
+	contents := filepath.Join(base, "Fabo.app", "Contents")
 	for _, dir := range []string{home, filepath.Join(root, "var/run"), filepath.Join(root, "usr/local/bin"), filepath.Join(root, "Applications"), filepath.Join(contents, "MacOS"), filepath.Join(contents, "Resources/bin/cli-plugins")} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
-	for _, file := range []string{"Info.plist", "MacOS/kiri", "Resources/bin/docker"} {
+	for _, file := range []string{"Info.plist", "MacOS/fabo", "Resources/bin/docker"} {
 		write(t, filepath.Join(contents, file), "")
 	}
 	for _, env := range []string{"KIRI_SOCKET", "ZDOTDIR", "BUILDX_CONFIG"} {
@@ -98,9 +98,9 @@ func TestCommandLinksAreAddedOnceAndTakenBackExactly(t *testing.T) {
 		t.Fatalf(".zshrc = %q", read(t, zshrc))
 	}
 	for link, want := range map[string]string{
-		filepath.Join(s.binDir(), "kiri"):   filepath.Join(contents, "MacOS/kiri"),
+		filepath.Join(s.binDir(), "fabo"):   filepath.Join(contents, "MacOS/fabo"),
 		filepath.Join(s.binDir(), "docker"): filepath.Join(contents, "Resources/bin/docker"),
-		s.root + systemLink:                 filepath.Join(s.binDir(), "kiri"),
+		s.root + systemLink:                 filepath.Join(s.binDir(), "fabo"),
 	} {
 		if got, _ := os.Readlink(link); got != want {
 			t.Errorf("%s -> %q, want %q", link, got, want)
@@ -160,7 +160,7 @@ func TestAFlavoredAppKeepsToItsOwnFiles(t *testing.T) {
 	if err := s.bundledCLI(s.contents()); err != nil {
 		t.Fatal(err)
 	}
-	if !isFile(filepath.Join(s.in.home, ".kiri-dev/bin/docker")) && !exists(filepath.Join(s.in.home, ".kiri-dev/bin/kiri")) {
+	if !isFile(filepath.Join(s.in.home, ".kiri-dev/bin/docker")) && !exists(filepath.Join(s.in.home, ".kiri-dev/bin/fabo")) {
 		t.Error("no command links in ~/.kiri-dev/bin")
 	}
 	for _, untouched := range []string{filepath.Join(s.in.home, ".zshrc"), filepath.Join(s.in.home, ".zprofile"), filepath.Join(s.docker, "config.json"), s.root + systemLink} {
@@ -235,12 +235,12 @@ func TestTestcontainersFileIsKirisOnlyWhenMarked(t *testing.T) {
 
 func TestAgentPlistNamesThisLauncher(t *testing.T) {
 	s := sandbox(t, "dev.kiri.app.dev")
-	s.in.dir = filepath.Join(s.in.home, "A&B <apps>/Kiri Dev.app/Contents/MacOS")
+	s.in.dir = filepath.Join(s.in.home, "A&B <apps>/Fabo Dev.app/Contents/MacOS")
 	plist := s.agentPlist()
 	for _, want := range []string{
 		"<key>Label</key><string>dev.kiri.daemon.dev</string>",
 		"<array><string>dev.kiri.app.dev</string></array>",
-		"A&amp;B &lt;apps>/Kiri Dev.app/Contents/MacOS/kiri</string><string>daemon</string>",
+		"A&amp;B &lt;apps>/Fabo Dev.app/Contents/MacOS/fabo</string><string>daemon</string>",
 		filepath.Join(s.in.home, ".kiri-dev/daemon.log"),
 	} {
 		if !strings.Contains(plist, want) {
@@ -254,7 +254,7 @@ func TestAgentPlistNamesThisLauncher(t *testing.T) {
 	if !s.agentRunsThis() {
 		t.Error("the agent just written must be recognised as this app's")
 	}
-	s.in.dir = filepath.Join(s.in.home, "elsewhere/Kiri Dev.app/Contents/MacOS")
+	s.in.dir = filepath.Join(s.in.home, "elsewhere/Fabo Dev.app/Contents/MacOS")
 	if s.agentRunsThis() {
 		t.Error("an agent for another copy of the app is not this one's")
 	}
@@ -363,5 +363,47 @@ func TestUninstallLeavesAnotherCopysPluginDirectory(t *testing.T) {
 		if s.in.names.flavored && read(t, config) != before {
 			t.Errorf("%s: config.json was rewritten: %s", id, read(t, config))
 		}
+	}
+}
+
+func TestFaboLinksLeaveAnExistingKiriCommand(t *testing.T) {
+	s := sandbox(t, "dev.kiri.app")
+	legacy := filepath.Join(s.binDir(), "kiri")
+	write(t, legacy, "existing Kiri command")
+	write(t, s.root+"/usr/local/bin/kiri", "existing system Kiri command")
+	if err := s.bundledCLI(s.contents()); err != nil {
+		t.Fatal(err)
+	}
+	if target, err := os.Readlink(filepath.Join(s.binDir(), "fabo")); err != nil || target != s.launcher() {
+		t.Fatalf("Fabo launcher link = %q, %v", target, err)
+	}
+	if read(t, legacy) != "existing Kiri command" || read(t, s.root+"/usr/local/bin/kiri") != "existing system Kiri command" {
+		t.Fatal("replaced an existing Kiri command")
+	}
+	s.unlinkSystem()
+	if exists(s.root+systemLink) || read(t, legacy) != "existing Kiri command" {
+		t.Fatal("Fabo link removal affected Kiri")
+	}
+}
+
+func TestBuildWithFaboKeepsPersistedBuilderChoice(t *testing.T) {
+	s := sandbox(t, "dev.kiri.app.dev")
+	p := s.places()
+	write(t, p.instance(p.builder), `{"Name":"kiri-dev-build","Nodes":[{"Name":"kiri-dev-build0"}]}`)
+	if err := s.buildWith([]string{"fabo"}); err != nil {
+		t.Fatal(err)
+	}
+	if p.saved() != "kiri" {
+		t.Fatal("changed the stored builder choice")
+	}
+	current, err := readJSON(p.current())
+	if err != nil || current["Name"] != "kiri-dev-build" {
+		t.Fatalf("builder = %v, %v", current, err)
+	}
+	if err := s.buildWith([]string{"docker"}); err != nil {
+		t.Fatal(err)
+	}
+	if p.saved() != "docker" {
+		t.Fatal("could not switch back to Docker")
 	}
 }

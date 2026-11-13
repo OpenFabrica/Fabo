@@ -310,12 +310,16 @@ func (s *setup) otherEngine() string {
 	return ""
 }
 
-// buildWith is `kiri build-with [docker|kiri]`: says which, or switches.
+// buildWith is `fabo build-with [docker|fabo]`: says which, or switches.
 func (s *setup) buildWith(args []string) error {
+	// Keep the persisted value "kiri" so existing builder choices still apply.
+	if len(args) == 1 && args[0] == "fabo" {
+		args = []string{"kiri"}
+	}
 	p, other := s.places(), s.otherEngine()
 	if len(args) > 0 {
 		if len(args) != 1 || (args[0] != "docker" && args[0] != "kiri") {
-			return errors.New("usage: kiri build-with [docker|kiri]")
+			return errors.New("usage: fabo build-with [docker|fabo]")
 		}
 		if err := p.choose(args[0]); err != nil {
 			return err
@@ -334,17 +338,17 @@ func (s *setup) buildWith(args []string) error {
 	}
 	switch {
 	case with == "kiri" && !p.ready():
-		fmt.Fprintf(s.out, "docker build builds on Kiri once its builder `%s` is made (`kiri setup` makes it while Kiri runs)\n", p.builder)
+		fmt.Fprintf(s.out, "docker build builds on Fabo once its builder `%s` is made (`fabo setup` makes it while Fabo runs)\n", p.builder)
 	case with == "kiri" && other != "":
-		fmt.Fprintf(s.out, "docker build and docker compose build run on Kiri, whatever docker context is in use; the images are in Kiri, not %s. `kiri build-with docker` switches back\n", other)
+		fmt.Fprintf(s.out, "docker build and docker compose build run on Fabo, whatever docker context is in use; the images are in Fabo, not %s. `fabo build-with docker` switches back\n", other)
 	case with == "kiri":
-		fmt.Fprintf(s.out, "docker build and docker compose build run on Kiri (builder `%s`)\n", p.builder)
+		fmt.Fprintf(s.out, "docker build and docker compose build run on Fabo (builder `%s`)\n", p.builder)
 	default:
 		theirs := ""
 		if other != "" {
 			theirs = fmt.Sprintf(" (%s's builds stay %s's)", other, other)
 		}
-		fmt.Fprintf(s.out, "docker build follows docker's context%s: on Kiri when docker uses Kiri. `kiri build-with kiri` sends every build to Kiri\n", theirs)
+		fmt.Fprintf(s.out, "docker build follows docker's context%s: on Fabo when docker uses Fabo. `fabo build-with fabo` sends every build to Fabo\n", theirs)
 	}
 	return nil
 }

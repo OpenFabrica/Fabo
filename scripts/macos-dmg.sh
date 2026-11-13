@@ -8,7 +8,7 @@
 #
 #   scripts/macos-dmg.sh <arm64|x86_64> <version>
 #
-# Leaves target/Kiri-<version>-<arch>.dmg, signed. When KIRI_NOTARY_PROFILE
+# Leaves target/Fabo-<version>-<arch>.dmg, signed. When KIRI_NOTARY_PROFILE
 # names credentials stored with `xcrun notarytool store-credentials`, the DMG
 # is notarized in one submission and the ticket stapled to the DMG and the
 # app, so Gatekeeper opens both offline. Unset or empty skips that.
@@ -19,8 +19,8 @@ cd "$root"
 DMGBUILD=1.6.7
 
 case $arch in
-  arm64) app=target/Kiri.app volume=Kiri ;;
-  x86_64) app=target/intel/Kiri.app volume="Kiri for Intel" ;;
+  arm64) app=target/Fabo.app volume=Fabo ;;
+  x86_64) app=target/intel/Fabo.app volume="Fabo for Intel" ;;
   *) echo "arch is arm64 or x86_64, not $arch" >&2; exit 2 ;;
 esac
 [ -d "$app" ] || { echo "no $app: run make app first" >&2; exit 1; }
@@ -34,7 +34,7 @@ fi
 mkdir -p target/dmg-background
 swift scripts/dmg-background.swift target/dmg-background/background
 
-dmg=target/Kiri-$version-$arch.dmg
+dmg=target/Fabo-$version-$arch.dmg
 rm -f "$dmg"
 "$venv/bin/dmgbuild" -s scripts/dmg-settings.py -D "app=$app" -D "background=target/dmg-background/background.png" "$volume" "$dmg"
 

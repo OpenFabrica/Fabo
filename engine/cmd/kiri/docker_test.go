@@ -182,7 +182,7 @@ func TestDockerExec(t *testing.T) {
 	server.Close()
 	cmd = exec.Command(os.Args[0], "-test.run=^TestDockerExec$")
 	output, err := cmd.CombinedOutput()
-	if err == nil || !strings.Contains(string(output), "Kiri isn't running") {
+	if err == nil || !strings.Contains(string(output), "Fabo isn't running") {
 		t.Fatalf("stopped engine: %s, %v", output, err)
 	}
 	if err := os.Remove(cli); err != nil {

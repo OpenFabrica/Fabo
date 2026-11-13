@@ -14,7 +14,7 @@ import (
 )
 
 // import belongs to Kiri's migration command. On macOS update belongs to
-// the application updater; container updates use `kiri container update`.
+// the application updater; container updates use `fabo container update`.
 func handlesDocker(command string) bool {
 	if command == "update" && runtime.GOOS == "darwin" {
 		return false
@@ -29,13 +29,13 @@ run save search start stats stop system tag top unpause update version volume wa
 func (i installation) runDocker(args []string) error {
 	docker := i.dockerCLI()
 	if docker == "" {
-		return errors.New("no docker CLI found; open Kiri once to set it up")
+		return errors.New("no docker CLI found; open Fabo once to set it up")
 	}
 	client := socketClient(i.socket())
 	running := alive(client)
 	client.CloseIdleConnections()
 	if !running {
-		return errors.New("Kiri isn't running. Open Kiri, or start it with `kiri daemon`")
+		return errors.New("Fabo isn't running. Open Fabo, or start it with `fabo daemon`")
 	}
 	return syscall.Exec(docker, append([]string{docker}, args...), i.dockerEnvironment())
 }

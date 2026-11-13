@@ -5,7 +5,7 @@ import (
 )
 
 // prepareDesktop sets the Mac up the first time the app is opened from
-// Finder or the Dock. `kiri ui` from a shell changes nothing.
+// Finder or the Dock. `fabo ui` from a shell changes nothing.
 func (i installation) prepareDesktop(args []string) error {
 	if s := newSetup(i); len(args) == 0 && s.launchedFromApp() {
 		return s.firstLaunch()

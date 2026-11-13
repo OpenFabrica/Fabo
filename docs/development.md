@@ -14,15 +14,15 @@ make check     # vet and test engine and desktop; compile the Linux-only tests
 make guest     # guest/out/kiri-go-init and guest/out/initramfs-go.cpio
 make kernel    # guest/out/Image
 make disk      # guest/out/data.img (sparse 64 GiB ext4 template)
-make app       # target/Kiri.app
-make app-dev   # target/dev/Kiri Dev.app, a second installation with its own state
-make dmg       # target/Kiri-<version>-arm64.dmg from the app
-make linux     # target/linux/release: kiri, kiri-go-daemon, kiri-go-init
+make app       # target/Fabo.app
+make app-dev   # target/dev/Fabo Dev.app, a second installation with its own state
+make dmg       # target/Fabo-<version>-arm64.dmg from the app
+make linux     # target/linux/release: fabo, kiri-go-daemon, kiri-go-init
 ```
 
 For Intel Macs add `ARCH=x86_64` to `guest`, `kernel`, `daemon`, `app` and
 `dmg`: an x86-64 guest in `guest/out/x86_64` (a `bzImage`, cross-compiled on
-Apple Silicon) and `target/intel/Kiri.app` with Intel builds of the docker
+Apple Silicon) and `target/intel/Fabo.app` with Intel builds of the docker
 CLI, Compose and buildx. Each Mac gets its own app rather than one universal
 app, which would carry both builds of the docker tools. On Intel there is no
 Rosetta for Linux: amd64 images run natively, and images with no amd64 build
@@ -42,40 +42,40 @@ once, in `packaging/cli-pins.env`.
 `make app-dev` is the build to try changes with. Its bundle identifier,
 `dev.kiri.app.dev`, gives it `~/.kiri-dev` and `~/Kiri Dev` instead of the
 installed app's `~/.kiri` and `~/Kiri`, and it leaves the default domain
-ports alone. `FLAVOR=name` builds `Kiri <Name>.app` with `~/.kiri-<name>`.
+ports alone. `FLAVOR=name` builds `Fabo <Name>.app` with `~/.kiri-<name>`.
 
 ```sh
 KIRI_SIGN_IDENTITY=- make app-dev
-open "target/dev/Kiri Dev.app"                 # sets up, starts the engine, opens the window
+open "target/dev/Fabo Dev.app"                 # sets up, starts the engine, opens the window
 docker --context kiri-dev run --rm alpine echo hello
 SOAK=600 DOCKER_CONTEXT=kiri-dev tests/e2e.sh  # every check, then 600 runs watching for leaks
-"target/dev/Kiri Dev.app/Contents/MacOS/kiri" setup --uninstall   # takes the setup back
+"target/dev/Fabo Dev.app/Contents/MacOS/fabo" setup --uninstall   # takes the setup back
 ```
 
-Opening the app from Finder sets the Mac up the first time, as `kiri setup`
-does: a docker context for the installation, `kiri` and `docker` in its bin
+Opening the app from Finder sets the Mac up the first time, as `fabo setup`
+does: a docker context for the installation, `fabo` and `docker` in its bin
 directory, a LaunchAgent that starts the engine at login, and a buildx
 builder that loads what it builds into the engine. The installed app
-(`dev.kiri.app`) also puts `~/.kiri/bin` on PATH, links `/usr/local/bin/kiri`,
+(`dev.kiri.app`) also puts `~/.kiri/bin` on PATH, links `/usr/local/bin/fabo`,
 adds its Compose and buildx to docker's plugin path, makes its context
 docker's default when there is no other engine, and points Testcontainers
-at the engine. A flavored app leaves all of those alone. `kiri setup
+at the engine. A flavored app leaves all of those alone. `fabo setup
 --uninstall` takes back exactly what setup did and stops the engine; the
 data stays. `DOCKER_CONFIG` redirects everything setup writes for docker,
 which keeps a trial run out of `~/.docker`.
 
-The launcher's commands: `kiri` or `kiri ui` opens the window, and starts
-the engine first when nothing answers on the socket. `kiri daemon` runs the
-engine in the foreground. `kiri setup` and `kiri build-with` are above.
-`kiri migrate-rust` imports an offline Kiri (Rust) store, as
-[desktop-overview.md](desktop-overview.md) describes. `kiri run`, `kiri ps`, `kiri exec`, `kiri compose` and the other Docker
+The launcher's commands: `fabo` or `fabo ui` opens the window, and starts
+the engine first when nothing answers on the socket. `fabo daemon` runs the
+engine in the foreground. `fabo setup` and `fabo build-with` are above.
+`fabo migrate-rust` imports an offline Kiri (Rust) store, as
+[desktop-overview.md](desktop-overview.md) describes. `fabo run`, `fabo ps`, `fabo exec`, `fabo compose` and the other Docker
 commands use this installation's socket regardless of the selected Docker
 context. The engine must already be running. Arguments, terminal I/O and
 exit status pass directly to the Docker CLI on PATH (or the bundled CLI).
 An explicit `BUILDX_BUILDER` is preserved; otherwise a registered builder
-for this installation is selected. On macOS, use `kiri container update`
-for container resources: `kiri update` is reserved for the app updater.
-Kiri's other commands (`k8s`, `machine`, `import`, `bench`) have no Go
+for this installation is selected. On macOS, use `fabo container update`
+for container resources: `fabo update` is reserved for the app updater.
+Kiri's other commands (`k8s`, `machine`, `import`, `usb`, `bench`, `raw`) have no Go
 counterpart yet; see the [baseline](compatibility-baseline.md).
 
 The engine never writes to a Kiri (Rust) store. When

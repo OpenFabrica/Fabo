@@ -4,6 +4,10 @@
 
 目标是保留 Kiri 的 Docker API、现有客户端工作流和数据迁移能力，容器引擎与 guest agent 用 Go 实现，MyGo 承担主窗口和托盘。Docker CLI 的交互与流式能力属于引擎兼容范围。上游由 Rust 提供的其余功能按下面的「待对齐功能」逐步补回。架构和构建方式见[开发说明](development.md)和[桌面与引擎说明](desktop-overview.md)。
 
+## Fabo 品牌入口（2026-11-13）
+
+应用显示名和图标已切换为 Fabo，公开命令入口为 `fabo`。下文历史验证记录保留当时的 `kiri` 拼写；现行构建产物、兼容标识和验证方式见[品牌与命令入口](branding.md)。
+
 ## 移除 Rust 之后
 
 2026-11-11 删除了全部 Rust 代码（`crates/`、`xtask/`、Cargo 配置）以及只为它服务的 WebView 页面测试。原来由 Rust 承担的启动和构建改由 Go 完成，并在本机验证过：

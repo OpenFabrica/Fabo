@@ -17,8 +17,8 @@ func (s *setup) agentPath() string {
 	return filepath.Join(s.in.home, "Library", "LaunchAgents", s.in.names.agent+".plist")
 }
 
-// launcher is this installation's `kiri`, the program the agent runs.
-func (s *setup) launcher() string { return filepath.Join(s.in.dir, "kiri") }
+// launcher is this installation's `fabo`, the program the agent runs.
+func (s *setup) launcher() string { return filepath.Join(s.in.dir, "fabo") }
 
 // xmlText escapes a path for a plist string.
 func xmlText(text string) string {
@@ -31,7 +31,7 @@ func (s *setup) agentProgram() string {
 	return "<string>" + xmlText(s.launcher()) + "</string><string>daemon</string>"
 }
 
-// agentPlist is a LaunchAgent for `kiri daemon`: started at login, restarted
+// agentPlist is a LaunchAgent for `fabo daemon`: started at login, restarted
 // if it crashes, never restarted after a clean exit. The bundle identifier
 // makes macOS say the app's name in Login Items rather than the name on the
 // signing certificate.

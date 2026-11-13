@@ -34,12 +34,12 @@ func (s *setup) ensureBuilder() (bool, error) {
 	defer client.CloseIdleConnections()
 	for deadline := time.Now().Add(5 * time.Second); !alive(client); time.Sleep(200 * time.Millisecond) {
 		if time.Now().After(deadline) {
-			return false, errors.New("the Kiri daemon isn't answering yet")
+			return false, errors.New("the Fabo daemon isn't answering yet")
 		}
 	}
 	builder, context := s.in.names.builder, s.in.names.context
 	if exec.Command(docker, "buildx", "version").Run() != nil {
-		fmt.Fprintln(s.out, "docker build: no buildx plugin here, so docker builds with Kiri's classic builder API (the same BuildKit, run by the daemon)")
+		fmt.Fprintln(s.out, "docker build: no buildx plugin here, so docker builds with Fabo's classic builder API (the same BuildKit, run by the daemon)")
 		return false, nil
 	}
 	inspect, err := exec.Command(docker, "buildx", "inspect", builder).Output()

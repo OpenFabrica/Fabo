@@ -9,11 +9,11 @@ import (
 // there is nothing for the launcher to set up.
 
 func setupCommand([]string) error {
-	return errors.New("kiri setup is for macOS; on Linux the package sets the engine up")
+	return errors.New("fabo setup is for macOS; on Linux the package sets the engine up")
 }
 
 func buildWithCommand([]string) error {
-	return errors.New("kiri build-with is not available on Linux yet")
+	return errors.New("fabo build-with is not available on Linux yet")
 }
 
 // domainsCommand has nothing to switch: Linux has *.kiri.localhost only.

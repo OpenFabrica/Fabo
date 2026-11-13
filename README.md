@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="brand/logo/fabribay-open-container.png" alt="FabriBay 标志" width="120">
+  <img src="brand/logo/fabo-open-container.png" alt="Fabo 标志" width="120">
 </p>
 
-<h1 align="center">FabriBay</h1>
+<h1 align="center">Fabo</h1>
 
 <p align="center">
   <b>OpenFabrica 的本地容器引擎与桌面管理工具</b><br>
@@ -22,21 +22,21 @@
 
 ## 当前状态
 
-FabriBay 是独立项目，源码只有 Go：引擎（`engine/`）和桌面（`desktop/`）。二进制、Docker context 和状态目录暂时沿用 Kiri 的名字。
+Fabo 是独立项目，源码只有 Go：引擎（`engine/`）和桌面（`desktop/`）。应用显示为 Fabo，命令入口为 `fabo`；Docker context、状态目录和内部协议暂时沿用 Kiri 的标识，详见[品牌与命令入口](docs/branding.md)。
 
-- 能用的：macOS 上的 Go 引擎和虚拟机、MyGo 主窗口和托盘、通过 `docker` CLI 使用的容器、镜像、网络、卷、Compose 和 Buildx，以及从 Kiri（Rust）离线导入数据。
-- 还没有的：Docker 命令透传、`k8s`、`machine` 等命令行、原 WebView 窗口的高级功能、Windows 宿主、Linux 安装包、自动更新。完整清单和验证结果见[功能对齐基线](docs/compatibility-baseline.md)。
+- 能用的：macOS 上的 Go 引擎和虚拟机、MyGo 主窗口和托盘、通过 `docker` CLI 使用的容器、镜像、网络、卷、Compose 和 Buildx、`fabo` Docker 命令透传，以及从 Kiri（Rust）离线导入数据。
+- 还没有的：`k8s`、`machine`、`import`、`usb` 等命令行、原 WebView 窗口的高级功能、Windows 宿主、Linux 安装包、自动更新。完整清单和验证结果见[功能对齐基线](docs/compatibility-baseline.md)。
 
 ```sh
 make guest kernel disk                 # guest，内核和数据盘模板各做一次
-KIRI_SIGN_IDENTITY=- make app-dev      # target/dev/Kiri Dev.app，与已安装的 Kiri 并存
-open "target/dev/Kiri Dev.app"         # 首次打开会注册 kiri-dev context、builder 和登录自启
+KIRI_SIGN_IDENTITY=- make app-dev      # target/dev/Fabo Dev.app，与已安装的 Kiri 并存
+open "target/dev/Fabo Dev.app"         # 首次打开会注册 kiri-dev context、builder 和登录自启
 docker --context kiri-dev run --rm alpine echo hello
 ```
 
 ## 上游 Kiri
 
-以下为上游 Kiri 的介绍和安装说明，是 FabriBay 对齐的目标，其中的 `kiri` 子命令和安装包不等于本仓库现状。
+以下为上游 Kiri 的介绍和安装说明，是 Fabo 对齐的目标，其中的 `kiri` 子命令和安装包不等于本仓库现状。
 
 <p align="center">
   <img src="docs/images/kiri-window.png" alt="The Kiri window, showing containers grouped by Compose project with their state, ports, local domains and size" width="900">

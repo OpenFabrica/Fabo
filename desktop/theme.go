@@ -153,10 +153,16 @@ func lineIcon(shape string) *ui.SVG {
 	return ui.MustParseSVG([]byte(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">` + shape + `</svg>`))
 }
 
-//go:embed fabribay-mark.svg
-var markSVG []byte
+//go:embed fabo-mark.png
+var markPNG []byte
 
-var markIcon = ui.MustParseSVG(markSVG)
+var markIcon = func() *ui.Bitmap {
+	icon, err := ui.DecodeBitmap(markPNG)
+	if err != nil {
+		panic(err)
+	}
+	return icon
+}()
 
 // icons are the line icons of the design, on a 24 unit grid.
 var icons = map[string]*ui.SVG{

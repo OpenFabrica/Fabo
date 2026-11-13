@@ -12,14 +12,14 @@ import (
 	"time"
 )
 
-// `kiri setup` makes this Mac use the engine, without touching anything
+// `fabo setup` makes this Mac use the engine, without touching anything
 // another engine owns:
 //
 //   - a docker context for this installation (--use also makes it current)
-//   - a LaunchAgent that starts `kiri daemon` at login (--no-agent skips it)
-//   - `docker` and `kiri` in ~/.kiri/bin, which a marked line in the shell
+//   - a LaunchAgent that starts `fabo daemon` at login (--no-agent skips it)
+//   - `docker` and `fabo` in ~/.kiri/bin, which a marked line in the shell
 //     profiles adds to the end of PATH, so a docker CLI already installed
-//     keeps priority; and /usr/local/bin/kiri when that directory is the user's
+//     keeps priority; and /usr/local/bin/fabo when that directory is the user's
 //   - on a Mac with no other Docker engine, this context as docker's default
 //   - a buildx builder that loads what it builds into the engine, and the
 //     choice of builder for plain `docker build` (buildwith_darwin.go)
@@ -28,7 +28,7 @@ import (
 //   - with --domains, /etc/resolver/kiri.local (domains_darwin.go), which
 //     asks for an administrator's password
 //
-// `kiri setup --uninstall` takes back exactly those.
+// `fabo setup --uninstall` takes back exactly those.
 //
 // A flavored app sets up only its own: its context, LaunchAgent, builder
 // and bin directory. PATH, docker's default context and Testcontainers stay
@@ -66,7 +66,7 @@ func (s *setup) contents() string {
 	return contents
 }
 
-// setupCommand is `kiri setup [--use] [--no-agent] | --domains | --uninstall`.
+// setupCommand is `fabo setup [--use] [--no-agent] | --domains | --uninstall`.
 func setupCommand(args []string) error {
 	in, err := locate()
 	if err != nil {
@@ -75,7 +75,7 @@ func setupCommand(args []string) error {
 	return newSetup(in).run(args)
 }
 
-// buildWithCommand is `kiri build-with [docker|kiri]`.
+// buildWithCommand is `fabo build-with [docker|fabo]`.
 func buildWithCommand(args []string) error {
 	in, err := locate()
 	if err != nil {
@@ -98,9 +98,9 @@ func (s *setup) run(args []string) error {
 			fmt.Fprintln(s.out, "containers answer at http://<name>.kiri.local")
 			return nil
 		case "--docker-socket":
-			return fmt.Errorf("kiri setup %s is not available in this build yet", arg)
+			return fmt.Errorf("fabo setup %s is not available in this build yet", arg)
 		default:
-			return errors.New("usage: kiri setup [--use] [--no-agent] | kiri setup --domains | kiri setup --uninstall")
+			return errors.New("usage: fabo setup [--use] [--no-agent] | fabo setup --domains | fabo setup --uninstall")
 		}
 	}
 	if flags["--uninstall"] {
@@ -121,7 +121,7 @@ func (s *setup) run(args []string) error {
 		if err := s.useContext(); err != nil {
 			return err
 		}
-		fmt.Fprintln(s.out, "docker now uses Kiri by default (`docker context use default` to switch back)")
+		fmt.Fprintln(s.out, "docker now uses Fabo by default (`docker context use default` to switch back)")
 	}
 	if contents := s.contents(); contents != "" {
 		if err := s.bundledCLI(contents); err != nil {
@@ -133,15 +133,15 @@ func (s *setup) run(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(s.out, "kiri daemon starts at login (%s)\n", plist)
+		fmt.Fprintf(s.out, "fabo daemon starts at login (%s)\n", plist)
 	}
 	switch made, err := s.ensureBuilder(); {
 	case err != nil:
-		fmt.Fprintf(s.out, "docker build: the `%s` builder comes later (%v); opening the app makes it once Kiri is running\n", n.builder, err)
+		fmt.Fprintf(s.out, "docker build: the `%s` builder comes later (%v); opening the app makes it once Fabo is running\n", n.builder, err)
 	case made && s.places().saved() == "kiri":
-		fmt.Fprintf(s.out, "docker build uses BuildKit in Kiri (builder `%s`)\n", n.builder)
+		fmt.Fprintf(s.out, "docker build uses BuildKit in Fabo (builder `%s`)\n", n.builder)
 	case made:
-		fmt.Fprintln(s.out, "docker build follows docker's context, and builds on Kiri when docker uses Kiri (`kiri build-with kiri` sends every build to Kiri)")
+		fmt.Fprintln(s.out, "docker build follows docker's context, and builds on Fabo when docker uses Fabo (`fabo build-with fabo` sends every build to Fabo)")
 	}
 	if !n.flavored {
 		fmt.Fprintln(s.out, s.socketNote())
@@ -157,7 +157,7 @@ func (s *setup) launchedFromApp() bool {
 }
 
 // firstLaunch is what opening the app does before the window: the same as
-// `kiri setup`, quietly. Once the LaunchAgent starts this copy of the app,
+// `fabo setup`, quietly. Once the LaunchAgent starts this copy of the app,
 // only the command links are refreshed.
 func (s *setup) firstLaunch() error {
 	s.out = io.Discard
@@ -197,7 +197,7 @@ func (s *setup) uninstall() error {
 		s.unlinkSystem()
 	}
 	_ = os.Remove(filepath.Join(s.binDir(), "docker"))
-	_ = os.Remove(filepath.Join(s.binDir(), "kiri"))
+	_ = os.Remove(filepath.Join(s.binDir(), "fabo"))
 	if !n.flavored {
 		if err := s.removeShellPath(); err != nil {
 			fmt.Fprintf(s.out, "could not tidy the shell profiles (%v)\n", err)
@@ -216,7 +216,7 @@ func (s *setup) uninstall() error {
 // stopOthers asks every other process running this app's executables to
 // quit, and makes them after the engine has had time to stop its containers.
 func (s *setup) stopOthers() {
-	pattern := "^" + regexp.QuoteMeta(s.in.dir) + "/(kiri|kiri-go-daemon|kiri-desktop)( |$)"
+	pattern := "^" + regexp.QuoteMeta(s.in.dir) + "/(fabo|kiri|kiri-go-daemon|kiri-desktop)( |$)"
 	me := fmt.Sprint(os.Getpid())
 	others := func() []string {
 		out, _ := exec.Command("/usr/bin/pgrep", "-f", pattern).Output()

@@ -16,7 +16,7 @@ import (
 func (i installation) engine() (string, error) {
 	engine := filepath.Join(i.dir, "kiri-go-daemon")
 	if info, err := os.Stat(engine); err != nil || !info.Mode().IsRegular() {
-		return "", fmt.Errorf("no kiri-go-daemon in %s: run kiri from the app bundle", i.dir)
+		return "", fmt.Errorf("no kiri-go-daemon in %s: run fabo from the app bundle", i.dir)
 	}
 	return engine, nil
 }
@@ -70,7 +70,7 @@ func (i installation) daemonCommand() (string, []string, error) {
 		kernel = "bzImage"
 	}
 	if _, err := os.Stat(filepath.Join(guest, kernel)); err != nil {
-		return "", nil, fmt.Errorf("no guest kernel in %s: run kiri from the app bundle", guest)
+		return "", nil, fmt.Errorf("no guest kernel in %s: run fabo from the app bundle", guest)
 	}
 	memory, err := defaultMemoryMiB()
 	if err != nil {

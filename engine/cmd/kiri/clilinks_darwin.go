@@ -7,7 +7,8 @@ import (
 	"strings"
 )
 
-// profileMark is the marked line Kiri adds to shell profiles, and removes on uninstall.
+// profileMark retains the installed ownership marker so existing profiles
+// are recognized and uninstall can remove the same marked block.
 const profileMark = "# Added by Kiri: its docker and kiri commands (kiri setup --uninstall removes this)"
 
 // shLine adds ~/.kiri/bin to the end of PATH once, however many of the
@@ -20,14 +21,14 @@ const oldShLine = `export PATH="$PATH:$HOME/.kiri/bin"`
 
 const fishLine = "fish_add_path --append $HOME/.kiri/bin"
 
-// systemLink is /usr/local/bin/kiri: on every shell's PATH already, so
-// `kiri` works even in a terminal opened before the app was.
-const systemLink = "/usr/local/bin/kiri"
+// systemLink is /usr/local/bin/fabo: on every shell's PATH already, so
+// `fabo` works even in a terminal opened before the app was.
+const systemLink = "/usr/local/bin/fabo"
 
 // binDir is ~/.kiri/bin, or a flavor's own.
 func (s *setup) binDir() string { return filepath.Join(s.in.root(), "bin") }
 
-// bundledCLI links `kiri` and the app's `docker` into the bin directory,
+// bundledCLI links `fabo` and the app's `docker` into the bin directory,
 // puts that directory on PATH, and adds docker's plugins (Compose, buildx)
 // to the CLI's plugin search path. A flavored app's commands are run by
 // path and its plugins stay its own.
@@ -36,15 +37,15 @@ func (s *setup) bundledCLI(contents string) error {
 	if err := os.MkdirAll(bin, 0o755); err != nil {
 		return err
 	}
-	kiri := filepath.Join(bin, "kiri")
-	if err := relink(filepath.Join(contents, "MacOS", "kiri"), kiri); err != nil {
+	fabo := filepath.Join(bin, "fabo")
+	if err := relink(filepath.Join(contents, "MacOS", "fabo"), fabo); err != nil {
 		return err
 	}
 	if !s.in.names.flavored {
 		if err := s.shellPath(); err != nil {
 			return err
 		}
-		s.linkSystem(kiri)
+		s.linkSystem(fabo)
 	}
 	tools := filepath.Join(contents, "Resources", "bin")
 	if !isFile(filepath.Join(tools, "docker")) {
@@ -54,7 +55,7 @@ func (s *setup) bundledCLI(contents string) error {
 		return err
 	}
 	if s.in.names.flavored {
-		fmt.Fprintf(s.out, "docker and kiri commands: %s\n", bin)
+		fmt.Fprintf(s.out, "docker and fabo commands: %s\n", bin)
 		return nil
 	}
 	if err := s.defaultContext(); err != nil {
@@ -63,7 +64,7 @@ func (s *setup) bundledCLI(contents string) error {
 	if err := s.addPluginDir(filepath.Join(tools, "cli-plugins")); err != nil {
 		return err
 	}
-	fmt.Fprintf(s.out, "docker and kiri commands: %s (on PATH in new terminal windows)\n", bin)
+	fmt.Fprintf(s.out, "docker and fabo commands: %s (on PATH in new terminal windows)\n", bin)
 	return nil
 }
 
@@ -73,34 +74,34 @@ func relink(target, link string) error {
 	return os.Symlink(target, link)
 }
 
-// linkSystem makes /usr/local/bin/kiri when the user can write there
+// linkSystem makes /usr/local/bin/fabo when the user can write there
 // (Homebrew on Intel Macs makes it theirs). Missing, or a link an older Kiri
 // left, it is made again to this one. Anything else there is not Kiri's to
 // replace.
-func (s *setup) linkSystem(kiri string) {
+func (s *setup) linkSystem(fabo string) {
 	link := s.root + systemLink
 	replace := false
 	if target, err := os.Readlink(link); err == nil {
-		replace = target != kiri && (kiriLink(target) || !exists(link))
+		replace = target != fabo && (faboLink(target) || !exists(link))
 	} else if _, err := os.Lstat(link); err != nil {
 		replace = true
 	}
 	if replace {
-		_ = relink(kiri, link)
+		_ = relink(fabo, link)
 	}
 }
 
-// kiriLink reports whether a link target is some Kiri's `kiri`: inside an
+// faboLink reports whether a link target is a Fabo installation's command: inside an
 // app bundle, or a Kiri bin directory.
-func kiriLink(target string) bool {
-	return strings.HasSuffix(target, "/kiri") &&
+func faboLink(target string) bool {
+	return strings.HasSuffix(target, "/fabo") &&
 		(strings.Contains(target, ".app/Contents/MacOS/") || strings.Contains(target, "/.kiri/bin/") || strings.Contains(target, "/.kiri-dev/bin/"))
 }
 
-// unlinkSystem removes /usr/local/bin/kiri when it is the link linkSystem makes.
+// unlinkSystem removes /usr/local/bin/fabo when it is the link linkSystem makes.
 func (s *setup) unlinkSystem() {
 	link := s.root + systemLink
-	if target, err := os.Readlink(link); err == nil && target == filepath.Join(s.binDir(), "kiri") {
+	if target, err := os.Readlink(link); err == nil && target == filepath.Join(s.binDir(), "fabo") {
 		_ = os.Remove(link)
 	}
 }
@@ -108,7 +109,7 @@ func (s *setup) unlinkSystem() {
 // profile is a shell profile and the line that belongs in it.
 type profile struct{ file, line string }
 
-// profiles are the shell profiles Kiri puts ~/.kiri/bin in, so `kiri` is
+// profiles are the shell profiles Kiri puts ~/.kiri/bin in, so `fabo` is
 // found in every terminal:
 //   - zsh (the macOS default) reads .zprofile only in login shells, which
 //     Terminal opens but VS Code, tmux and IDE terminals do not, and a

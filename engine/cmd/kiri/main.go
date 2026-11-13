@@ -1,6 +1,6 @@
 //go:build linux || darwin
 
-// kiri is the entry point of the app bundle and the Linux packages. It
+// fabo is the entry point of the app bundle and the Linux packages. It
 // starts the Go engine with the installation's paths and opens the desktop.
 package main
 
@@ -12,20 +12,23 @@ import (
 	"syscall"
 )
 
-const usage = `usage: kiri [ui [-view PAGE] [-start]]   open the desktop window
-       kiri COMMAND                     docker commands on this engine: run, ps, exec, compose, ...
-       kiri daemon                       run the engine in the foreground
-       kiri setup [--use] [--no-agent]   docker context, commands on PATH, start at login, build builder
-       kiri setup --uninstall            take all of that back; data stays
-       kiri build-with [docker|kiri]     which builder plain docker build uses
-       kiri domains [local|https on|off] container names at *.kiri.local, and HTTPS for them
-       kiri migrate-rust [OPTIONS]       import an offline Kiri (Rust) store
+const usage = `usage: fabo [ui [-view PAGE] [-start]]   open the desktop window
+       fabo COMMAND                     docker commands on this engine: run, ps, exec, compose, ...
+       fabo daemon                       run the engine in the foreground
+       fabo setup [--use] [--no-agent]   docker context, commands on PATH, start at login, build builder
+       fabo setup --uninstall            take all of that back; data stays
+       fabo build-with [docker|fabo]     which builder plain docker build uses
+       fabo domains [local|https on|off] container names at *.kiri.local, and HTTPS for them
+       fabo migrate-rust [OPTIONS]       import an offline Kiri (Rust) store
 `
 
 func main() {
 	args := os.Args[1:]
 	var err error
 	switch {
+	case len(args) == 1 && (args[0] == "--help" || args[0] == "-h"):
+		fmt.Print(usage)
+		return
 	case len(args) == 0 || args[0] == "ui":
 		err = openDesktop(args)
 	case args[0] == "daemon":
@@ -49,8 +52,8 @@ func main() {
 		os.Exit(2)
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "kiri:", err)
-		// Only for the window: the LaunchAgent's `kiri daemon` is restarted
+		fmt.Fprintln(os.Stderr, "fabo:", err)
+		// Only for the window: the LaunchAgent's `fabo daemon` is restarted
 		// when it fails, and must not raise a dialog each time.
 		if len(args) == 0 {
 			reportFailure(err)
@@ -61,7 +64,7 @@ func main() {
 
 // installation is where this executable lives and the names it runs under.
 type installation struct {
-	dir   string // directory holding kiri, with symlinks resolved
+	dir   string // directory holding fabo, with symlinks resolved
 	home  string
 	names names
 }

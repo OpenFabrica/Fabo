@@ -33,14 +33,14 @@ const (
 // errCanceled is a password prompt the user closed: a choice, not a failure.
 var errCanceled = errors.New("canceled")
 
-// domainState is what `kiri domains` prints for the desktop window.
+// domainState is what `fabo domains` prints for the desktop window.
 type domainState struct {
 	On     bool   `json:"on"`     // *.kiri.local resolves to the engine
 	Suffix string `json:"suffix"` // the suffix links should carry
 	HTTPS  bool   `json:"https"`  // the authority is trusted for websites
 }
 
-// domainsCommand is `kiri domains [local on|off | https on|off]`. With no
+// domainsCommand is `fabo domains [local on|off | https on|off]`. With no
 // argument it prints the state as JSON.
 func domainsCommand(args []string) error {
 	in, err := locate()
@@ -58,7 +58,7 @@ func domainsCommand(args []string) error {
 	case args[0] == "https":
 		return s.https(on)
 	}
-	return errors.New("usage: kiri domains [local on|off | https on|off]")
+	return errors.New("usage: fabo domains [local on|off | https on|off]")
 }
 
 // domainState reads both settings from the machine.
@@ -93,7 +93,7 @@ func (s *setup) localNames(on bool) error {
 			return err
 		}
 		defer os.Remove(tmp.Name())
-		_, err = tmp.WriteString("# Kiri: container names (kiri setup --uninstall removes this)\nnameserver 127.0.0.1\nport " + resolverPort + "\n")
+		_, err = tmp.WriteString("# Kiri: container names (fabo setup --uninstall removes this)\nnameserver 127.0.0.1\nport " + resolverPort + "\n")
 		if closeErr := tmp.Close(); err == nil {
 			err = closeErr
 		}
