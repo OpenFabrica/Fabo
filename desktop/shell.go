@@ -84,6 +84,7 @@ func (s *desktop) view(c *ui.Context) {
 
 	s.reapClosedSessions()
 	s.syncLogStreams()
+	s.importWatch()
 	s.visible = s.visible[:0]
 	// The window is a grey shell: the title strip and the sidebar sit on
 	// it, and the page is a white card beside them. A page that shows a
@@ -107,11 +108,15 @@ func (s *desktop) view(c *ui.Context) {
 						panel()
 					}
 				})
+				s.importStrip(c, p)
+				s.switchCardView(c, p)
 			})
 		})
 	})
 	s.confirm(c, p)
 	s.dialog(c, p)
+	s.reviewWindow(c, p)
+	s.switchDialog(c, p)
 	for _, notice := range s.notices {
 		c.Toast(notice)
 	}

@@ -968,6 +968,13 @@ type fakeLauncher struct {
 }
 
 func (l *fakeLauncher) run(_ context.Context, args ...string) ([]byte, error) {
+	// `fabo import`, for the Import pane's screenshots.
+	if args[0] == "import" {
+		if args[1] == "--sources" {
+			return []byte(`[{"id":"orbstack","label":"OrbStack","running":true},{"id":"desktop-linux","label":"Docker Desktop","running":false}]`), nil
+		}
+		return []byte(`{"source":"orbstack","images":[{"name":"postgres:16","detail":"432MB","have":false},{"name":"redis:7","detail":"117MB","have":true}],"volumes":[{"name":"pgdata","have":false}],"containers":[{"name":"db","detail":"postgres:16 · exited","have":false}]}`), nil
+	}
 	if len(args) == 1 {
 		l.state.Suffix = map[bool]string{false: "fabo.localhost", true: "fabo.local"}[l.state.On]
 		return json.Marshal(l.state)

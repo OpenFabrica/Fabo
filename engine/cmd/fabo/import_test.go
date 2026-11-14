@@ -119,3 +119,46 @@ esac
 		t.Fatal(calls)
 	}
 }
+
+// TestImportMachineReadableModes covers the desktop's two entry points:
+// --sources and --json parse, and sources skip a missing context, a context
+// pointing back at this engine, and mark a silent engine as not running.
+func TestImportMachineReadableModes(t *testing.T) {
+	if o, e := parseImport([]string{"--sources"}); e != nil || !o.sources {
+		t.Fatal(o, e)
+	}
+	if o, e := parseImport([]string{"desktop-linux", "--json"}); e != nil || !o.asJSON || o.source != "desktop-linux" {
+		t.Fatal(o, e)
+	}
+	if _, e := parseImport([]string{"orbstack", "--sources"}); e == nil {
+		t.Fatal("--sources after a source accepted")
+	}
+	dir := t.TempDir()
+	t.Setenv("FABO_SOCKET", filepath.Join(dir, "fabo.sock"))
+	t.Setenv("IMPORT_TEST_DIR", dir)
+	docker := filepath.Join(dir, "docker")
+	// orbstack answers; desktop-linux's context is missing.
+	script := `#!/bin/sh
+case "$2 $3 $4" in
+  "orbstack context inspect") echo unix:///tmp/orbstack.sock ;;
+  "orbstack version --format") echo 27.0 ;;
+  *) exit 1 ;;
+esac
+`
+	if e := os.WriteFile(docker, []byte(script), 0700); e != nil {
+		t.Fatal(e)
+	}
+	in := installation{home: dir, names: namesFor("")}
+	got := listImportSources(context.Background(), in, docker)
+	if !reflect.DeepEqual(got, []importSourceInfo{{"orbstack", "OrbStack", true}}) {
+		t.Fatal(got)
+	}
+	// A source context that is this engine's socket is not offered.
+	script = "#!/bin/sh\necho unix://$IMPORT_TEST_DIR/fabo.sock\n"
+	if e := os.WriteFile(docker, []byte(script), 0700); e != nil {
+		t.Fatal(e)
+	}
+	if got := listImportSources(context.Background(), in, docker); len(got) != 0 {
+		t.Fatal(got)
+	}
+}

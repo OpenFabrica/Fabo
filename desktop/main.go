@@ -204,6 +204,7 @@ type desktop struct {
 	credentials    *registryStore
 	registries     registryUI
 	kube           kubernetesUI
+	imp            importUI
 	containerDraft containerSettings
 	fonts          []string
 	monoFonts      []string

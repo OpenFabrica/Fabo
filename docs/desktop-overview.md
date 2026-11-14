@@ -107,8 +107,42 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   launcher's `fabo domains` command (see Container domains). Registries
   shares Docker credential helpers or macOS Keychain records
   for sign-in, sign-out and authenticated pulls. Kubernetes controls the
-  cluster and its network settings through `fabo k8s`. About lists
-  the versions. Import, Diagnostics and the Build with choice are not there yet.
+  cluster and its network settings through `fabo k8s`. Import brings
+  images, volumes and containers over from OrbStack or Docker Desktop (see
+  Importing from another engine). About lists the versions. Diagnostics and
+  the Build with choice are not there yet.
+
+### Importing from another engine
+
+Once the engine answers, the window asks the launcher which context plain
+docker uses (`fabo context`, macOS only) and which source engines are
+installed (`fabo import --sources`), and reads the inventory of the chosen
+source: the one docker uses when it runs, else a running one. Each item
+then imports through `fabo import <source> <kind> <name>`, one at a time,
+images first; a failed item shows its error and is unticked like the rest.
+The source is only read, and containers arrive stopped.
+
+- **Settings → Import** picks the source, lists images, volumes and
+  containers with a Select all / Select none per kind (anonymous volumes are
+  never ticked by it), marks what Fabo already has, and imports the ticked
+  items. The footer says what importing leaves alone, then the last import's
+  outcome, which is also a toast.
+- **The strip under the lists** (every page but Settings and Terminal) says
+  what the source has that Fabo lacks. Review opens the review window; × hides
+  the strip until the source has more than it had then (`import_seen` in
+  `desktop.json`).
+- **The review window** lists the kinds on the left, each with a tick for all
+  of it and how many are ticked, and the chosen kind's items on the right.
+  Opened with nothing ticked, it ticks the images Fabo lacks.
+- **Switching docker.** While docker uses another context, Containers and
+  Images show a strip offering to switch; × asks again in a week
+  (`ctx_snooze`). The dialog shows both engines, what switching changes and
+  keeps, and a "bring all my images" tick, unticked when they add up to more
+  than 10 GB. Switch runs `fabo context use <ours>` and starts the image
+  import; "Choose what to bring…" opens the review window, whose button then
+  switches as it imports. A card in the corner follows the images over and
+  offers Switch back (to the context saved as `ctx_back`, which also quiets
+  the strip for a week) and Show images.
 
 The window refreshes resource lists every two seconds while it is visible.
 Container and Pod logs use cancellable streams rather than repeated tail reads. Those

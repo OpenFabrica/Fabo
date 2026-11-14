@@ -24,6 +24,7 @@ var settingsTabs = []struct{ id, icon, zh, en string }{
 	{"domains", "link", "域名", "Domains"},
 	{"registries", "layers", "镜像仓库", "Registries"},
 	{"kubernetes", "helm", "Kubernetes", "Kubernetes"},
+	{"import", "import", "导入", "Import"},
 	{"about", "info", "关于", "About"},
 }
 
@@ -140,6 +141,8 @@ func (s *desktop) settingsView(c *ui.Context, p palette) {
 					s.registryPane(c, p)
 				case "kubernetes":
 					s.kubernetesPane(c, p)
+				case "import":
+					s.importPane(c, p)
 				case "about":
 					s.aboutPane(c, p)
 				}

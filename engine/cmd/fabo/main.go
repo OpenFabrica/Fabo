@@ -27,7 +27,8 @@ const usage = `usage: fabo [ui [-view PAGE] [-start]]   open the desktop window
        fabo machine create NAME [--distro D] [--systemd] | list | shell NAME [-- CMD...]
        fabo machine start|stop|restart|delete NAME
        fabo k8s start [--use] | stop | status | delete | set [--lan on|off] [--tls-san NAME,…] [--port N]
-       fabo import [orbstack|desktop-linux] [--list | image|volume|container NAME]
+       fabo import [orbstack|desktop-linux] [--list | --json | image|volume|container NAME] | --sources
+       fabo context [use NAME]           which engine plain docker uses (macOS)
        fabo debug CONTAINER              a shell with debugging tools beside any running container
        fabo pack [-o FILE] [--project NAME] [CONTAINER...]   containers with their changes and volumes, in one file
        fabo unpack [--start] FILE        recreate packed containers here
@@ -72,6 +73,8 @@ func main() {
 		err = k8sCommand(args[1:])
 	case args[0] == "import":
 		err = importCommand(args[1:])
+	case args[0] == "context":
+		err = contextCommand(args[1:])
 	case args[0] == "usb":
 		err = usbCommand(args[1:])
 	case args[0] == "bench":

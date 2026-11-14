@@ -81,6 +81,14 @@ type prefs struct {
 	// TermBg is the terminals' background, one of termBackgrounds; empty
 	// is black.
 	TermBg string `json:"term_bg"`
+	// ImportSeen is, per source engine, how many importable items the
+	// import strip showed when it was closed; it stays closed until the
+	// source has more.
+	ImportSeen map[string]int `json:"import_seen,omitempty"`
+	// CtxSnooze quiets the switch-docker strip until this Unix time;
+	// CtxBack is the context Switch back returns to.
+	CtxSnooze int64  `json:"ctx_snooze,omitempty"`
+	CtxBack   string `json:"ctx_back,omitempty"`
 }
 
 // prefsPath places the file in the installation's state directory, which is

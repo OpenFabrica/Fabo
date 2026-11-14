@@ -7,7 +7,9 @@
 | 命令 | 用途 | 状态与边界 |
 | --- | --- | --- |
 | `fabo k8s start [--use]`、`stop`、`status`、`delete`、`set` | 单节点 k3s 集群 | 当前实例的 Docker API、`fabo-k8s` 容器和卷；设置在实例目录的 `k8s.json` |
-| `fabo import [orbstack\|desktop-linux] [--list \| image\|volume\|container NAME]` | 从另一 Docker context 复制资源 | 默认源为 `orbstack`，目标始终是当前实例的 socket |
+| `fabo import [orbstack\|desktop-linux] [--list \| --json \| image\|volume\|container NAME]` | 从另一 Docker context 复制资源 | 默认源为 `orbstack`，目标始终是当前实例的 socket；`--json` 输出清单供桌面使用 |
+| `fabo import --sources` | 列出本机可迁入的源引擎（JSON） | 只读 docker context，不要求引擎在线；指向当前实例的 context 不列出 |
+| `fabo context [use NAME]` | 读出或切换 plain docker 使用的 context（macOS） | 无参数时输出 `{"current","ours","app"}`；`DOCKER_CONTEXT` 优先，`/var/run/docker.sock` 属于本实例时 `default` 视为本实例。`use` 本实例时先写入其 context，`default` 清除选择，其他名字须已存在 |
 | `fabo usb [list\|ls]`、`attach DEVICE`、`detach DEVICE` | 设备枚举与 macOS USB 透传 | 位置、VID:PID 或名称匹配，歧义拒绝；Linux 使用本机设备与 `--device` |
 | `fabo usb helper remove` | 删除 macOS 特权 helper | 仅删除本 flavor 的 helper、LaunchDaemon 和 socket；`setup --uninstall` 也清理它 |
 | `fabo usb fake serial\|mouse [OPTIONS]` | 无硬件 USB 端到端测试 | 与物理设备共用 USB/IP；支持 `--location`、`--stall-once`、`--unplug-after`、`--reports` |
@@ -63,6 +65,8 @@ fabo import desktop-linux volume app-data
 镜像通过 `docker save | load`，卷通过源端只读挂载和 tar 管道复制，保留文件所有者与权限。失败时终止并清理本次临时容器，删除本次新建的部分目标卷；若清理失败则明确报告残留位置。不存在的源卷在创建 helper 前拒绝，避免 Docker 自动创建空源卷。
 
 整批导入跳过目标已有资源、悬空镜像标签和 64 位十六进制匿名卷。单独指定已有目标卷会拒绝覆盖。容器按 inspect 的配置和支持的 HostConfig 字段重建，保留网络名称/别名，始终保持停止。与上游一样，不复制容器可写层、不迁移宿主 bind 目录、不完整复制自定义网络的驱动/IPAM 参数。需要应用一致性快照时，应先停止源端写入。
+
+桌面的设置 → 导入使用同一组命令：`--sources` 找出已安装的源（context 存在，并用 5 秒内的 `docker version` 判断是否在运行），`<source> --json` 读出清单（`images` / `volumes` / `containers`，每项含 `name`、`detail`、`have`、`anonymous`），再逐项调用 `<source> <kind> <name>` 并显示每项结果。桌面的「切换到 Fabo」用 `fabo context` 判断 docker 是否仍指向其他引擎，并用 `fabo context use` 切换与切回。
 
 源端会运行短暂的只读卷 helper；原有镜像、容器和卷数据不删除或修改。源 context 若指向目标同一 Unix socket，命令直接拒绝。
 

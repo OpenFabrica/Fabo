@@ -35,3 +35,9 @@ func (i installation) startDaemon(*http.Client) error {
 func (i installation) finishDesktop() {}
 
 func reportFailure(error) {}
+
+// contextCommand is macOS-only: on Linux plain docker reaches Fabo through
+// the standard socket, with no context to switch.
+func contextCommand([]string) error {
+	return errors.New("docker contexts are switched by fabo only on macOS")
+}

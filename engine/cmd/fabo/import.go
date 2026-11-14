@@ -21,15 +21,25 @@ import (
 	"time"
 )
 
-const importUsage = "usage: fabo import [orbstack|desktop-linux] [--list | image|volume|container NAME]"
+const importUsage = "usage: fabo import --sources | [orbstack|desktop-linux] [--list | --json | image|volume|container NAME]"
+
+// importSources are the engines Fabo imports from: docker context, label.
+var importSources = [][2]string{{"orbstack", "OrbStack"}, {"desktop-linux", "Docker Desktop"}}
 
 type importOptions struct {
 	source, kind, name string
-	list               bool
+	// list prints the inventory as text, asJSON as JSON for the desktop;
+	// sources reports which source engines this machine has.
+	list, asJSON, sources bool
 }
 
+// parseImport reads `fabo import` arguments; the source defaults to OrbStack.
 func parseImport(args []string) (importOptions, error) {
 	o := importOptions{source: "orbstack"}
+	if len(args) == 1 && args[0] == "--sources" {
+		o.sources = true
+		return o, nil
+	}
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		o.source = args[0]
 		args = args[1:]
@@ -41,6 +51,8 @@ func parseImport(args []string) (importOptions, error) {
 	case len(args) == 0:
 	case len(args) == 1 && args[0] == "--list":
 		o.list = true
+	case len(args) == 1 && args[0] == "--json":
+		o.asJSON = true
 	case len(args) == 2 && (args[0] == "image" || args[0] == "volume" || args[0] == "container") && args[1] != "" && !strings.HasPrefix(args[1], "-"):
 		o.kind, o.name = args[0], args[1]
 	default:
@@ -118,9 +130,14 @@ func anonymousVolume(s string) bool {
 	return e == nil
 }
 
+// importItem is one image, volume or container of the source, and whether
+// Fabo already has one by that name. Detail is the image's size, or the
+// container's image and state.
 type importItem struct {
-	name            string
-	have, anonymous bool
+	Name      string `json:"name"`
+	Detail    string `json:"detail,omitempty"`
+	Have      bool   `json:"have"`
+	Anonymous bool   `json:"anonymous,omitempty"`
 }
 
 func (i *importer) inventory() (map[string][]importItem, error) {
@@ -160,9 +177,16 @@ func (i *importer) inventory() (map[string][]importItem, error) {
 		}
 		for _, row := range source {
 			n := name(row)
-			if n != "" {
-				out[kind] = append(out[kind], importItem{n, have[n], kind == "volume" && anonymousVolume(n)})
+			if n == "" {
+				continue
 			}
+			detail := textField(row, "Size")
+			if kind == "container" {
+				detail = strings.TrimSpace(textField(row, "Image") + " · " + textField(row, "State"))
+			} else if kind == "volume" {
+				detail = ""
+			}
+			out[kind] = append(out[kind], importItem{n, detail, have[n], kind == "volume" && anonymousVolume(n)})
 		}
 	}
 	return out, nil
@@ -327,6 +351,58 @@ func (i *importer) container(name string) error {
 	}
 	return i.client.request("POST", "/containers/create?name="+url.QueryEscape(name), importContainerSpec(info), nil)
 }
+
+// pointsHere reports whether the source context is this Fabo engine's own
+// socket, which would make an import copy everything onto itself. A missing
+// context is an error: that engine is not installed.
+func (i *importer) pointsHere() (bool, error) {
+	endpoint, e := i.output(true, "context", "inspect", i.source, "--format", "{{.Endpoints.docker.Host}}")
+	if e != nil {
+		return false, e
+	}
+	source, ok := strings.CutPrefix(strings.TrimSpace(string(endpoint)), "unix://")
+	if !ok {
+		return false, nil
+	}
+	canonical := func(s string) string {
+		if real, e := filepath.EvalSymlinks(s); e == nil {
+			return real
+		}
+		return filepath.Clean(s)
+	}
+	return canonical(source) == canonical(i.in.socket()), nil
+}
+
+// importSourceInfo is one engine Fabo can import from, as `--sources` lists it.
+type importSourceInfo struct {
+	ID      string `json:"id"`
+	Label   string `json:"label"`
+	Running bool   `json:"running"`
+}
+
+// listImportSources reports the source engines whose docker context exists
+// and does not point back at this engine, and whether each answers now.
+// It reads only the docker CLI's contexts, so Fabo itself need not run.
+func listImportSources(ctx context.Context, in installation, docker string) []importSourceInfo {
+	out := []importSourceInfo{}
+	for _, s := range importSources {
+		i := &importer{in: in, docker: docker, source: s[0], ctx: ctx}
+		if here, e := i.pointsHere(); e != nil || here {
+			continue
+		}
+		// A stopped engine leaves the CLI waiting on its socket; give each a
+		// short bound so the desktop's list never hangs.
+		probe, cancel := context.WithTimeout(ctx, 5*time.Second)
+		i.ctx = probe
+		_, e := i.output(true, "version", "--format", "{{.Server.Version}}")
+		cancel()
+		out = append(out, importSourceInfo{s[0], s[1], e == nil})
+	}
+	return out
+}
+
+// importCommand is `fabo import`: list the source engines, show a source's
+// inventory, or copy one item or everything Fabo lacks into this engine.
 func importCommand(args []string) error {
 	o, e := parseImport(args)
 	if e != nil {
@@ -335,6 +411,13 @@ func importCommand(args []string) error {
 	in, e := locate()
 	if e != nil {
 		return e
+	}
+	if o.sources {
+		docker := in.dockerCLI()
+		if docker == "" {
+			return errors.New("no docker CLI found")
+		}
+		return json.NewEncoder(os.Stdout).Encode(listImportSources(context.Background(), in, docker))
 	}
 	client, e := in.runningClient()
 	if e != nil {
@@ -350,20 +433,10 @@ func importCommand(args []string) error {
 	ctx, stop := context.WithTimeout(ctx, 30*time.Minute)
 	defer stop()
 	importer := &importer{in: in, client: client, docker: docker, source: o.source, ctx: ctx}
-	endpoint, e := importer.output(true, "context", "inspect", o.source, "--format", "{{.Endpoints.docker.Host}}")
-	if e != nil {
+	if here, e := importer.pointsHere(); e != nil {
 		return e
-	}
-	if source, ok := strings.CutPrefix(strings.TrimSpace(string(endpoint)), "unix://"); ok {
-		canonical := func(s string) string {
-			if real, e := filepath.EvalSymlinks(s); e == nil {
-				return real
-			}
-			return filepath.Clean(s)
-		}
-		if canonical(source) == canonical(in.socket()) {
-			return errors.New("the import source points at this Fabo engine")
-		}
+	} else if here {
+		return errors.New("the import source points at this Fabo engine")
 	}
 	transfer := func(kind, name string) error {
 		switch kind {
@@ -387,6 +460,13 @@ func importCommand(args []string) error {
 	if e != nil {
 		return e
 	}
+	if o.asJSON {
+		out := map[string]any{"source": o.source}
+		for _, kind := range []string{"image", "volume", "container"} {
+			out[kind+"s"] = append([]importItem{}, inv[kind]...)
+		}
+		return json.NewEncoder(os.Stdout).Encode(out)
+	}
 	failed := 0
 	for _, kind := range []string{"image", "volume", "container"} {
 		if o.list {
@@ -395,20 +475,20 @@ func importCommand(args []string) error {
 		for _, item := range inv[kind] {
 			if o.list {
 				suffix := ""
-				if item.have {
+				if item.Have {
 					suffix = "  (already in Fabo)"
 				}
-				fmt.Printf("  %s%s\n", item.name, suffix)
+				fmt.Printf("  %s%s\n", item.Name, suffix)
 				continue
 			}
-			if item.have || item.anonymous {
+			if item.Have || item.Anonymous {
 				continue
 			}
-			if e := transfer(kind, item.name); e != nil {
+			if e := transfer(kind, item.Name); e != nil {
 				failed++
-				fmt.Printf("%s %s: %v\n", kind, item.name, e)
+				fmt.Printf("%s %s: %v\n", kind, item.Name, e)
 			} else {
-				fmt.Printf("%s %s: done\n", kind, item.name)
+				fmt.Printf("%s %s: done\n", kind, item.Name)
 			}
 			if ctx.Err() != nil {
 				return ctx.Err()

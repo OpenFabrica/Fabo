@@ -114,7 +114,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | 扫描历史与导出 | 镜像分层、最新扫描和重新扫描已有界面；待接扫描历史选择和 CycloneDX SBOM 导出。引擎已有 `/fabo/images/scans`、`/fabo/images/sbom` | `ui/index.html` 的扫描历史 / `savesbom`，`ui/mod.rs` |
 | Kubernetes 转发 | Pods / Services、持续日志、Pod 删除、集群启停和网络设置已有界面；待补 Pod / ClusterIP 的本地端口转发入口及生命周期管理。引擎已有 `/fabo/k8s/forward` 接口 | `ui/k8s.rs`、`ui/index.html` |
 | 首次引导 | macOS launcher 的首次设置已实现；桌面尚无首次语言选择及 Linux 设置检查、修复、跳过和恢复流程 | `ui/lang.rs`、`ui/linux.rs` 的 `onboarding`、`ui/index.html` |
-| Import / Build with | `fabo import`、`fabo build-with` 已实现；桌面尚无迁入来源与资源选择、导入进度及构建引擎选择入口 | `ui/mod.rs`、`ui/index.html`、`buildwith.rs` |
+| Import / Build with | `fabo import`、`fabo build-with` 已实现；桌面导入流程已对齐（设置 → 导入、列表底部提示条、查看窗口、切换 docker 的对话框与进度卡片）。待补构建引擎选择入口；上游状态栏的 `docker → 引擎` 指示因 Fabo 无状态栏，由提示条承担 | `buildwith.rs`、`ui/index.html` 的 `buildAsk` |
 | USB / Share | 两个侧栏页面仍为占位；USB CLI、helper 与 USB/IP 已实现，待接设备界面；Share 的创建、查看和停止等界面流程尚未移植 | `ui/sharing.rs`、`ui/index.html` |
 | 更新与诊断入口 | 桌面未接入更新检查 / 下载 / 安装、诊断日志 / 报告及崩溃报告设置；其 Go 实现也未补齐，见下表 | `ui/mod.rs`、`ui/index.html`、`update.rs`、`diag/` |
 
