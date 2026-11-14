@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
-var domainSuffixes = []string{"kiri.local", "kiri.localhost"}
+var domainSuffixes = []string{"fabo.local", "fabo.localhost"}
 
 func domainHost(host string) (string, string) {
 	if name, _, err := net.SplitHostPort(host); err == nil {
@@ -51,7 +51,7 @@ func matchesDomain(c *container, name string) bool {
 	if service != "" && project != "" && strings.EqualFold(service+"."+project, name) {
 		return true
 	}
-	for label := range strings.SplitSeq(c.labels["dev.kiri.domain"], ",") {
+	for label := range strings.SplitSeq(c.labels["dev.fabo.domain"], ",") {
 		label = strings.TrimSpace(label)
 		if _, base := domainHost(label); base != "" {
 			label = base
@@ -90,7 +90,7 @@ func (e *Engine) domainTarget(name string) (domainTarget, bool) {
 	if !target.ip.IsValid() {
 		return domainTarget{}, false
 	}
-	if p, err := strconv.ParseUint(c.labels["dev.kiri.http.port"], 10, 16); err == nil {
+	if p, err := strconv.ParseUint(c.labels["dev.fabo.http.port"], 10, 16); err == nil {
 		target.label = uint16(p)
 	}
 	for _, binding := range c.portBindings {

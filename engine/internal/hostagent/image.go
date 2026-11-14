@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 // Layer identifies a local OCI blob by its digest and media type.

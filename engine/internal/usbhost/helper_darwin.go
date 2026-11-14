@@ -28,7 +28,7 @@ func Helper(ctx context.Context, label string, uid uint32) error {
 	if os.Geteuid() != 0 {
 		return errors.New("the USB helper runs as root, under launchd")
 	}
-	if !strings.HasPrefix(label, "dev.kiri.usb") || strings.ContainsFunc(label, func(c rune) bool { return !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '.' || c == '-') }) {
+	if !strings.HasPrefix(label, "dev.fabo.usb") || strings.ContainsFunc(label, func(c rune) bool { return !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '.' || c == '-') }) {
 		return errors.New("invalid USB helper label")
 	}
 	path := "/var/run/" + label + ".sock"

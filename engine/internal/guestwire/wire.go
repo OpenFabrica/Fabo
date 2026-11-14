@@ -1,5 +1,5 @@
 // Package guestwire implements the framing and startup exchange shared by
-// Kiri's host daemon and guest agent. It is Kiri's protocol version 4,
+// Fabo's host daemon and guest agent. It is Fabo's protocol version 4,
 // as defined by upstream's crates/kiri-proto/src/lib.rs.
 package guestwire
 

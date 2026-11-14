@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func (r *Runtime) containerStats(id string) (guestwire.ContainerStats, error) {

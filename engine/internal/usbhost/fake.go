@@ -54,9 +54,9 @@ func (f *Fake) descriptor(kind, index uint8) []byte {
 		if index == 0 {
 			return []byte{4, 3, 9, 4}
 		}
-		names := []string{"", "Kiri", "Kiri test serial", "KIRI0001"}
+		names := []string{"", "Fabo", "Fabo test serial", "FABO0001"}
 		if f.Mouse {
-			names[2] = "Kiri test mouse"
+			names[2] = "Fabo test mouse"
 		}
 		if int(index) >= len(names) {
 			return nil

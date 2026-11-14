@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 // Output and exit can arrive before the HTTP upgrade finishes for a short exec.

@@ -10,12 +10,12 @@ import (
 	"runtime"
 )
 
-// engineSocket is where the engine listens: KIRI_SOCKET, else the system
-// service's socket on Linux, else ~/.kiri/run/docker.sock.
+// engineSocket is where the engine listens: FABO_SOCKET, else the system
+// service's socket on Linux, else ~/.fabo/run/docker.sock.
 func engineSocket() (string, error) {
-	socket := os.Getenv("KIRI_SOCKET")
+	socket := os.Getenv("FABO_SOCKET")
 	if socket == "" && runtime.GOOS == "linux" {
-		const serviceSocket = "/run/kiri/docker.sock"
+		const serviceSocket = "/run/fabo/docker.sock"
 		if _, err := os.Stat(serviceSocket); err == nil {
 			socket = serviceSocket
 		}
@@ -25,7 +25,7 @@ func engineSocket() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		socket = filepath.Join(home, ".kiri", "run", "docker.sock")
+		socket = filepath.Join(home, ".fabo", "run", "docker.sock")
 	}
 	return socket, nil
 }

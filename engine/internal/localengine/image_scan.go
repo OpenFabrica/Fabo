@@ -19,7 +19,7 @@ import (
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 
-	"github.com/libracoder/kiri/engine/internal/imagescan"
+	"github.com/OpenFabrica/FabriBay/engine/internal/imagescan"
 )
 
 type imageLayerRow struct {

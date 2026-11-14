@@ -14,9 +14,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
-	"github.com/libracoder/kiri/engine/internal/hostagent"
-	"github.com/libracoder/kiri/engine/internal/imagescan"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
+	"github.com/OpenFabrica/FabriBay/engine/internal/imagescan"
 )
 
 // State owns the exclusive lock for a private daemon state directory.
@@ -187,6 +187,7 @@ func (s *State) restore() (map[string]*container, error) {
 		if rec.ID != id || rec.Run.ID != id || rec.Name == "" || names[rec.Name] {
 			return nil, fmt.Errorf("invalid container record %s", id)
 		}
+		renameLegacyRecord(&rec)
 		if rec.SecurityOpt == nil {
 			// Records written before SecurityOpt always set no-new-privileges.
 			rec.Run.Flags |= guestwire.RunNoNewPrivs
@@ -271,9 +272,11 @@ func (s *State) restoreNetworks() (map[string]dockerNetwork, error) {
 	}
 	bridges := make(map[string]bool)
 	for key, n := range saved {
+		// An index saved before the rename names its bridges "kiri<id>".
+		n.Bridge = renameLegacyBridge(n.Bridge)
 		id, err := hex.DecodeString(n.ID)
 		if key != n.Name || !networkNamePattern.MatchString(key) || key == "bridge" || key == "default" || key == "none" || key == "host" ||
-			err != nil || len(id) != 32 || !guestwire.CustomBridge(n.Bridge) || n.Bridge != "kiri"+n.ID[:10] || bridges[n.Bridge] ||
+			err != nil || len(id) != 32 || !guestwire.CustomBridge(n.Bridge) || n.Bridge != "fabo"+n.ID[:10] || bridges[n.Bridge] ||
 			!validSavedNetworkPools(n, networks) {
 			return nil, fmt.Errorf("invalid saved network %q", key)
 		}
@@ -281,4 +284,52 @@ func (s *State) restoreNetworks() (map[string]dockerNetwork, error) {
 		networks[key] = n
 	}
 	return networks, nil
+}
+
+// Before the rename to Fabo, records named the VM's bridges "kiri0" and
+// "kiri<id>", kept volumes under /var/lib/kiri/volumes and host files under
+// /mnt/kiri-host. The bridges are made again at each boot and both
+// directories are only where the VM mounts the same disk and share, so an
+// old record keeps working once it uses today's names.
+const (
+	legacyVolumeRoot = "/var/lib/kiri/volumes"
+	legacyHostShare  = "/mnt/kiri-host"
+)
+
+// renameLegacyBridge gives a bridge name from before the rename its new
+// name; any other name is returned as it is.
+func renameLegacyBridge(name string) string {
+	if name == "kiri0" {
+		return guestwire.DefaultBridge
+	}
+	if rest, ok := strings.CutPrefix(name, "kiri"); ok && guestwire.CustomBridge("fabo"+rest) {
+		return "fabo" + rest
+	}
+	return name
+}
+
+// renameLegacyMount moves a mount's source from the old VM paths to
+// today's; the rest of the mount stays as it was written.
+func renameLegacyMount(mount string) string {
+	for old, now := range map[string]string{legacyVolumeRoot: guestwire.VolumeRoot, legacyHostShare: guestwire.HostSharePath} {
+		if rest, ok := strings.CutPrefix(mount, old); ok && (rest == "" || rest[0] == '/' || rest[0] == '\t' || rest[0] == ':') {
+			return now + rest
+		}
+	}
+	return mount
+}
+
+// renameLegacyRecord applies today's names to a container record written
+// before the rename.
+func renameLegacyRecord(rec *savedContainer) {
+	rec.Run.Network.Bridge = renameLegacyBridge(rec.Run.Network.Bridge)
+	for i := range rec.Run.AdditionalNetworks {
+		rec.Run.AdditionalNetworks[i].Bridge = renameLegacyBridge(rec.Run.AdditionalNetworks[i].Bridge)
+	}
+	for i := range rec.ExtraNetworks {
+		rec.ExtraNetworks[i].Network.Bridge = renameLegacyBridge(rec.ExtraNetworks[i].Network.Bridge)
+	}
+	for i, mount := range rec.Run.Mounts {
+		rec.Run.Mounts[i] = renameLegacyMount(mount)
+	}
 }

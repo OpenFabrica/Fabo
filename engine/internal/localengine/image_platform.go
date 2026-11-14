@@ -85,7 +85,7 @@ func (e *Engine) checkExecutionPlatform(p v1.Platform) error {
 		return nil
 	}
 	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && p.OS == "linux" && p.Architecture == "amd64" {
-		return fmt.Errorf("%w: linux/amd64 requires Rosetta for Linux in the Kiri VM", errInvalid)
+		return fmt.Errorf("%w: linux/amd64 requires Rosetta for Linux in the Fabo VM", errInvalid)
 	}
 	return fmt.Errorf("%w: this engine cannot run %s images", errInvalid, p)
 }

@@ -15,10 +15,10 @@ func TestReadOverviewUsesBackgroundQuery(t *testing.T) {
 		if r.Method != http.MethodGet || r.URL.Path != "/info" {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
-		if r.Header.Get("X-Kiri-Background") != "1" {
+		if r.Header.Get("X-Fabo-Background") != "1" {
 			t.Error("request could wake the VM")
 		}
-		fmt.Fprint(w, `{"Name":"kiri","KiriVmAwake":false,"Containers":3,"ContainersRunning":1,"Images":2}`)
+		fmt.Fprint(w, `{"Name":"fabo","FaboVmAwake":false,"Containers":3,"ContainersRunning":1,"Images":2}`)
 	}))
 	defer server.Close()
 
@@ -46,10 +46,10 @@ func TestLogText(t *testing.T) {
 
 func TestEngineErrorUsesDaemonMessage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/kiri/stop" {
+		if r.Method != http.MethodPost || r.URL.Path != "/fabo/stop" {
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
-		if r.Header.Get("X-Kiri-Background") != "" {
+		if r.Header.Get("X-Fabo-Background") != "" {
 			t.Error("explicit action was marked as background")
 		}
 		w.WriteHeader(http.StatusConflict)
@@ -59,7 +59,7 @@ func TestEngineErrorUsesDaemonMessage(t *testing.T) {
 	engine := newEngineClient(func(ctx context.Context) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "tcp", server.Listener.Addr().String())
 	})
-	if err := engine.request(t.Context(), http.MethodPost, "/kiri/stop", nil, nil); err == nil || err.Error() != "engine is busy" {
+	if err := engine.request(t.Context(), http.MethodPost, "/fabo/stop", nil, nil); err == nil || err.Error() != "engine is busy" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

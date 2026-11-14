@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	VolumeRoot = "/var/lib/kiri/volumes"
+	VolumeRoot = "/var/lib/fabo/volumes"
 
 	RemoveVolumeMessage Kind = 31 // original fire-and-forget command
 	AckMessage          Kind = 43

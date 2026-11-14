@@ -1,4 +1,4 @@
-// Package guestagent serves the Linux side of Kiri's guest protocol.
+// Package guestagent serves the Linux side of Fabo's guest protocol.
 package guestagent
 
 import (
@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 // Serve owns the stream after connection and returns on Shutdown or EOF.

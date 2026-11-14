@@ -112,7 +112,7 @@ func domainCA(dir string) (*tls.Certificate, error) {
 	}
 	now := time.Now()
 	root := &x509.Certificate{
-		Subject:   pkix.Name{CommonName: "Kiri Local Certificate Authority", Organization: []string{"Kiri"}},
+		Subject:   pkix.Name{CommonName: "Fabo Local Certificate Authority", Organization: []string{"Fabo"}},
 		NotBefore: now.Add(-24 * time.Hour), NotAfter: now.AddDate(20, 0, 0),
 		IsCA: true, BasicConstraintsValid: true, MaxPathLenZero: true,
 		KeyUsage:                    x509.KeyUsageCertSign | x509.KeyUsageCRLSign | x509.KeyUsageDigitalSignature,

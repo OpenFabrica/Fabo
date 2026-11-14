@@ -1,11 +1,11 @@
-# Testing Kiri for Windows on Arm
+# Testing Fabo for Windows on Arm
 
-> Upstream Kiri's procedure, for its Rust Windows host. FabriBay has no
+> Upstream Fabo's procedure, for its Rust Windows host. FabriBay has no
 > Windows host yet; see [compatibility-baseline.md](compatibility-baseline.md).
 
-Kiri for Windows on Arm is the same bundle and MSI as the x86-64 one, built
-with `--arch arm64`. It is arm64 all the way down: `kiri-win.exe` for
-`aarch64-pc-windows-msvc`, the engine and Kiri Linux for aarch64 Linux in
+Fabo for Windows on Arm is the same bundle and MSI as the x86-64 one, built
+with `--arch arm64`. It is arm64 all the way down: `fabo-win.exe` for
+`aarch64-pc-windows-msvc`, the engine and Fabo Linux for aarch64 Linux in
 WSL2, and an arm64 `docker.exe`, Compose and buildx. This page covers how to
 build it, and how much of it a Windows 11 VM on an Apple silicon Mac can test.
 
@@ -33,7 +33,7 @@ takes more than that call
 ([Apple forums](https://developer.apple.com/forums/thread/775546)). So
 an M3 or later Mac has the hardware, but no shipping product uses it for Windows.
 
-WSL1 runs in these VMs, but it is no use for Kiri. It translates Linux
+WSL1 runs in these VMs, but it is no use for Fabo. It translates Linux
 syscalls and has no real kernel, so it has no namespaces, cgroups or
 overlayfs for the engine.
 
@@ -50,7 +50,7 @@ Everything up to the point where WSL2 starts:
 
 - the arm64 MSI: it installs per user, has an Arm64 Platform, and
   upgrades and uninstalls cleanly (`installer/windows/verify.ps1`)
-- `kiri-win.exe` runs natively (Task Manager, Details, Architecture
+- `fabo-win.exe` runs natively (Task Manager, Details, Architecture
   column: ARM64), with its window, tray icon and named pipe
 - the bundled `docker.exe`, Compose and buildx run natively
   (`docker version`, `docker compose version`, `docker buildx version`)
@@ -58,8 +58,8 @@ Everything up to the point where WSL2 starts:
   and Microsoft signature, and turns on Virtual Machine Platform. After the
   restart, WSL2 fails to start, and that failure is expected in a VM
 - the architecture guard: the x64 MSI installs on the Arm VM and runs under
-  emulation, and its setup stops with "This is Kiri for x64 PCs, and this PC
-  is arm64 ... Install Kiri-<version>-arm64.msi instead."
+  emulation, and its setup stops with "This is Fabo for x64 PCs, and this PC
+  is arm64 ... Install Fabo-<version>-arm64.msi instead."
 - installing the arm64 MSI over the x64 one: it replaces it (shared
   UpgradeCode, major upgrade)
 - the updater reads `latest-windows-arm64.json`, and refuses an x64 MSI
@@ -100,7 +100,7 @@ use) works the same way.
 
 ### In the VM, for either one
 
-- WebView2 is part of Windows 11, so nothing else is needed for Kiri's
+- WebView2 is part of Windows 11, so nothing else is needed for Fabo's
   window.
 - Copy the MSIs in through the shared folder (Parallels: the Mac's home is
   `\\Mac\Home`; UTM: SPICE WebDAV or a shared directory).
@@ -118,12 +118,12 @@ Windows PC, or real Arm hardware), **not** inside a Mac VM. You need:
        wix extension add -g WixToolset.UI.wixext/5.0.2
        wix extension add -g WixToolset.Util.wixext/5.0.2
 
-2. For an arm64 kiri-win from an x86-64 PC, the arm64 compiler:
+2. For an arm64 fabo-win from an x86-64 PC, the arm64 compiler:
    `rustup target add aarch64-pc-windows-msvc`, and in the Visual Studio
    Installer, Individual components, "MSVC v143 - VS 2022 C++ ARM64/ARM64EC
    build tools (Latest)". ring needs clang for aarch64 Windows, so also add
    "C++ Clang Compiler for Windows" and put its `bin` on PATH (ring's build
-   calls `clang` for this target). On an Arm PC, kiri-win builds natively
+   calls `clang` for this target). On an Arm PC, fabo-win builds natively
    and none of this applies.
 3. `git` and a Go of 1.21 or later on PATH, for docker.exe (below). Go
    fetches the pinned toolchain (go1.26.10) by itself.
@@ -131,18 +131,18 @@ Windows PC, or real Arm hardware), **not** inside a Mac VM. You need:
 
        cargo xtask msi --arch arm64
 
-   which makes `target\kiri-windows-aarch64\`,
-   `target\Kiri-<version>-arm64.msi` and `target\latest-windows-arm64.json`.
+   which makes `target\fabo-windows-aarch64\`,
+   `target\Fabo-<version>-arm64.msi` and `target\latest-windows-arm64.json`.
    `cargo xtask windows --arch arm64` makes only the bundle.
    `cargo xtask msi-pack --arch arm64` repacks a bundle that is already
    there, and works inside the Mac VM too if you copy the bundle in
    (WiX runs on Windows on Arm).
 
-To check the arm64 kiri-win from the Mac without Windows (cargo-xwin, with
+To check the arm64 fabo-win from the Mac without Windows (cargo-xwin, with
 LLVM on PATH):
 
     PATH="$(ls -d /opt/homebrew/Cellar/llvm@22/*/bin):$PATH" \
-      cargo xwin check --cross-compiler clang -p kiri-win --target aarch64-pc-windows-msvc
+      cargo xwin check --cross-compiler clang -p fabo-win --target aarch64-pc-windows-msvc
 
 `--cross-compiler clang` matters: ring builds aarch64 Windows code with
 `clang`, and xwin's default clang-cl flags (`/imsvc`) break it.
@@ -185,7 +185,7 @@ emulation start-up, and it would be the bundle's only emulated binary.
 
 ## Testing on real Arm hardware (end to end)
 
-After installing `Kiri-<version>-arm64.msi` and finishing setup with Kiri
+After installing `Fabo-<version>-arm64.msi` and finishing setup with Fabo
 Linux:
 
     docker version                       # Server: Os linux, Arch arm64
@@ -194,7 +194,7 @@ Linux:
                                          # needs amd64 emulation in WSL, which
                                          # this build does not add
     docker compose version; docker buildx version
-    wsl -d kiri -- uname -m              # aarch64
+    wsl -d fabo -- uname -m              # aarch64
 
 Then do the same with the Ubuntu choice (arm64 Ubuntu 26.04 from
 cdimages.ubuntu.com, SHA-256 from Microsoft's DistributionInfo.json).

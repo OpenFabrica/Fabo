@@ -22,8 +22,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
-	"github.com/libracoder/kiri/engine/internal/hostagent"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
 )
 
 type commitConfig struct {

@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func readRustLogs(ctx context.Context, source *os.Root, c *container) error {
+func readKiriLogs(ctx context.Context, source *os.Root, c *container) error {
 	dir := path.Join("containers", c.id)
 	entries, err := fs.ReadDir(source.FS(), dir)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -51,7 +51,7 @@ func readRustLogs(ctx context.Context, source *os.Root, c *container) error {
 		if err != nil {
 			return err
 		}
-		err = readRustLogTail(ctx, f, &records, &left)
+		err = readKiriLogTail(ctx, f, &records, &left)
 		if err := errors.Join(err, f.Close()); err != nil {
 			return err
 		}
@@ -62,9 +62,9 @@ func readRustLogs(ctx context.Context, source *os.Root, c *container) error {
 	return nil
 }
 
-// Rust logs repeat each length at the end, so we can read the most
+// Kiri logs repeat each length at the end, so we can read the most
 // recent records without copying the entire set of rotated logs.
-func readRustLogTail(ctx context.Context, f *os.File, records *[]record, remaining *int) error {
+func readKiriLogTail(ctx context.Context, f *os.File, records *[]record, remaining *int) error {
 	info, err := f.Stat()
 	if err != nil {
 		return err

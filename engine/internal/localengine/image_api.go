@@ -140,7 +140,7 @@ func imageReferencesMatch(refs, patterns []string) bool {
 }
 
 // shortImageReference omits the implied Docker Hub registry and library
-// namespace from a canonical reference, as Kiri's archive format does.
+// namespace from a canonical reference, as Fabo's archive format does.
 func shortImageReference(ref string) string {
 	if rest, ok := strings.CutPrefix(ref, name.DefaultRegistry+"/"); ok {
 		return strings.TrimPrefix(rest, "library/")
@@ -167,7 +167,7 @@ func (e *Engine) inspectImageHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tags, digests := e.imageNames(image.ID)
-	// Kiri's named inspection exposes the manifest in the named repository.
+	// Fabo's named inspection exposes the manifest in the named repository.
 	// An alias for an image from another registry does not imply a push.
 	if named, err := name.ParseReference(image.ref); err == nil {
 		prefix := named.Context().Name() + "@"

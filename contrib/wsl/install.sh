@@ -1,16 +1,16 @@
 #!/bin/sh
 # Run as root in a WSL2 distro, with the other Windows bundle files beside it.
-# The engine serves a Unix socket; kiri-win reaches it via kiri bridge.
+# The engine serves a Unix socket; fabo-win reaches it via fabo bridge.
 set -eu
 mode=${1:-install}
 case "$mode" in install|--sync|--restart) ;; *) echo "usage: install.sh [--sync|--restart]" >&2; exit 2 ;; esac
 here=$(cd "$(dirname "$0")" && pwd)
-for name in kiri kiri-init kiri-start kiri-go-daemon kiri-go-init; do
+for name in fabo fabo-init fabo-start fabo-daemon fabo-init; do
   [ -f "$here/$name" ] || { echo "Missing WSL bundle file: $name" >&2; exit 1; }
 done
-install -d /usr/local/bin /usr/libexec/kiri /etc/kiri
+install -d /usr/local/bin /usr/libexec/fabo /etc/fabo
 # Preserve an explicit choice. Auto checks for an imported or existing store.
-[ -e /etc/kiri/wsl-engine ] || printf 'auto\n' > /etc/kiri/wsl-engine
+[ -e /etc/fabo/wsl-engine ] || printf 'auto\n' > /etc/fabo/wsl-engine
 copied=false
 copy() {
   if ! cmp -s "$here/$1" "$2/$1"; then
@@ -19,22 +19,22 @@ copy() {
     copied=true
   fi
 }
-for name in kiri kiri-init kiri-start; do copy "$name" /usr/local/bin; done
-for name in kiri-go-daemon kiri-go-init; do copy "$name" /usr/libexec/kiri; done
+for name in fabo fabo-init fabo-start; do copy "$name" /usr/local/bin; done
+for name in fabo-daemon fabo-init; do copy "$name" /usr/libexec/fabo; done
 if [ "$mode" = --sync ]; then
   if "$copied"; then echo copied; fi
   exit 0
 fi
 
 if [ -d /run/systemd/system ]; then
-  cat > /etc/systemd/system/kiri.service <<UNIT
+  cat > /etc/systemd/system/fabo.service <<UNIT
 [Unit]
-Description=Kiri container engine
+Description=Fabo container engine
 After=network-online.target
 [Service]
-ExecStart=/usr/local/bin/kiri daemon
-Environment=HOME=/var/lib/kiri-daemon
-StateDirectory=kiri-daemon
+ExecStart=/usr/local/bin/fabo daemon
+Environment=HOME=/var/lib/fabo-daemon
+StateDirectory=fabo-daemon
 Delegate=yes
 KillMode=mixed
 Restart=on-failure
@@ -43,14 +43,14 @@ UMask=0027
 WantedBy=multi-user.target
 UNIT
   systemctl daemon-reload
-  systemctl enable kiri
-  systemctl restart kiri
+  systemctl enable fabo
+  systemctl restart fabo
 else
-  # Kiri Linux has its own startup path. Keep existing boot entries in
+  # Fabo Linux has its own startup path. Keep existing boot entries in
   # other distros; they now select the engine through the same launcher.
-  if [ "$mode" = install ] && ! grep -Eq 'kiri daemon|/usr/local/bin/kiri-start' /etc/wsl.conf 2>/dev/null; then
-    printf '\n[boot]\ncommand = /usr/local/bin/kiri-start\n' >> /etc/wsl.conf
+  if [ "$mode" = install ] && ! grep -Eq 'fabo daemon|/usr/local/bin/fabo-start' /etc/wsl.conf 2>/dev/null; then
+    printf '\n[boot]\ncommand = /usr/local/bin/fabo-start\n' >> /etc/wsl.conf
   fi
-  /usr/local/bin/kiri-start restart
+  /usr/local/bin/fabo-start restart
 fi
-echo "Kiri runs in WSL on /var/lib/kiri-daemon/.kiri/run/docker.sock"
+echo "Fabo runs in WSL on /var/lib/fabo-daemon/.fabo/run/docker.sock"

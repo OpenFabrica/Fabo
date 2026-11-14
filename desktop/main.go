@@ -224,10 +224,10 @@ func main() {
 			s.page = n.page
 		}
 	}
-	// The docker context is named after the state directory: ~/.kiri-dev
-	// holds the context kiri-dev.
-	s.contextName = "kiri"
-	if socket := os.Getenv("KIRI_SOCKET"); socket != "" {
+	// The docker context is named after the state directory: ~/.fabo-dev
+	// holds the context fabo-dev.
+	s.contextName = "fabo"
+	if socket := os.Getenv("FABO_SOCKET"); socket != "" {
 		s.contextName = strings.TrimPrefix(filepath.Base(filepath.Dir(filepath.Dir(socket))), ".")
 	}
 	tags := make([]string, 0, len(languages))
@@ -263,7 +263,7 @@ func main() {
 			}
 		}()
 		if *wake {
-			s.do("engine", engineAction{http.MethodPost, "/kiri/wake", nil}, "")
+			s.do("engine", engineAction{http.MethodPost, "/fabo/wake", nil}, "")
 		} else {
 			s.refresh()
 		}
@@ -281,10 +281,10 @@ func main() {
 }
 
 // findLauncher locates the `fabo` command of this installation: the one
-// KIRI_LAUNCHER names, else the file beside this executable, as in the app
+// FABO_LAUNCHER names, else the file beside this executable, as in the app
 // bundle. It returns nil when neither exists, as under `go run`.
 func findLauncher() func(ctx context.Context, args ...string) ([]byte, error) {
-	path := os.Getenv("KIRI_LAUNCHER")
+	path := os.Getenv("FABO_LAUNCHER")
 	if path == "" {
 		exe, err := os.Executable()
 		if err != nil {
@@ -341,7 +341,7 @@ func (s *desktop) installTray() {
 		{Role: mygo.RoleQuit},
 	})
 	_, err := mygo.NewTray(mygo.TrayOptions{
-		ID: "kiri", Icon: trayIcon, IconIsTemplate: true, ToolTip: "Fabo", Menu: menu,
+		ID: "fabo", Icon: trayIcon, IconIsTemplate: true, ToolTip: "Fabo", Menu: menu,
 	})
 	if err != nil {
 		// Linux desktops without an indicator can use the window directly.
@@ -392,7 +392,7 @@ func (s *desktop) run(timeout time.Duration, work func(ctx context.Context) func
 
 // awake reports whether the engine can answer live questions such as usage.
 // An engine running directly on Linux has no VM and is always awake.
-func (i engineInfo) awake() bool { return !i.KiriStopped && (i.KiriVmAwake == nil || *i.KiriVmAwake) }
+func (i engineInfo) awake() bool { return !i.FaboStopped && (i.FaboVmAwake == nil || *i.FaboVmAwake) }
 
 // engineState names the engine's condition for the sidebar and the title bar.
 func (s *desktop) engineState() string {
@@ -401,7 +401,7 @@ func (s *desktop) engineState() string {
 		return "starting"
 	case !s.connected:
 		return "offline"
-	case s.info.KiriStopped:
+	case s.info.FaboStopped:
 		return "stopped"
 	case !s.info.awake():
 		return "asleep"
@@ -442,7 +442,7 @@ func (s *desktop) refresh() {
 			samples = e.samples(ctx, ids)
 		}
 		var res vmResources
-		resErr := e.get(ctx, "/kiri/resources", &res)
+		resErr := e.get(ctx, "/fabo/resources", &res)
 		now := time.Now().Unix()
 		var events []engineEvent
 		var disk *diskUsage
@@ -457,7 +457,7 @@ func (s *desktop) refresh() {
 				disk, _ = e.diskUsage(ctx)
 			}
 		case buildsPage:
-			builderErr = e.get(ctx, "/kiri/builder", &builder)
+			builderErr = e.get(ctx, "/fabo/builder", &builder)
 		}
 		return func() {
 			s.refreshing, s.connected, s.problem, s.info, s.now = false, true, "", info, now

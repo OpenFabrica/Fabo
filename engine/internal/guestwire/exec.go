@@ -36,7 +36,7 @@ func (s ExecSpec) Frame() (Frame, error) {
 	return Frame{Kind: ExecMessage, Payload: e.payload}, e.err
 }
 
-// DecodeExec reads the Kiri protocol v4 Exec payload.
+// DecodeExec reads the Fabo protocol v4 Exec payload.
 func DecodeExec(frame Frame) (ExecSpec, error) {
 	d := runDecoder{data: frame.Payload}
 	var s ExecSpec

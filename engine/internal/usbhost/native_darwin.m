@@ -28,7 +28,7 @@ static int32_t failure(NSError *error) {
     }
 }
 static void describe(char **out, NSString *message) { if (out) *out = strdup(message.UTF8String ?: "USB error"); }
-char *kiri_usb_list(char **error) {
+char *fabo_usb_list(char **error) {
     @autoreleasepool {
         io_iterator_t iterator = 0;
         if (IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOUSBHostDevice"), &iterator) != KERN_SUCCESS) {
@@ -52,7 +52,7 @@ char *kiri_usb_list(char **error) {
     }
 }
 
-@interface KiriUSBDevice : NSObject
+@interface FaboUSBDevice : NSObject
 @property(nonatomic,strong) IOUSBHostDevice *device;
 @property(nonatomic) io_service_t service;
 @property(nonatomic,strong) NSMutableDictionary<NSNumber *,IOUSBHostInterface *> *interfaces;
@@ -65,7 +65,7 @@ char *kiri_usb_list(char **error) {
 - (void)closeInterfaces;
 - (IOUSBHostPipe *)pipe:(uint8_t)address;
 @end
-@implementation KiriUSBDevice
+@implementation FaboUSBDevice
 - (void)openInterfaces {
     @synchronized(self) {
         for (int attempt=0;attempt<40 && !self.gone && !self.closed;attempt++) {
@@ -111,7 +111,7 @@ char *kiri_usb_list(char **error) {
 }
 @end
 
-void *kiri_usb_capture(uint32_t location,int fd,char **error) {
+void *fabo_usb_capture(uint32_t location,int fd,char **error) {
     @autoreleasepool {
         io_iterator_t iterator=0; io_service_t service=0,found=0;
         if (IOServiceGetMatchingServices(kIOMainPortDefault,IOServiceMatching("IOUSBHostDevice"),&iterator)!=KERN_SUCCESS) {
@@ -123,12 +123,12 @@ void *kiri_usb_capture(uint32_t location,int fd,char **error) {
         }
         IOObjectRelease(iterator);
         if (!found) {describe(error,@"no USB device at that location");return NULL;}
-        KiriUSBDevice *host=[KiriUSBDevice new];host.service=found;host.fd=fd;
+        FaboUSBDevice *host=[FaboUSBDevice new];host.service=found;host.fd=fd;
         host.interfaces=[NSMutableDictionary dictionary];host.pipes=[NSMutableDictionary dictionary];host.owners=[NSMutableDictionary dictionary];
-        __weak KiriUSBDevice *weakHost=host;
+        __weak FaboUSBDevice *weakHost=host;
         NSError *err=nil;
         host.device=[[IOUSBHostDevice alloc] initWithIOService:found options:IOUSBHostObjectInitOptionsDeviceCapture queue:nil error:&err interestHandler:^(IOUSBHostObject *obj,uint32_t message,void *arg) {
-            KiriUSBDevice *h=weakHost;
+            FaboUSBDevice *h=weakHost;
             if (h && message==kIOMessageServiceIsTerminated) {h.gone=YES;int socket=h.fd;if(socket>=0)shutdown(socket,SHUT_RDWR);}
         }];
         if (!host.device) {IOObjectRelease(found);describe(error,err.localizedDescription);return NULL;}
@@ -139,9 +139,9 @@ static int32_t finish(BOOL ok,NSError *error,NSMutableData *data,void *buffer,si
     if (!ok && (uint32_t)error.code!=0xe00002e7) return failure(error);
     *actual=MIN(done,length);if(input && *actual)memcpy(buffer,data.bytes,*actual);return 0;
 }
-int32_t kiri_usb_control(void *handle,uint8_t type,uint8_t request,uint16_t value,uint16_t index,uint16_t length,void *buffer,size_t size,size_t *actual) {
+int32_t fabo_usb_control(void *handle,uint8_t type,uint8_t request,uint16_t value,uint16_t index,uint16_t length,void *buffer,size_t size,size_t *actual) {
     @autoreleasepool {
-        KiriUSBDevice *host=(__bridge KiriUSBDevice *)handle;if(host.gone||host.closed)return -19;
+        FaboUSBDevice *host=(__bridge FaboUSBDevice *)handle;if(host.gone||host.closed)return -19;
         IOUSBDeviceRequest setup={type,request,value,index,length};BOOL input=(type&0x80)!=0;
         NSMutableData *data=input?[NSMutableData dataWithLength:length]:[NSMutableData dataWithBytes:buffer length:size];
         NSUInteger done=0;NSError *error=nil;
@@ -149,9 +149,9 @@ int32_t kiri_usb_control(void *handle,uint8_t type,uint8_t request,uint16_t valu
         return finish(ok,error,data,buffer,size,done,input,actual);
     }
 }
-int32_t kiri_usb_transfer(void *handle,uint8_t endpoint,void *buffer,size_t length,size_t *actual) {
+int32_t fabo_usb_transfer(void *handle,uint8_t endpoint,void *buffer,size_t length,size_t *actual) {
     @autoreleasepool {
-        KiriUSBDevice *host=(__bridge KiriUSBDevice *)handle;if(host.gone||host.closed)return -19;
+        FaboUSBDevice *host=(__bridge FaboUSBDevice *)handle;if(host.gone||host.closed)return -19;
         IOUSBHostPipe *pipe=[host pipe:endpoint];if(!pipe)return -32;
         BOOL input=(endpoint&0x80)!=0;NSMutableData *data=input?[NSMutableData dataWithLength:length]:[NSMutableData dataWithBytes:buffer length:length];
         NSUInteger done=0;NSError *error=nil;
@@ -159,29 +159,29 @@ int32_t kiri_usb_transfer(void *handle,uint8_t endpoint,void *buffer,size_t leng
         return finish(ok,error,data,buffer,length,done,input,actual);
     }
 }
-int32_t kiri_usb_configure(void *handle,uint8_t value) {
-    @autoreleasepool {KiriUSBDevice *host=(__bridge KiriUSBDevice *)handle;[host closeInterfaces];NSError *e=nil;
+int32_t fabo_usb_configure(void *handle,uint8_t value) {
+    @autoreleasepool {FaboUSBDevice *host=(__bridge FaboUSBDevice *)handle;[host closeInterfaces];NSError *e=nil;
         BOOL ok=[host.device configureWithValue:value matchInterfaces:NO error:&e];if(ok&&value)[host openInterfaces];return ok?0:failure(e);}
 }
-int32_t kiri_usb_alternate(void *handle,uint8_t number,uint8_t alt) {
-    @autoreleasepool {KiriUSBDevice *host=(__bridge KiriUSBDevice *)handle;[host openInterfaces];IOUSBHostInterface *interface;
+int32_t fabo_usb_alternate(void *handle,uint8_t number,uint8_t alt) {
+    @autoreleasepool {FaboUSBDevice *host=(__bridge FaboUSBDevice *)handle;[host openInterfaces];IOUSBHostInterface *interface;
         @synchronized(host) {interface=host.interfaces[@(number)];for(NSNumber *ep in host.owners.allKeys){if([host.owners[ep] isEqual:@(number)]){[host.pipes removeObjectForKey:ep];[host.owners removeObjectForKey:ep];}}}
         if(!interface)return -32;NSError *e=nil;return [interface selectAlternateSetting:alt error:&e]?0:failure(e);}
 }
-int32_t kiri_usb_clear(void *handle,uint8_t endpoint) {
-    @autoreleasepool {IOUSBHostPipe *pipe=[(__bridge KiriUSBDevice *)handle pipe:endpoint];if(!pipe)return -32;NSError *e=nil;return [pipe clearStallWithError:&e]?0:failure(e);}
+int32_t fabo_usb_clear(void *handle,uint8_t endpoint) {
+    @autoreleasepool {IOUSBHostPipe *pipe=[(__bridge FaboUSBDevice *)handle pipe:endpoint];if(!pipe)return -32;NSError *e=nil;return [pipe clearStallWithError:&e]?0:failure(e);}
 }
-void kiri_usb_abort(void *handle,uint8_t endpoint) {
-    @autoreleasepool {KiriUSBDevice *host=(__bridge KiriUSBDevice *)handle;
+void fabo_usb_abort(void *handle,uint8_t endpoint) {
+    @autoreleasepool {FaboUSBDevice *host=(__bridge FaboUSBDevice *)handle;
         if(!endpoint){[host.device abortDeviceRequestsWithOption:IOUSBHostAbortOptionSynchronous error:NULL];return;}
         IOUSBHostPipe *pipe;@synchronized(host){pipe=host.pipes[@(endpoint)];}[pipe abortWithOption:IOUSBHostAbortOptionSynchronous error:NULL];}
 }
-void kiri_usb_close(void *handle) {
-    @autoreleasepool {KiriUSBDevice *host=(__bridge KiriUSBDevice *)handle;host.closed=YES;NSArray *pipes;
+void fabo_usb_close(void *handle) {
+    @autoreleasepool {FaboUSBDevice *host=(__bridge FaboUSBDevice *)handle;host.closed=YES;NSArray *pipes;
         @synchronized(host){pipes=host.pipes.allValues;}for(IOUSBHostPipe *pipe in pipes)[pipe abortWithOption:IOUSBHostAbortOptionSynchronous error:NULL];
         [host.device abortDeviceRequestsWithOption:IOUSBHostAbortOptionSynchronous error:NULL];}
 }
-void kiri_usb_dispose(void *handle) {
-    @autoreleasepool {KiriUSBDevice *host=(__bridge_transfer KiriUSBDevice *)handle;host.fd=-1;[host closeInterfaces];
+void fabo_usb_dispose(void *handle) {
+    @autoreleasepool {FaboUSBDevice *host=(__bridge_transfer FaboUSBDevice *)handle;host.fd=-1;[host closeInterfaces];
         if(!host.gone)[host.device resetWithError:NULL];[host.device destroy];IOObjectRelease(host.service);}
 }

@@ -15,7 +15,7 @@ type usageReply struct {
 	err   error
 }
 
-// Usage uses the original Kiri usage frames and a separate reply slot, so
+// Usage uses the original Fabo usage frames and a separate reply slot, so
 // disk traversal does not reserve the request gate used by lifecycle calls.
 func (s *Session) Usage(ctx context.Context) ([]string, error) {
 	reply := make(chan usageReply, 1)

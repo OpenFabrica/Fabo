@@ -1,4 +1,4 @@
-module github.com/libracoder/kiri/engine
+module github.com/OpenFabrica/FabriBay/engine
 
 go 1.27.3
 

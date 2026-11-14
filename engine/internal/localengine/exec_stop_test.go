@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func TestDesktopExecStopKillsOnlyTheRequestedExec(t *testing.T) {
@@ -37,7 +37,7 @@ func TestDesktopExecStopKillsOnlyTheRequestedExec(t *testing.T) {
 		}
 		sent <- err
 	}()
-	r := httptest.NewRequest(http.MethodPost, "/kiri/exec/session/stop", nil)
+	r := httptest.NewRequest(http.MethodPost, "/fabo/exec/session/stop", nil)
 	w := httptest.NewRecorder()
 	e.Handler().ServeHTTP(w, r)
 	if w.Code != http.StatusNoContent {
@@ -51,7 +51,7 @@ func TestDesktopExecStopKillsOnlyTheRequestedExec(t *testing.T) {
 	}
 	// A finished exec stays inspectable, and repeated close is harmless.
 	w = httptest.NewRecorder()
-	e.Handler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/kiri/exec/session/stop", nil))
+	e.Handler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/fabo/exec/session/stop", nil))
 	if w.Code != 204 {
 		t.Fatal(w.Code)
 	}
@@ -64,7 +64,7 @@ func TestDesktopExecStopRejectsPrivateAndCancelsAnUnstartedExec(t *testing.T) {
 	}}
 	for id, want := range map[string]int{"unknown": 404, "private": 404, "queued": 204} {
 		w := httptest.NewRecorder()
-		e.Handler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/kiri/exec/"+id+"/stop", nil))
+		e.Handler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/fabo/exec/"+id+"/stop", nil))
 		if w.Code != want {
 			t.Errorf("%s: %d", id, w.Code)
 		}

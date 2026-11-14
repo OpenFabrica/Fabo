@@ -13,12 +13,12 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
-func openRustMigrationData(source *os.Root, path, destination string) (*os.Root, error) {
+func openKiriMigrationData(source *os.Root, path, destination string) (*os.Root, error) {
 	if info, err := source.Stat("blobs/sha256"); err != nil || !info.IsDir() {
-		return nil, fmt.Errorf("snapshot does not contain the Rust image store's blobs/sha256 directory")
+		return nil, fmt.Errorf("snapshot does not contain the Kiri image store's blobs/sha256 directory")
 	}
 	path, err := filepath.Abs(path)
 	if err != nil {
@@ -26,7 +26,7 @@ func openRustMigrationData(source *os.Root, path, destination string) (*os.Root,
 	}
 	path, err = filepath.EvalSymlinks(path)
 	if err != nil {
-		return nil, fmt.Errorf("open the offline Rust agent data directory: %w", err)
+		return nil, fmt.Errorf("open the offline Kiri agent data directory: %w", err)
 	}
 	if err := checkMigrationDestination(path, destination); err != nil {
 		return nil, err
@@ -38,17 +38,17 @@ func openRustMigrationData(source *os.Root, path, destination string) (*os.Root,
 	for _, name := range []string{"containers", "volumes"} {
 		if info, err := data.Lstat(name); err != nil || !info.IsDir() {
 			data.Close()
-			return nil, fmt.Errorf("Rust agent data directory does not contain a real %s directory", name)
+			return nil, fmt.Errorf("Kiri agent data directory does not contain a real %s directory", name)
 		}
 	}
-	if err := checkRustAgentStopped(data); err != nil {
+	if err := checkKiriAgentStopped(data); err != nil {
 		data.Close()
 		return nil, err
 	}
 	return data, nil
 }
 
-func checkRustAgentStopped(data *os.Root) error {
+func checkKiriAgentStopped(data *os.Root) error {
 	lock, err := data.Open("agent.lock")
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
@@ -59,21 +59,21 @@ func checkRustAgentStopped(data *os.Root) error {
 	defer lock.Close()
 	if err := unix.Flock(int(lock.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		if errors.Is(err, unix.EWOULDBLOCK) {
-			return fmt.Errorf("source Rust agent is still running")
+			return fmt.Errorf("source Kiri agent is still running")
 		}
-		return fmt.Errorf("check Rust agent lock: %w", err)
+		return fmt.Errorf("check Kiri agent lock: %w", err)
 	}
 	return nil
 }
 
-func migrateRustData(ctx context.Context, source, data *os.Root, stage string, _ *Engine) error {
-	if err := checkRustAgentStopped(data); err != nil {
+func migrateKiriData(ctx context.Context, source, data *os.Root, stage string, _ *Engine) error {
+	if err := checkKiriAgentStopped(data); err != nil {
 		return err
 	}
-	if err := checkRustDataMounts(data.Name()); err != nil {
+	if err := checkKiriDataMounts(data.Name()); err != nil {
 		return err
 	}
-	containers, err := readRustIndex[rustContainer](source, "containers.json")
+	containers, err := readKiriIndex[kiriContainer](source, "containers.json")
 	if err != nil {
 		return err
 	}
@@ -83,11 +83,11 @@ func migrateRustData(ctx context.Context, source, data *os.Root, stage string, _
 		}
 		src := filepath.Join("containers", c.ID, "upper")
 		dst := filepath.Join(stage, "guest", "containers", c.ID, "upper")
-		if _, err := copyRustTree(ctx, data, src, dst, c.StartedNS == nil); err != nil {
+		if _, err := copyKiriTree(ctx, data, src, dst, c.StartedNS == nil); err != nil {
 			return fmt.Errorf("copy container %q writable layer: %w", c.Name, err)
 		}
 	}
-	volumes, err := readRustIndex[rustVolume](source, "volumes.json")
+	volumes, err := readKiriIndex[kiriVolume](source, "volumes.json")
 	if err != nil {
 		return err
 	}
@@ -97,11 +97,11 @@ func migrateRustData(ctx context.Context, source, data *os.Root, stage string, _
 		}
 		src := filepath.Join("volumes", v.Name, "_data")
 		dst := filepath.Join(stage, src)
-		found, err := copyRustTree(ctx, data, src, dst, true)
+		found, err := copyKiriTree(ctx, data, src, dst, true)
 		if err != nil {
 			return fmt.Errorf("copy volume %q: %w", v.Name, err)
 		}
-		// Rust materializes a plain volume on first use. Go creates the
+		// Kiri materializes a plain volume on first use. Go creates the
 		// directory when it creates the metadata, so provision unused ones.
 		if !found {
 			if err := os.Mkdir(dst, 0755); err != nil {
@@ -112,10 +112,10 @@ func migrateRustData(ctx context.Context, source, data *os.Root, stage string, _
 			}
 		}
 	}
-	return checkRustAgentStopped(data)
+	return checkKiriAgentStopped(data)
 }
 
-func checkRustDataMounts(data string) error {
+func checkKiriDataMounts(data string) error {
 	info, err := os.ReadFile("/proc/self/mountinfo")
 	if err != nil {
 		return err
@@ -129,14 +129,14 @@ func checkRustDataMounts(data string) error {
 		mount := unescape.Replace(fields[4])
 		for _, name := range []string{"containers", "volumes"} {
 			if strings.HasPrefix(mount, filepath.Join(data, name)+string(filepath.Separator)) {
-				return fmt.Errorf("source Rust data has a mounted path %q; unmount it before migration", mount)
+				return fmt.Errorf("source Kiri data has a mounted path %q; unmount it before migration", mount)
 			}
 		}
 	}
 	return nil
 }
 
-func copyRustTree(ctx context.Context, source *os.Root, relative, dest string, optional bool) (bool, error) {
+func copyKiriTree(ctx context.Context, source *os.Root, relative, dest string, optional bool) (bool, error) {
 	dir := "."
 	for part := range strings.SplitSeq(relative, string(filepath.Separator)) {
 		dir = filepath.Join(dir, part)
@@ -165,7 +165,7 @@ func copyRustTree(ctx context.Context, source *os.Root, relative, dest string, o
 	return true, nil
 }
 
-func copyRustFile(ctx context.Context, source *os.Root, relative, dest string) error {
+func copyKiriFile(ctx context.Context, source *os.Root, relative, dest string) error {
 	info, err := source.Lstat(relative)
 	if err != nil {
 		return err
@@ -186,6 +186,6 @@ func copyRustFile(ctx context.Context, source *os.Root, relative, dest string) e
 	return errors.Join(err, out.Close())
 }
 
-func publishRustMigration(stage, dest string) error {
+func publishKiriMigration(stage, dest string) error {
 	return unix.Renameat2(unix.AT_FDCWD, stage, unix.AT_FDCWD, dest, unix.RENAME_NOREPLACE)
 }

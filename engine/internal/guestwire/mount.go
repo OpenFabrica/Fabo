@@ -11,8 +11,8 @@ const RunReadOnlyRoot uint32 = 512
 
 // HostShareTag and HostSharePath identify the VM's VirtioFS mount.
 const (
-	HostShareTag  = "kiri-mac"
-	HostSharePath = "/mnt/kiri-host"
+	HostShareTag  = "fabo-mac"
+	HostSharePath = "/mnt/fabo-host"
 )
 
 type BindMount struct {

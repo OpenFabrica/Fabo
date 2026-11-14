@@ -1,20 +1,20 @@
 # Kubernetes、迁入、USB、基准与 raw 命令
 
-这五组命令对照 `/Users/mike/source/project/tmp/kiri` 的 `a649319` 实现。公开入口为 `fabo`；资源名、context、标签、`KIRI_*` 环境变量和 socket 继续兼容 Kiri。`AGENTS.md` 已记录本地参考源码路径。
+这五组命令对照 `/Users/mike/source/project/tmp/kiri` 的 `a649319` 实现。公开入口为 `fabo`；资源名、context、标签、`FABO_*` 环境变量和 socket 都使用 Fabo 的名字。`AGENTS.md` 已记录本地参考源码路径。
 
 ## 命令与状态归属
 
 | 命令 | 用途 | 状态与边界 |
 | --- | --- | --- |
-| `fabo k8s start [--use]`、`stop`、`status`、`delete`、`set` | 单节点 k3s 集群 | 当前实例的 Docker API、`kiri-k8s` 容器和卷；设置在实例目录的 `k8s.json` |
+| `fabo k8s start [--use]`、`stop`、`status`、`delete`、`set` | 单节点 k3s 集群 | 当前实例的 Docker API、`fabo-k8s` 容器和卷；设置在实例目录的 `k8s.json` |
 | `fabo import [orbstack\|desktop-linux] [--list \| image\|volume\|container NAME]` | 从另一 Docker context 复制资源 | 默认源为 `orbstack`，目标始终是当前实例的 socket |
 | `fabo usb [list\|ls]`、`attach DEVICE`、`detach DEVICE` | 设备枚举与 macOS USB 透传 | 位置、VID:PID 或名称匹配，歧义拒绝；Linux 使用本机设备与 `--device` |
 | `fabo usb helper remove` | 删除 macOS 特权 helper | 仅删除本 flavor 的 helper、LaunchDaemon 和 socket；`setup --uninstall` 也清理它 |
 | `fabo usb fake serial\|mouse [OPTIONS]` | 无硬件 USB 端到端测试 | 与物理设备共用 USB/IP；支持 `--location`、`--stall-once`、`--unplug-after`、`--reports` |
-| `fabo bench [--runs N] [--image IMAGE] [--network none\|bridge] [--only kiri\|orbstack\|docker]` | 容器创建至删除的延迟 | 默认 50 次，另有 5 次预热；输出 p50、p99、均值，分别测 API 和 CLI |
+| `fabo bench [--runs N] [--image IMAGE] [--network none\|bridge] [--only fabo\|orbstack\|docker]` | 容器创建至删除的延迟 | 默认 50 次，另有 5 次预热；输出 p50、p99、均值，分别测 API 和 CLI |
 | `fabo raw pull IMAGE`、`images`、`rmi IMAGE...`、`run [OPTIONS] IMAGE [COMMAND...]` | 绕过 Docker API 使用独立 guest | 当前实例的 `raw/` 目录，独占锁；不连接 daemon、不恢复其容器 |
 
-`k8s`、`import` 和物理 USB attach 需要当前引擎在线。`KIRI_SOCKET` 只覆盖 Docker API 的目标，不改变 flavor 的设置、kubeconfig 或 raw 状态目录。自动化验证应同时隔离 HOME、Docker 配置和 socket。
+`k8s`、`import` 和物理 USB attach 需要当前引擎在线。`FABO_SOCKET` 只覆盖 Docker API 的目标，不改变 flavor 的设置、kubeconfig 或 raw 状态目录。自动化验证应同时隔离 HOME、Docker 配置和 socket。
 
 ```mermaid
 flowchart TD
@@ -48,7 +48,7 @@ fabo k8s delete
 
 运行中修改设置会重建节点，保留集群卷；已停止的节点下次启动应用设置。`delete` 删除节点及卷，只忽略资源不存在的 404，其他失败返回错误。
 
-导出的专用 kubeconfig 位于实例目录的 `kubeconfig`，同时合并到 `KUBECONFIG` 的第一个非空路径或 `~/.kube/config`。仅 `--use` 改变当前 context；已有其他 cluster、context、user、注释和换行格式保留。写入权限 0600，原文件备份为 `.bak.kiri`，支持现有符号链接。无法安全处理的 JSON、flow-list 或重复顶层键直接拒绝覆盖。删除仅移除本实例的条目。
+导出的专用 kubeconfig 位于实例目录的 `kubeconfig`，同时合并到 `KUBECONFIG` 的第一个非空路径或 `~/.kube/config`。仅 `--use` 改变当前 context；已有其他 cluster、context、user、注释和换行格式保留。写入权限 0600，原文件备份为 `.bak.fabo`，支持现有符号链接。无法安全处理的 JSON、flow-list 或重复顶层键直接拒绝覆盖。删除仅移除本实例的条目。
 
 与上游的剩余差异：当前在 `start`、`status` 时同步 kubeconfig，尚未挂接 daemon 启动时的后台同步。迁移或重启后需要刷新时运行 `fabo k8s status`。
 
@@ -68,7 +68,7 @@ fabo import desktop-linux volume app-data
 
 ## USB 实现与验证边界
 
-macOS 枚举和捕获由 `kiri-go-daemon usb` 承担，使用 IOUSBHost；CLI 可以保持 `CGO_ENABLED=0`。首次物理 attach 按需安装 root helper，会出现系统管理员授权窗口。每个设备有独立子进程，通过 UNIX fd 传递已连接的 USB/IP socket；helper 校验调用 UID、设备位置和描述符类型，不接收任意文件路径。设备解绑、断连或 helper 结束后释放捕获。
+macOS 枚举和捕获由 `fabo-daemon usb` 承担，使用 IOUSBHost；CLI 可以保持 `CGO_ENABLED=0`。首次物理 attach 按需安装 root helper，会出现系统管理员授权窗口。每个设备有独立子进程，通过 UNIX fd 传递已连接的 USB/IP socket；helper 校验调用 UID、设备位置和描述符类型，不接收任意文件路径。设备解绑、断连或 helper 结束后释放捕获。
 
 `engine/internal/usbhost` 隔离设备枚举、macOS 原生调用和 USB/IP 协议，供 launcher 与 daemon 共用。USB/IP 按端点保持顺序，区分排队取消与运行中取消，断开后中止阻塞传输并回收 worker；等时传输返回不支持。软件串口覆盖 CDC ACM 控制与 bulk 流，鼠标覆盖 HID interrupt；stall 故障会保持 halted 状态直到驱动 CLEAR_FEATURE，防止恢复期间提前消费数据。
 
@@ -85,14 +85,14 @@ fabo raw images
 fabo raw rmi alpine:latest
 ```
 
-raw 支持镜像 Entrypoint/Cmd、环境变量覆盖、用户、工作目录、stdout/stderr 和退出码；只支持 `--network none`。`--rm` 清理该次可写层，`--timings` 报告启动和 guest 阶段耗时。并发访问同一个 raw 存储在启动 guest 前因独占锁失败。macOS 使用 bundle 的内核/Go initramfs，源码验证可用 `KIRI_GUEST_DIR`；Linux 使用 `KIRI_AGENT` 或相邻的 `kiri-go-init`。
+raw 支持镜像 Entrypoint/Cmd、环境变量覆盖、用户、工作目录、stdout/stderr 和退出码；只支持 `--network none`。`--rm` 清理该次可写层，`--timings` 报告启动和 guest 阶段耗时。并发访问同一个 raw 存储在启动 guest 前因独占锁失败。macOS 使用 bundle 的内核/Go initramfs，源码验证可用 `FABO_GUEST_DIR`；Linux 使用 `FABO_AGENT` 或相邻的 `fabo-init`。
 
-与上游的存储差异：Go raw 使用独立 `~/.kiri[-flavor]/raw`，不共享 daemon 或 Rust 的镜像索引/数据盘。`images` 输出规范化镜像名、配置 digest、字节大小和层数，未复刻 Rust 的显示格式及拉取时间列。
+与上游的存储差异：Go raw 使用独立 `~/.fabo[-flavor]/raw`，不共享 daemon 或 Rust 的镜像索引/数据盘。`images` 输出规范化镜像名、配置 digest、字节大小和层数，未复刻 Rust 的显示格式及拉取时间列。
 
 ## 2026-11-13 验证
 
 - `make check`：engine vet、race tests，desktop vet/tests，以及 Linux ARM64 vet/测试交叉编译。Linux 的 `-exec true` 只证明编译。
-- 当前源码构建的 macOS daemon、guest 和纯 Go CLI；内核与空盘模板只读复用已安装 Kiri。
+- 当前源码构建的 macOS daemon、guest 和纯 Go CLI；内核与空盘模板只读复用已安装的 Kiri。
 - 独立 k3s 节点 Ready、真实 TLS API、端口修改、ConfigMap 状态保留、启停、kubeconfig 合并/删除，其他 context 字节级保持不变。
 - 两套独立 Go 引擎模拟源/目标 context，验证迁入内容、UID/GID/权限、停止容器、网络及别名、重复导入跳过与缺失源卷失败。未连接真实 OrbStack / Docker Desktop 数据。
 - `tests/usb.sh`：41 通过、0 失败；未启用可选的自定义空闲超时一项。覆盖 1 MiB 回环、重复开关、stall、取消、断连、多设备、VM 生命周期与鼠标输入。

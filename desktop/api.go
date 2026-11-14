@@ -102,7 +102,7 @@ type network struct {
 // builtin reports the three networks every engine has and none can remove.
 func (n network) builtin() bool { return n.Name == "bridge" || n.Name == "host" || n.Name == "none" }
 
-// vmResources is /kiri/resources. An engine running directly on Linux
+// vmResources is /fabo/resources. An engine running directly on Linux
 // reports zero CPUs.
 type vmResources struct {
 	CPUs          int  `json:"cpus"`
@@ -138,7 +138,7 @@ type domainInfo struct {
 	HTTPS domainPort `json:"https"`
 }
 
-// proxySettings is what /kiri/proxy stores: where image pulls and pushes
+// proxySettings is what /fabo/proxy stores: where image pulls and pushes
 // find their proxy, and whether new containers are told about it.
 type proxySettings struct {
 	Mode       string `json:"mode"` // system, custom, none
@@ -148,7 +148,7 @@ type proxySettings struct {
 	Containers bool   `json:"containers"`
 }
 
-// proxyInfo is the answer of /kiri/proxy: the settings and the proxy they
+// proxyInfo is the answer of /fabo/proxy: the settings and the proxy they
 // resolve to right now.
 type proxyInfo struct {
 	Settings  proxySettings `json:"settings"`
@@ -160,8 +160,8 @@ type proxyInfo struct {
 	} `json:"effective"`
 }
 
-// nameState is what the launcher's `kiri domains` prints: whether
-// *.kiri.local resolves to the engine, the suffix links carry, and whether
+// nameState is what the launcher's `fabo domains` prints: whether
+// *.fabo.local resolves to the engine, the suffix links carry, and whether
 // the engine's certificate authority is trusted for HTTPS.
 type nameState struct {
 	On     bool   `json:"on"`
@@ -257,8 +257,8 @@ func (e engineClient) containers(ctx context.Context) ([]container, error) {
 		ID, Image, ImageID, Command, State string
 		Names                              []string
 		Created                            int64
-		KiriStartedAt, KiriFinishedAt      *int64
-		KiriExitCode                       *int
+		FaboStartedAt, FaboFinishedAt      *int64
+		FaboExitCode                       *int
 		Labels                             map[string]string
 		Ports                              []struct {
 			Type                    string
@@ -282,14 +282,14 @@ func (e engineClient) containers(ctx context.Context) ([]container, error) {
 		if len(item.Names) > 0 {
 			c.Name = strings.TrimPrefix(item.Names[0], "/")
 		}
-		if item.KiriStartedAt != nil {
-			c.Started = *item.KiriStartedAt
+		if item.FaboStartedAt != nil {
+			c.Started = *item.FaboStartedAt
 		}
-		if item.KiriFinishedAt != nil {
-			c.Finished = *item.KiriFinishedAt
+		if item.FaboFinishedAt != nil {
+			c.Finished = *item.FaboFinishedAt
 		}
-		if item.KiriExitCode != nil {
-			c.ExitCode = *item.KiriExitCode
+		if item.FaboExitCode != nil {
+			c.ExitCode = *item.FaboExitCode
 		}
 		// A port published on IPv4 and IPv6 is listed twice.
 		seen := map[[2]int]bool{}
@@ -501,7 +501,7 @@ func (e engineClient) layers(ctx context.Context, ref string) ([]layer, error) {
 			Layers []layer `json:"layers"`
 		} `json:"images"`
 	}
-	if err := e.get(ctx, "/kiri/images/layers?name="+url.QueryEscape(ref), &raw); err != nil {
+	if err := e.get(ctx, "/fabo/images/layers?name="+url.QueryEscape(ref), &raw); err != nil {
 		return nil, err
 	}
 	if len(raw.Images) == 0 {
@@ -514,13 +514,13 @@ func (e engineClient) layers(ctx context.Context, ref string) ([]layer, error) {
 // never scanned.
 func (e engineClient) lastScan(ctx context.Context, ref string) (*scanResult, error) {
 	var result *scanResult
-	err := e.get(ctx, "/kiri/images/scan?name="+url.QueryEscape(ref), &result)
+	err := e.get(ctx, "/fabo/images/scan?name="+url.QueryEscape(ref), &result)
 	return result, err
 }
 
 // scan runs a new scan, reporting progress between 0 and 1 as it goes.
 func (e engineClient) scan(ctx context.Context, ref string, progress func(float64)) (*scanResult, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://localhost/kiri/images/scan?name="+url.QueryEscape(ref), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://localhost/fabo/images/scan?name="+url.QueryEscape(ref), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -637,7 +637,7 @@ func (e engineClient) exec(ctx context.Context, id string, cmd []string) (string
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if ctx.Value(backgroundRead{}) == true {
-		req.Header.Set("X-Kiri-Background", "1")
+		req.Header.Set("X-Fabo-Background", "1")
 	}
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
@@ -776,5 +776,5 @@ func responseError(res *http.Response) error {
 	if problem.Message != "" {
 		return &engineError{res.StatusCode, problem.Message}
 	}
-	return &engineError{res.StatusCode, fmt.Sprintf("Kiri returned HTTP %d", res.StatusCode)}
+	return &engineError{res.StatusCode, fmt.Sprintf("Fabo returned HTTP %d", res.StatusCode)}
 }

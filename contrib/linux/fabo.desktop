@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Fabo
+GenericName=Containers
+Comment=Run and share containers
+Exec=/usr/bin/fabo ui
+Icon=/usr/share/icons/hicolor/scalable/apps/fabo.svg
+Terminal=false
+Categories=Development;
+Keywords=docker;containers;kubernetes;
+StartupWMClass=fabo

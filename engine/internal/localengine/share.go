@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 // ShareRoots are the canonical host roots in the order exported by VirtioFS.

@@ -1,4 +1,4 @@
-module github.com/libracoder/kiri/desktop
+module github.com/OpenFabrica/FabriBay/desktop
 
 go 1.27.3
 

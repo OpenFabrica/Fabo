@@ -43,7 +43,7 @@ func loadLanguageWords() map[string]map[string]string {
 	return all
 }
 
-// languageFor follows Kiri's tag rules, including legacy persisted "zh".
+// languageFor follows Fabo's tag rules, including legacy persisted "zh".
 func languageFor(tag string) string {
 	tag = strings.ToLower(strings.TrimSpace(tag))
 	tag = strings.ReplaceAll(strings.Split(strings.Split(tag, ".")[0], "@")[0], "_", "-")

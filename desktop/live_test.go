@@ -31,7 +31,7 @@ func waitLive(t *testing.T, tt *ui.Tester, what string, condition func() bool) {
 // would, and checks each part of the containers page on real containers:
 //
 //	FABO_LIVE_SOCKET=~/.fabo-x/run/docker.sock FABO_LIVE_PROJECT=demo \
-//	  KIRI_SHOTS=/tmp/shots go test -run TestLiveEngine -v -timeout 10m .
+//	  FABO_SHOTS=/tmp/shots go test -run TestLiveEngine -v -timeout 10m .
 //
 // It only reads unless FABO_LIVE_PROJECT names a Compose project it may
 // stop, start and bring up again from its own, unchanged, Compose file.
@@ -40,8 +40,8 @@ func TestLiveEngine(t *testing.T) {
 	if socket == "" {
 		t.Skip("set FABO_LIVE_SOCKET to an engine socket to test against it")
 	}
-	t.Setenv("KIRI_SOCKET", socket)
-	project, shots := os.Getenv("FABO_LIVE_PROJECT"), os.Getenv("KIRI_SHOTS")
+	t.Setenv("FABO_SOCKET", socket)
+	project, shots := os.Getenv("FABO_LIVE_PROJECT"), os.Getenv("FABO_SHOTS")
 	s := newDesktop(newEngineClient(dialEngine))
 	s.contextName = strings.TrimPrefix(filepath.Base(filepath.Dir(filepath.Dir(socket))), ".")
 	s.prefs.Lang = "en"
@@ -69,7 +69,7 @@ func TestLiveEngine(t *testing.T) {
 	waitLive(t, tt, "containers", func() bool { return len(s.containers) > 0 })
 
 	// The list: every container by name, a project as a heading, and a
-	// brand tile for the images Kiri's catalog knows.
+	// brand tile for the images Fabo's catalog knows.
 	var running container
 	for _, x := range s.containers {
 		if !tt.HasText(x.Name) {

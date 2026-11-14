@@ -67,10 +67,10 @@ func (s *desktop) loadSettings() {
 		var domains domainInfo
 		var builder builderInfo
 		var version versionInfo
-		resErr := e.get(ctx, "/kiri/resources", &res)
-		proxyErr := e.get(ctx, "/kiri/proxy", &proxy)
-		domainsErr := e.get(ctx, "/kiri/domains", &domains)
-		builderErr := e.get(ctx, "/kiri/builder", &builder)
+		resErr := e.get(ctx, "/fabo/resources", &res)
+		proxyErr := e.get(ctx, "/fabo/proxy", &proxy)
+		domainsErr := e.get(ctx, "/fabo/domains", &domains)
+		builderErr := e.get(ctx, "/fabo/builder", &builder)
 		versionErr := e.get(ctx, "/version", &version)
 		var names nameState
 		namesErr := errors.New("no launcher")
@@ -407,7 +407,7 @@ func (s *desktop) stopEngine() {
 		title: tr("停止引擎？", "Stop the engine?"),
 		body:  tr("运行中的容器会停止，引擎在你再次启动前保持关闭。", "Running containers stop, and the engine stays off until you start it again."),
 		ok:    tr("停止", "Stop"),
-		run:   func() { s.do("engine", engineAction{http.MethodPost, "/kiri/stop", nil}, "") },
+		run:   func() { s.do("engine", engineAction{http.MethodPost, "/fabo/stop", nil}, "") },
 	}
 }
 
@@ -416,9 +416,9 @@ func (s *desktop) stopEngine() {
 func (s *desktop) restartVM() {
 	s.working["engine"] = true
 	s.run(2*time.Minute, func(ctx context.Context) func() {
-		err := s.engine.request(ctx, http.MethodPost, "/kiri/sleep", nil, nil)
+		err := s.engine.request(ctx, http.MethodPost, "/fabo/sleep", nil, nil)
 		if err == nil {
-			err = s.engine.request(ctx, http.MethodPost, "/kiri/wake", nil, nil)
+			err = s.engine.request(ctx, http.MethodPost, "/fabo/wake", nil, nil)
 		}
 		return func() {
 			delete(s.working, "engine")
@@ -434,7 +434,7 @@ func (s *desktop) resourcesPane(c *ui.Context, p palette) {
 		remark(c, p, tr("引擎未连接，无法读取资源设置。", "The engine is not reachable, so its resources cannot be read."))
 		return
 	}
-	if s.info.KiriVMControls == nil || *s.info.KiriVMControls {
+	if s.info.FaboVMControls == nil || *s.info.FaboVMControls {
 		state := s.engineState()
 		title, hint := tr("运行中", "Running"), tr("没有任务时会自行休眠，用到时再唤醒。", "It rests by itself when nothing runs and wakes when you use it.")
 		switch state {
@@ -448,7 +448,7 @@ func (s *desktop) resourcesPane(c *ui.Context, p palette) {
 		pref(c, p, title, hint, func() {
 			if state == "stopped" {
 				if button(c.Key("on"), p, tr("启动引擎", "Start engine"), "play", primaryButton, s.working["engine"]) {
-					s.do("engine", engineAction{http.MethodPost, "/kiri/wake", nil}, tr("引擎已启动", "Engine started"))
+					s.do("engine", engineAction{http.MethodPost, "/fabo/wake", nil}, tr("引擎已启动", "Engine started"))
 				}
 			} else if button(c.Key("off"), p, tr("关闭引擎", "Turn off engine"), "power", plainButton, s.working["engine"]) {
 				s.stopEngine()
@@ -488,7 +488,7 @@ func (s *desktop) resourcesPane(c *ui.Context, p palette) {
 			}
 		}
 		if button(c.Key("save"), p, tr("保存", "Save"), "", primaryButton, !changed || s.working["resources"]) {
-			s.do("resources", engineAction{http.MethodPost, "/kiri/resources", map[string]int{"cpus": cpus, "memory_mib": memory}},
+			s.do("resources", engineAction{http.MethodPost, "/fabo/resources", map[string]int{"cpus": cpus, "memory_mib": memory}},
 				tr("已保存，虚拟机下次启动时生效", "Saved. The VM uses these from its next start"))
 		}
 	})
@@ -545,7 +545,7 @@ func (s *desktop) networkPane(c *ui.Context, p palette) {
 		ui.Text(c, fmt.Sprintf(tr("VPN 不需要设置：容器流量经由 %s 发出。", "VPNs need no setting: container traffic leaves through %s."), osName())).
 			Grow(1).Width(0).MinWidth(0).FontSize(12).TextColor(p.muted)
 		if button(c.Key("save"), p, tr("保存", "Save"), "", primaryButton, *d == s.proxy.Settings || s.working["proxy"]) {
-			s.do("proxy", engineAction{http.MethodPost, "/kiri/proxy", *d}, tr("代理设置已保存", "Proxy settings saved"))
+			s.do("proxy", engineAction{http.MethodPost, "/fabo/proxy", *d}, tr("代理设置已保存", "Proxy settings saved"))
 		}
 	})
 }
@@ -569,7 +569,7 @@ func (s *desktop) builderRows(c *ui.Context, p palette) {
 		ui.Text(c, "GB").FontSize(12).TextColor(p.muted)
 		gb, err := strconv.ParseFloat(strings.TrimSpace(s.cacheGB), 64)
 		if button(c.Key("save-cache"), p, tr("保存", "Save"), "", plainButton, err != nil || gb <= 0 || gb == b.CacheGB) {
-			s.do("builder", engineAction{http.MethodPost, "/kiri/builder", map[string]any{"cache_gb": gb, "idle_secs": b.IdleSecs}}, tr("已保存", "Saved"))
+			s.do("builder", engineAction{http.MethodPost, "/fabo/builder", map[string]any{"cache_gb": gb, "idle_secs": b.IdleSecs}}, tr("已保存", "Saved"))
 		}
 	})
 	pref(c, p, tr("空闲后停止", "Stops when idle"), tr("没有构建时构建器自己停下，下次构建再启动。", "The builder stops by itself between builds and starts with the next one."), func() {
@@ -591,18 +591,18 @@ func (s *desktop) builderRows(c *ui.Context, p palette) {
 	})
 }
 
-// setNames asks the launcher to switch *.kiri.local names ("local") or the
+// setNames asks the launcher to switch *.fabo.local names ("local") or the
 // trust in the engine's certificate ("https"). macOS asks for a password on
 // the way; closing that prompt is a choice and is not reported.
 func (s *desktop) setNames(kind string, on bool) {
-	done, failed := tr("容器现在通过 <name>.kiri.localhost 访问", "Containers answer at <name>.kiri.localhost"), tr("无法更改容器域名：", "Could not change container names: ")
+	done, failed := tr("容器现在通过 <name>.fabo.localhost 访问", "Containers answer at <name>.fabo.localhost"), tr("无法更改容器域名：", "Could not change container names: ")
 	switch {
 	case kind == "https" && on:
 		done = tr("已信任 Fabo 的证书：容器可通过 HTTPS 打开", "Fabo's certificate is trusted: containers open over HTTPS")
 	case kind == "https":
 		done = tr("已不再信任 Fabo 的证书", "Fabo's certificate is no longer trusted")
 	case on:
-		done = tr("容器现在通过 <name>.kiri.local 访问", "Containers now answer at <name>.kiri.local")
+		done = tr("容器现在通过 <name>.fabo.local 访问", "Containers now answer at <name>.fabo.local")
 	}
 	if kind == "https" {
 		failed = tr("无法更改证书的信任设置：", "Could not change the certificate's trust: ")
@@ -632,17 +632,17 @@ func (s *desktop) setNames(kind string, on bool) {
 // domainsPane is Settings → Domains: which suffix container names carry,
 // whether they open over HTTPS, and the ports they answer on. The first two
 // are the launcher's to change; without one (Linux, or a window started on
-// its own) names are *.kiri.localhost and there is nothing to switch.
+// its own) names are *.fabo.localhost and there is nothing to switch.
 func (s *desktop) domainsPane(c *ui.Context, p palette) {
 	heading(c, p, tr("域名", "Domains"))
-	suffix := "kiri.localhost"
+	suffix := "fabo.localhost"
 	if !s.namesOK {
-		pref(c, p, tr("本地域名", "Local names"), tr("运行中的容器通过 <name>.kiri.localhost 访问，无需任何设置。", "Running containers answer at <name>.kiri.localhost, which needs no setup."), nil)
+		pref(c, p, tr("本地域名", "Local names"), tr("运行中的容器通过 <name>.fabo.localhost 访问，无需任何设置。", "Running containers answer at <name>.fabo.localhost, which needs no setup."), nil)
 	} else {
 		suffix = s.names.Suffix
-		hint := tr("关闭：容器通过 <name>.kiri.localhost 访问，无需任何设置。", "Off: containers answer at <name>.kiri.localhost, which needs no setup.")
+		hint := tr("关闭：容器通过 <name>.fabo.localhost 访问，无需任何设置。", "Off: containers answer at <name>.fabo.localhost, which needs no setup.")
 		if s.names.On {
-			hint = tr("开启：运行中的容器可通过 <name>.kiri.local 访问。", "On: running containers answer at <name>.kiri.local.")
+			hint = tr("开启：运行中的容器可通过 <name>.fabo.local 访问。", "On: running containers answer at <name>.fabo.local.")
 		}
 		pref(c, p, tr("本地域名", "Local names"), hint, func() {
 			idx := 0
@@ -651,15 +651,15 @@ func (s *desktop) domainsPane(c *ui.Context, p palette) {
 			}
 			// The choice shows what the machine has, so it moves only
 			// once the launcher has made the change.
-			if choice(c.Key("names"), p, tr("本地域名", "Local names"), &idx, "kiri.localhost", "kiri.local") && !s.working["names"] {
+			if choice(c.Key("names"), p, tr("本地域名", "Local names"), &idx, "fabo.localhost", "fabo.local") && !s.working["names"] {
 				s.setNames("local", idx == 1)
 			}
 		})
 		hint = fmt.Sprintf(tr("信任 Fabo 的证书，让 https://myapp.%s 可用。%s 会询问你的密码。该证书只能为 Fabo 自己的域名担保。",
 			"Trust Fabo's certificate so https://myapp.%s works. %s asks for your password. The certificate can only vouch for Fabo's own names."), suffix, osName())
 		if s.names.HTTPS {
-			hint = tr("开启：容器以 https:// 打开，使用 Fabo 自己的证书，该证书只为 .kiri.local 和 .kiri.localhost 域名担保。",
-				"On: containers open at https:// with Fabo's own certificate, which only vouches for .kiri.local and .kiri.localhost names.")
+			hint = tr("开启：容器以 https:// 打开，使用 Fabo 自己的证书，该证书只为 .fabo.local 和 .fabo.localhost 域名担保。",
+				"On: containers open at https:// with Fabo's own certificate, which only vouches for .fabo.local and .fabo.localhost names.")
 		}
 		pref(c, p, "HTTPS", hint, func() {
 			idx := 0
@@ -674,8 +674,8 @@ func (s *desktop) domainsPane(c *ui.Context, p palette) {
 	s.domainPorts(c, p, suffix)
 	about := fmt.Sprintf(tr("Compose 服务可通过 <service>.<project>.%s 访问。", "Compose services answer at <service>.<project>.%s."), suffix)
 	if s.namesOK {
-		about += " " + tr("更改此项需要管理员权限（管理员密码），因为它会添加或删除 /etc/resolver/kiri.local。",
-			"Changing this needs admin rights (an administrator password), since it adds or removes /etc/resolver/kiri.local.")
+		about += " " + tr("更改此项需要管理员权限（管理员密码），因为它会添加或删除 /etc/resolver/fabo.local。",
+			"Changing this needs admin rights (an administrator password), since it adds or removes /etc/resolver/fabo.local.")
 	}
 	remark(c, p, about)
 }
@@ -711,7 +711,7 @@ func (s *desktop) domainPorts(c *ui.Context, p palette, suffix string) {
 			valid := e1 == nil && e2 == nil && h > 0 && h < 65536 && t > 0 && t < 65536 && h != t
 			same := h == d.HTTP.Port && t == d.HTTPS.Port
 			if button(c.Key("change"), p, tr("更改端口", "Change ports"), "", primaryButton, !valid || same || s.working["domains"]) {
-				s.do("domains", engineAction{http.MethodPost, "/kiri/domains", map[string]int{"http": h, "https": t}}, tr("端口已更改", "Ports changed"))
+				s.do("domains", engineAction{http.MethodPost, "/fabo/domains", map[string]int{"http": h, "https": t}}, tr("端口已更改", "Ports changed"))
 			}
 		})
 	})

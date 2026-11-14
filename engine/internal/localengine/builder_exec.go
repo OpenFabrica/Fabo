@@ -8,7 +8,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 // readyBuilder starts and probes the managed builder. When create is false,
@@ -63,7 +63,7 @@ func (e *Engine) readyBuilder(ctx context.Context, create bool) (*container, err
 		running := c.state == "running"
 		e.mu.Unlock()
 		if !running || ready.Err() != nil {
-			return nil, fmt.Errorf("Kiri BuildKit is not ready: %w", err)
+			return nil, fmt.Errorf("Fabo BuildKit is not ready: %w", err)
 		}
 		select {
 		case <-ready.Done():

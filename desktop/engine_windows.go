@@ -11,10 +11,10 @@ import (
 
 // enginePipe is the named pipe the engine listens on.
 func enginePipe() string {
-	if pipe := os.Getenv("KIRI_PIPE"); pipe != "" {
+	if pipe := os.Getenv("FABO_PIPE"); pipe != "" {
 		return pipe
 	}
-	return `\\.\pipe\kiri`
+	return `\\.\pipe\fabo`
 }
 
 func dialEngine(ctx context.Context) (net.Conn, error) {

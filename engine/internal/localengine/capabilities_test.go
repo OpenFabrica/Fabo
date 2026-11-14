@@ -4,7 +4,7 @@ package localengine
 
 import (
 	"encoding/json"
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 	"testing"
 )
 

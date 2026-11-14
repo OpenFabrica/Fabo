@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func TestStateRestoresCreatedAndExitedContainers(t *testing.T) {

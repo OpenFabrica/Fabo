@@ -31,15 +31,15 @@ func (e *Engine) WriteInfo(w http.ResponseWriter, awake, stopped bool) {
 	}
 	e.mu.Unlock()
 	result := map[string]any{
-		"ID": "kiri", "Name": "kiri", "ServerVersion": e.version(), "KiriEngine": "go",
+		"ID": "fabo", "Name": "fabo", "ServerVersion": e.version(), "FaboEngine": "go",
 		"Containers": total, "ContainersRunning": running, "ContainersPaused": paused, "ContainersStopped": total - running - paused, "Images": images,
-		"Driver": "overlayfs", "OperatingSystem": "Kiri", "OSType": "linux", "Architecture": runtime.GOARCH,
+		"Driver": "overlayfs", "OperatingSystem": "Fabo", "OSType": "linux", "Architecture": runtime.GOARCH,
 		"CgroupDriver": "cgroupfs", "CgroupVersion": "2", "Warnings": []string{},
-		"KiriVMControls": e.remoteGuest, "KiriExecStop": true,
-		"KiriRosetta": e.rosetta,
+		"FaboVMControls": e.remoteGuest, "FaboExecStop": true,
+		"FaboRosetta": e.rosetta,
 	}
 	if e.remoteGuest {
-		result["KiriVmAwake"], result["KiriStopped"] = awake, stopped
+		result["FaboVmAwake"], result["FaboStopped"] = awake, stopped
 		if awake {
 			result["NCPU"], result["MemTotal"] = e.vmCPUs, e.vmMemory<<20
 		}

@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 var networkNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$`)
@@ -257,7 +257,7 @@ func (e *Engine) createNetwork(n *dockerNetwork) error {
 		return err
 	}
 	n.ID = hex.EncodeToString(raw[:])
-	n.Bridge = "kiri" + n.ID[:10]
+	n.Bridge = "fabo" + n.ID[:10]
 	for _, existing := range e.networks {
 		if existing.Bridge == n.Bridge {
 			return fmt.Errorf("%w: bridge name already reserved", errConflict)

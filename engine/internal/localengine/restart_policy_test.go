@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func TestManualStopCancelsPendingRestartAndSurvivesRestore(t *testing.T) {

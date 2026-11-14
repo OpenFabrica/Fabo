@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func (r *Runtime) freeze(id string, frozen bool) error {
@@ -128,7 +128,7 @@ func (r *Runtime) updateLimits(id string, limits guestwire.Limits) error {
 
 func createCgroup(parent, id string, limits guestwire.Limits) (*os.File, error) {
 	if parent == "" {
-		return nil, fmt.Errorf("resource limits require a delegated KIRI_GO_CGROUP_DIR")
+		return nil, fmt.Errorf("resource limits require a delegated FABO_CGROUP_DIR")
 	}
 	var controllers []string
 	settings := limitChanges(guestwire.Limits{}, limits)
@@ -153,7 +153,7 @@ func createCgroup(parent, id string, limits guestwire.Limits) (*os.File, error) 
 			_ = os.WriteFile(subtree, []byte("+"+controller), 0)
 		}
 	}
-	dir := filepath.Join(parent, "kiri-"+id)
+	dir := filepath.Join(parent, "fabo-"+id)
 	if err := os.Mkdir(dir, 0755); err != nil {
 		return nil, err
 	}

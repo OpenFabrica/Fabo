@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func TestCommitConfigKeepsExplicitlyEmptyEntrypointAfterRestore(t *testing.T) {

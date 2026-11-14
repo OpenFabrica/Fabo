@@ -313,7 +313,7 @@ func composeCLI() (string, error) {
 	if path, err := exec.LookPath("docker-compose"); err == nil {
 		return path, nil
 	}
-	for _, dir := range []string{"", "/usr/local/bin", "/opt/homebrew/bin", filepath.Join(home, ".kiri/bin"), filepath.Join(home, ".docker/bin"),
+	for _, dir := range []string{"", "/usr/local/bin", "/opt/homebrew/bin", filepath.Join(home, ".fabo/bin"), filepath.Join(home, ".docker/bin"),
 		filepath.Join(filepath.Dir(exe), "../Resources/bin"), "/Applications/Docker.app/Contents/Resources/bin"} {
 		if path, err := exec.LookPath(filepath.Join(dir, "docker")); err == nil {
 			return path, nil

@@ -11,13 +11,13 @@ import (
 	"strconv"
 )
 
-func migrateRustScans(ctx context.Context, source *os.Root, stage string, index imageIndex) error {
+func migrateKiriScans(ctx context.Context, source *os.Root, stage string, index imageIndex) error {
 	engine := &Engine{images: index.references(nil), imageIndex: index}
 	for id := range engine.allImages() {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		digest, err := rustDigest(id)
+		digest, err := kiriDigest(id)
 		if err != nil {
 			return err
 		}
@@ -38,7 +38,7 @@ func migrateRustScans(ctx context.Context, source *os.Root, stage string, index 
 		for _, entry := range entries {
 			at, err := strconv.ParseInt(entry.Name(), 10, 64)
 			if err == nil && at >= 0 && entry.Name() == strconv.FormatInt(at, 10) && entry.IsDir() {
-				if err := copyRustScan(ctx, source, path.Join(dir, entry.Name()), filepath.Join(to, entry.Name())); err != nil {
+				if err := copyKiriScan(ctx, source, path.Join(dir, entry.Name()), filepath.Join(to, entry.Name())); err != nil {
 					return err
 				}
 			}
@@ -51,7 +51,7 @@ func migrateRustScans(ctx context.Context, source *os.Root, stage string, index 
 				at++
 				dest = filepath.Join(to, strconv.FormatInt(at, 10))
 			}
-			if err := copyRustScan(ctx, source, dir, dest); err != nil {
+			if err := copyKiriScan(ctx, source, dir, dest); err != nil {
 				return err
 			}
 		} else if !errors.Is(err, os.ErrNotExist) {
@@ -61,7 +61,7 @@ func migrateRustScans(ctx context.Context, source *os.Root, stage string, index 
 	return nil
 }
 
-func copyRustScan(ctx context.Context, source *os.Root, relative, destination string) error {
+func copyKiriScan(ctx context.Context, source *os.Root, relative, destination string) error {
 	if _, err := source.Lstat(path.Join(relative, "grype.json")); errors.Is(err, os.ErrNotExist) {
 		return nil
 	} else if err != nil {
@@ -71,7 +71,7 @@ func copyRustScan(ctx context.Context, source *os.Root, relative, destination st
 		return err
 	}
 	for _, file := range []string{"grype.json", "sbom.cdx.json", "summary.json"} {
-		if err := copyRustFile(ctx, source, path.Join(relative, file), filepath.Join(destination, file)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := copyKiriFile(ctx, source, path.Join(relative, file), filepath.Join(destination, file)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
 	}

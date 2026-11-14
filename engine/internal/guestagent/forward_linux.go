@@ -14,7 +14,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func (refs forwardingRefs) forwardBridge(bridge netlink.Link, subnet netip.Prefix, routes []netlink.Route, internal, vm bool) (func(), error) {
@@ -44,7 +44,7 @@ func (refs forwardingRefs) forwardBridge(bridge netlink.Link, subnet netip.Prefi
 	if err != nil {
 		return nil, err
 	}
-	tableName := "kiri_go"
+	tableName := "fabo_go"
 	if bridge.Attrs().Name != guestwire.DefaultBridge {
 		tableName += "_" + bridge.Attrs().Name
 	}
@@ -98,10 +98,10 @@ func (refs forwardingRefs) forwardBridge(bridge netlink.Link, subnet netip.Prefi
 			Hooknum: nftables.ChainHookPostrouting, Priority: nftables.ChainPriorityNATSource})
 		var onUplink, toUplink []expr.Any
 		if ipv6 {
-			// Like Rust Kiri, let the route choose the external interface.
+			// Like Rust Fabo, let the route choose the external interface.
 			// This includes directly connected subnets on a non-default uplink.
-			onUplink = outsideKiri(expr.MetaKeyIIFNAME)
-			toUplink = outsideKiri(expr.MetaKeyOIFNAME)
+			onUplink = outsideFabo(expr.MetaKeyIIFNAME)
+			toUplink = outsideFabo(expr.MetaKeyOIFNAME)
 		} else {
 			onUplink = iface(expr.MetaKeyIIF, uplink.LinkIndex)
 			toUplink = iface(expr.MetaKeyOIF, uplink.LinkIndex)
@@ -213,7 +213,7 @@ func setForwarding(setting forwardingSetting) (func() error, error) {
 
 // Global forwarding would otherwise stop router advertisements on every
 // interface that accepts them only in host mode. Keep those interfaces in
-// router-aware mode for the lifetime of Kiri's forwarding reference.
+// router-aware mode for the lifetime of Fabo's forwarding reference.
 func enableIPv6Forwarding(setting forwardingSetting) (func() error, error) {
 	before, err := os.ReadFile(setting.path)
 	if err != nil {
@@ -239,7 +239,7 @@ func enableIPv6Forwarding(setting forwardingSetting) (func() error, error) {
 	}
 	for _, entry := range entries {
 		name := entry.Name()
-		if name == "all" || name == "default" || name == "lo" || strings.HasPrefix(name, "kiri") || strings.HasPrefix(name, "kv") {
+		if name == "all" || name == "default" || name == "lo" || strings.HasPrefix(name, "fabo") || strings.HasPrefix(name, "kv") {
 			continue
 		}
 		path := conf + name + "/accept_ra"
@@ -268,10 +268,10 @@ func iface(key expr.MetaKey, index int) []expr.Any {
 	}
 }
 
-func outsideKiri(key expr.MetaKey) []expr.Any {
+func outsideFabo(key expr.MetaKey) []expr.Any {
 	return []expr.Any{
 		&expr.Meta{Key: key, Register: 1},
-		&expr.Cmp{Op: expr.CmpOpNeq, Register: 1, Data: []byte("kiri")},
+		&expr.Cmp{Op: expr.CmpOpNeq, Register: 1, Data: []byte("fabo")},
 	}
 }
 

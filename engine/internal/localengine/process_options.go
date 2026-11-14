@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 // parseProcessOptions consumes the HostConfig fields supported by the guest.

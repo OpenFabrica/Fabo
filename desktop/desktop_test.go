@@ -109,17 +109,17 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 	f := &fakeEngine{}
 	now := time.Now().Unix()
 	containers := fmt.Sprintf(`[
-	 {"Id":"c-web","Names":["/shop-web-1"],"Image":"nginx:1.27-alpine","ImageID":"sha256:img-nginx","State":"running","Created":%[1]d,"KiriStartedAt":%[2]d,
+	 {"Id":"c-web","Names":["/shop-web-1"],"Image":"nginx:1.27-alpine","ImageID":"sha256:img-nginx","State":"running","Created":%[1]d,"FaboStartedAt":%[2]d,
 	  "Labels":{"com.docker.compose.project":"shop","com.docker.compose.service":"web","com.docker.compose.project.working_dir":"SHOP_DIR","com.docker.compose.project.config_files":"SHOP_DIR/compose.yaml","com.docker.compose.version":"2.32.1"},"Ports":[{"Type":"tcp","PrivatePort":80,"PublicPort":8080},{"IP":"::","Type":"tcp","PrivatePort":80,"PublicPort":8080}],
 	  "NetworkSettings":{"Networks":{"shop_default":{"IPAddress":"172.18.0.2"}}}},
-	 {"Id":"c-api","Names":["/shop-api-1"],"Image":"shop/api:dev","ImageID":"sha256:img-api","State":"running","Created":%[1]d,"KiriStartedAt":%[2]d,
+	 {"Id":"c-api","Names":["/shop-api-1"],"Image":"shop/api:dev","ImageID":"sha256:img-api","State":"running","Created":%[1]d,"FaboStartedAt":%[2]d,
 	  "Labels":{"com.docker.compose.project":"shop","com.docker.compose.service":"api","com.docker.compose.project.working_dir":"SHOP_DIR","com.docker.compose.project.config_files":"SHOP_DIR/compose.yaml","com.docker.compose.version":"2.32.1"},"Ports":[{"Type":"tcp","PrivatePort":3000,"PublicPort":3000}],
 	  "NetworkSettings":{"Networks":{"shop_default":{"IPAddress":"172.18.0.3"}}},"Mounts":[{"Type":"volume","Name":"shop_pgdata","Destination":"/data"}]},
-	 {"Id":"c-loki","Names":["/loki"],"Image":"grafana/loki:3.2","ImageID":"sha256:img-loki","State":"exited","Created":%[1]d,"KiriFinishedAt":%[3]d,"KiriExitCode":1,
+	 {"Id":"c-loki","Names":["/loki"],"Image":"grafana/loki:3.2","ImageID":"sha256:img-loki","State":"exited","Created":%[1]d,"FaboFinishedAt":%[3]d,"FaboExitCode":1,
 	  "Labels":{"com.docker.compose.project":"observability"}},
-	 {"Id":"c-redis","Names":["/redis-cache"],"Image":"redis:7.4-alpine","ImageID":"sha256:img-redis","State":"running","Created":%[1]d,"KiriStartedAt":%[1]d,
+	 {"Id":"c-redis","Names":["/redis-cache"],"Image":"redis:7.4-alpine","ImageID":"sha256:img-redis","State":"running","Created":%[1]d,"FaboStartedAt":%[1]d,
 	  "Ports":[{"Type":"tcp","PrivatePort":6379,"PublicPort":6379}],"NetworkSettings":{"Networks":{"bridge":{"IPAddress":"172.17.0.2"}}}},
-	 {"Id":"c-job","Names":["/db-migrate"],"Image":"shop/migrate:dev","ImageID":"sha256:img-migrate","State":"exited","Created":%[1]d,"KiriFinishedAt":%[1]d,"KiriExitCode":0}
+	 {"Id":"c-job","Names":["/db-migrate"],"Image":"shop/migrate:dev","ImageID":"sha256:img-migrate","State":"exited","Created":%[1]d,"FaboFinishedAt":%[1]d,"FaboExitCode":0}
 	]`, now-3*86400, now-240, now-360)
 	// The shop project's Compose file is real, so its Config tab has
 	// something to show and to save.
@@ -167,7 +167,7 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 				}
 				return
 			}
-			if path == "/kiri/exec/exec-1/stop" {
+			if path == "/fabo/exec/exec-1/stop" {
 				f.mu.Lock()
 				if f.proc != nil {
 					_ = f.proc.Kill()
@@ -190,7 +190,7 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			}
 			return
 		}
-		if r.Header.Get("X-Kiri-Background") != "1" {
+		if r.Header.Get("X-Fabo-Background") != "1" {
 			t.Errorf("read could keep the VM awake: %s", r.URL)
 		}
 		switch {
@@ -209,11 +209,11 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			_ = archive.Close()
 		case path == "/exec/exec-1/json":
 			fmt.Fprint(w, `{"Running":false,"ExitCode":0}`)
-		case path == "/containers/kiri-k8s/json":
+		case path == "/containers/fabo-k8s/json":
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprint(w, `{"message":"No such container"}`)
 		case path == "/info":
-			fmt.Fprint(w, `{"Name":"kiri","KiriExecStop":true,"ServerVersion":"0.4.0","KiriVmAwake":true,"KiriVMControls":true,"NCPU":4,"MemTotal":8589934592,"Containers":5,"ContainersRunning":3,"Images":3}`)
+			fmt.Fprint(w, `{"Name":"fabo","FaboExecStop":true,"ServerVersion":"0.4.0","FaboVmAwake":true,"FaboVMControls":true,"NCPU":4,"MemTotal":8589934592,"Containers":5,"ContainersRunning":3,"Images":3}`)
 		case path == "/containers/json":
 			fmt.Fprint(w, containers)
 		case path == "/images/json":
@@ -221,13 +221,13 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			 {"Id":"sha256:img-api","RepoTags":["shop/api:dev"],"Size":432013312,"Created":%[1]d},
 			 {"Id":"sha256:img-alpine","RepoTags":["alpine:3.21"],"Size":8703180,"Created":%[1]d}]`, now-7200)
 		case path == "/volumes":
-			fmt.Fprint(w, `{"Volumes":[{"Name":"shop_pgdata","Driver":"local","Mountpoint":"/var/lib/kiri/volumes/shop_pgdata/_data","CreatedAt":"2026-11-01T10:00:00Z"},
-			 {"Name":"scratch","Driver":"local","Mountpoint":"/var/lib/kiri/volumes/scratch/_data","CreatedAt":"2026-10-01T10:00:00Z"}]}`)
+			fmt.Fprint(w, `{"Volumes":[{"Name":"shop_pgdata","Driver":"local","Mountpoint":"/var/lib/fabo/volumes/shop_pgdata/_data","CreatedAt":"2026-11-01T10:00:00Z"},
+			 {"Name":"scratch","Driver":"local","Mountpoint":"/var/lib/fabo/volumes/scratch/_data","CreatedAt":"2026-10-01T10:00:00Z"}]}`)
 		case path == "/networks":
 			fmt.Fprint(w, `[{"Id":"n-shop","Name":"shop_default","Driver":"bridge","Created":"2026-11-01T10:00:00Z","IPAM":{"Config":[{"Subnet":"172.18.0.0/16","Gateway":"172.18.0.1"}]}},
 			 {"Id":"n-bridge","Name":"bridge","Driver":"bridge","IPAM":{"Config":[{"Subnet":"172.17.0.0/16","Gateway":"172.17.0.1"}]}},
 			 {"Id":"n-host","Name":"host","Driver":"host"},{"Id":"n-none","Name":"none","Driver":"null"}]`)
-		case path == "/kiri/resources":
+		case path == "/fabo/resources":
 			fmt.Fprint(w, `{"cpus":4,"memory_mib":8192,"running_cpus":4,"running_memory_mib":8192,"awake":true,"max_cpus":10,"max_memory_mib":32768}`)
 		case strings.HasSuffix(path, "/stats"):
 			f.mu.Lock()
@@ -248,16 +248,16 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 				`{"Type":"container","Action":"die","Actor":{"Attributes":{"name":"loki"}},"time":%d}`+"\n", now-240, now-360)
 		case path == "/system/df":
 			fmt.Fprint(w, `{"LayersSize":3113851290,"Containers":[{"SizeRw":325058560}],"Volumes":[{"Name":"shop_pgdata","UsageData":{"Size":432013312}},{"Name":"scratch","UsageData":{"Size":4096}}],"BuildCache":[{"Size":2254857830}]}`)
-		case path == "/kiri/images/layers":
+		case path == "/fabo/images/layers":
 			fmt.Fprint(w, `{"images":[{"layers":[{"by":"ADD rootfs.tar.xz /","size":8703180},{"by":"RUN apk add --no-cache nodejs","size":212013312},{"by":"CMD [\"node\"]","size":0,"empty":true}]}]}`)
-		case path == "/kiri/images/scan":
+		case path == "/fabo/images/scan":
 			fmt.Fprint(w, `{"scanned":1,"packages":120,"vulns":[{"id":"CVE-2026-1001","severity":"Medium","package":"zlib","version":"1.3.0","fixed":["1.3.1"]},
 			 {"id":"CVE-2026-2002","severity":"High","package":"openssl","version":"3.3.0","fixed":[]}]}`)
-		case path == "/kiri/builder":
+		case path == "/fabo/builder":
 			fmt.Fprint(w, `{"cache_gb":20,"default_cache_gb":20,"cache_limit":21474836480,"idle_secs":600,"image":"moby/buildkit:v0.17.0","state":"running"}`)
-		case path == "/kiri/domains":
+		case path == "/fabo/domains":
 			fmt.Fprint(w, `{"http":{"port":80,"default":80,"running":true,"serving":true},"https":{"port":443,"default":443,"running":true,"serving":true}}`)
-		case path == "/kiri/proxy":
+		case path == "/fabo/proxy":
 			fmt.Fprint(w, `{"settings":{"mode":"system","http":"","https":"","no_proxy":"","containers":false},"effective":{"http":"http://127.0.0.1:7890","https":"http://127.0.0.1:7890","no_proxy":["localhost","*.internal"],"pac":false}}`)
 		case path == "/version":
 			fmt.Fprint(w, `{"Version":"0.4.0","ApiVersion":"1.47","Os":"linux","Arch":"arm64","GoVersion":"go1.27.3"}`)
@@ -271,7 +271,7 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 	}))
 	s.credentials = &registryStore{path: filepath.Join(t.TempDir(), "config.json"), native: &memoryRegistry{items: map[string]registryLogin{}}, helper: runCredentialHelper}
 	s.prefsFile = filepath.Join(t.TempDir(), "desktop.json")
-	s.prefs.Theme, s.prefs.Lang, s.contextName = "dark", "en", "kiri-dev"
+	s.prefs.Theme, s.prefs.Lang, s.contextName = "dark", "en", "fabo-dev"
 	s.refresh()
 	s.refresh()
 	t.Cleanup(s.closeInteractive)
@@ -749,7 +749,7 @@ func TestBuiltInNetworksCannotBeDeleted(t *testing.T) {
 
 func TestStoppedEngineOffersToStart(t *testing.T) {
 	f, s := newFakeEngine(t)
-	s.info.KiriStopped = true
+	s.info.FaboStopped = true
 	tt := ui.NewTester(s.view, 1180, 760)
 	if m := has(tt, "The engine is stopped", "Engine stopped"); m != "" {
 		t.Fatalf("missing %q", m)
@@ -757,7 +757,7 @@ func TestStoppedEngineOffersToStart(t *testing.T) {
 	if err := tt.Click("Start engine"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.changed(); len(got) != 1 || got[0] != "POST /kiri/wake" {
+	if got := f.changed(); len(got) != 1 || got[0] != "POST /fabo/wake" {
 		t.Fatalf("requests: %v", got)
 	}
 }
@@ -816,7 +816,7 @@ func TestResourcesAreSavedFromSettings(t *testing.T) {
 	if err := tt.Click("Save"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.changed(); len(got) != 1 || got[0] != "POST /kiri/resources" || !strings.Contains(f.body(), `"cpus":6`) || !strings.Contains(f.body(), `"memory_mib":12288`) {
+	if got := f.changed(); len(got) != 1 || got[0] != "POST /fabo/resources" || !strings.Contains(f.body(), `"cpus":6`) || !strings.Contains(f.body(), `"memory_mib":12288`) {
 		t.Fatalf("requests: %v %s", got, f.body())
 	}
 }
@@ -838,7 +838,7 @@ func TestRestartAppliesSavedResources(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if got := f.changed(); len(got) != 2 || got[0] != "POST /kiri/sleep" || got[1] != "POST /kiri/wake" {
+	if got := f.changed(); len(got) != 2 || got[0] != "POST /fabo/sleep" || got[1] != "POST /fabo/wake" {
 		t.Fatalf("requests: %v", got)
 	}
 }
@@ -869,7 +869,7 @@ func TestProxyIsSavedFromSettings(t *testing.T) {
 	if err := tt.Click("Save"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.changed(); len(got) != 1 || got[0] != "POST /kiri/proxy" ||
+	if got := f.changed(); len(got) != 1 || got[0] != "POST /fabo/proxy" ||
 		!strings.Contains(f.body(), `"mode":"custom"`) || !strings.Contains(f.body(), `"http":"proxy.corp:3128"`) || !strings.Contains(f.body(), `"containers":true`) {
 		t.Fatalf("requests: %v %s", got, f.body())
 	}
@@ -894,12 +894,12 @@ func TestDomainPortsAreChangedFromSettings(t *testing.T) {
 	if err := tt.Click("Change ports"); err != nil {
 		t.Fatal(err)
 	}
-	if got := f.changed(); len(got) != 1 || got[0] != "POST /kiri/domains" || !strings.Contains(f.body(), `"http":8080`) || !strings.Contains(f.body(), `"https":8443`) {
+	if got := f.changed(); len(got) != 1 || got[0] != "POST /fabo/domains" || !strings.Contains(f.body(), `"http":8080`) || !strings.Contains(f.body(), `"https":8443`) {
 		t.Fatalf("requests: %v %s", got, f.body())
 	}
 }
 
-// fakeLauncher stands in for `kiri domains`: it keeps the two machine
+// fakeLauncher stands in for `fabo domains`: it keeps the two machine
 // settings and records what it was asked to change.
 type fakeLauncher struct {
 	state nameState
@@ -909,7 +909,7 @@ type fakeLauncher struct {
 
 func (l *fakeLauncher) run(_ context.Context, args ...string) ([]byte, error) {
 	if len(args) == 1 {
-		l.state.Suffix = map[bool]string{false: "kiri.localhost", true: "kiri.local"}[l.state.On]
+		l.state.Suffix = map[bool]string{false: "fabo.localhost", true: "fabo.local"}[l.state.On]
 		return json.Marshal(l.state)
 	}
 	l.calls = append(l.calls, strings.Join(args, " "))
@@ -934,13 +934,13 @@ func TestNamesAndHTTPSAreSwitchedThroughTheLauncher(t *testing.T) {
 	s.navigate(settingsPage)
 	s.settingsTab = 4
 	tt := ui.NewTester(s.view, 1180, 760)
-	if m := has(tt, "Off: containers answer at <name>.kiri.localhost, which needs no setup.", "Compose services answer at <service>.<project>.kiri.localhost. Changing this needs admin rights (an administrator password), since it adds or removes /etc/resolver/kiri.local."); m != "" {
+	if m := has(tt, "Off: containers answer at <name>.fabo.localhost, which needs no setup.", "Compose services answer at <service>.<project>.fabo.localhost. Changing this needs admin rights (an administrator password), since it adds or removes /etc/resolver/fabo.local."); m != "" {
 		t.Fatalf("missing %q in %q", m, tt.Texts())
 	}
-	if err := tt.Click("kiri.local"); err != nil {
+	if err := tt.Click("fabo.local"); err != nil {
 		t.Fatal(err)
 	}
-	if m := has(tt, "On: running containers answer at <name>.kiri.local."); m != "" || !s.names.On {
+	if m := has(tt, "On: running containers answer at <name>.fabo.local."); m != "" || !s.names.On {
 		t.Fatalf("missing %q after turning names on: %v", m, l.calls)
 	}
 	if err := tt.Click("On"); err != nil {
@@ -958,16 +958,16 @@ func TestNamesAndHTTPSAreSwitchedThroughTheLauncher(t *testing.T) {
 	}
 }
 
-// Without a launcher there is nothing to switch: names are *.kiri.localhost.
+// Without a launcher there is nothing to switch: names are *.fabo.localhost.
 func TestDomainsWithoutALauncherOfferNoSwitch(t *testing.T) {
 	_, s := newFakeEngine(t)
 	s.navigate(settingsPage)
 	s.settingsTab = 4
 	tt := ui.NewTester(s.view, 1180, 760)
-	if m := has(tt, "Running containers answer at <name>.kiri.localhost, which needs no setup.", "Change ports"); m != "" {
+	if m := has(tt, "Running containers answer at <name>.fabo.localhost, which needs no setup.", "Change ports"); m != "" {
 		t.Fatalf("missing %q in %q", m, tt.Texts())
 	}
-	if _, found := tt.Find("kiri.local"); found {
+	if _, found := tt.Find("fabo.local"); found {
 		t.Fatal("a names switch is shown with no launcher to make it")
 	}
 }
@@ -997,12 +997,12 @@ func TestPrefsRoundTrip(t *testing.T) {
 	}
 }
 
-// With KIRI_SHOTS set to a directory, this renders each page in both
+// With FABO_SHOTS set to a directory, this renders each page in both
 // appearances there, for a look at the result without opening a window.
 func TestScreenshots(t *testing.T) {
-	dir := os.Getenv("KIRI_SHOTS")
+	dir := os.Getenv("FABO_SHOTS")
 	if dir == "" {
-		t.Skip("set KIRI_SHOTS to a directory to render the pages")
+		t.Skip("set FABO_SHOTS to a directory to render the pages")
 	}
 	shot := func(name string, s *desktop) {
 		tt := ui.NewTester(s.view, 1180, 760)
@@ -1081,16 +1081,16 @@ func TestScreenshots(t *testing.T) {
 	}
 }
 
-// With KIRI_FAKE_SOCKET set to a path, this serves the fake engine on that
+// With FABO_FAKE_SOCKET set to a path, this serves the fake engine on that
 // unix socket until the test is interrupted, so the real window can be
 // started against it:
 //
-//	KIRI_FAKE_SOCKET=/tmp/kiri-fake/run/docker.sock go test -run TestServeFakeEngine -timeout 0 .
-//	KIRI_SOCKET=/tmp/kiri-fake/run/docker.sock go tool mygo dev
+//	FABO_FAKE_SOCKET=/tmp/fabo-fake/run/docker.sock go test -run TestServeFakeEngine -timeout 0 .
+//	FABO_SOCKET=/tmp/fabo-fake/run/docker.sock go tool mygo dev
 func TestServeFakeEngine(t *testing.T) {
-	socket := os.Getenv("KIRI_FAKE_SOCKET")
+	socket := os.Getenv("FABO_FAKE_SOCKET")
 	if socket == "" {
-		t.Skip("set KIRI_FAKE_SOCKET to a socket path to serve the fake engine")
+		t.Skip("set FABO_FAKE_SOCKET to a socket path to serve the fake engine")
 	}
 	f, _ := newFakeEngine(t)
 	f.mu.Lock()

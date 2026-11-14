@@ -10,7 +10,7 @@ const (
 	TopMessage      Kind = 40
 )
 
-// Top requests the original Kiri tab-separated process rows.
+// Top requests the original Fabo tab-separated process rows.
 func (s *Session) Top(ctx context.Context, id string) ([]string, error) {
 	var e encoder
 	e.text(id)

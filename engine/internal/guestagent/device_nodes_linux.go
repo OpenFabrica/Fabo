@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 type deviceNode struct {
@@ -148,7 +148,7 @@ func mountDeviceNodes(nodes []deviceNode) error {
 	// /dev is private to this container. Clone nodes from its tmpfs so
 	// paths outside /dev work on the nodev overlay and nodes are never
 	// written into the persistent upper layer.
-	dir, err := os.MkdirTemp("/dev", ".kiri-device-")
+	dir, err := os.MkdirTemp("/dev", ".fabo-device-")
 	if err != nil {
 		return err
 	}

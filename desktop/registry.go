@@ -162,7 +162,7 @@ func runCredentialHelper(ctx context.Context, name, action string, input []byte)
 	if err != nil {
 		exe, _ := os.Executable()
 		home, _ := os.UserHomeDir()
-		dirs := []string{"/usr/local/bin", "/opt/homebrew/bin", "/Applications/Docker.app/Contents/Resources/bin", filepath.Join(home, ".docker/bin"), filepath.Join(home, ".kiri/bin"), filepath.Join(home, "Applications/Docker.app/Contents/Resources/bin"), filepath.Join(filepath.Dir(exe), "../Resources/bin")}
+		dirs := []string{"/usr/local/bin", "/opt/homebrew/bin", "/Applications/Docker.app/Contents/Resources/bin", filepath.Join(home, ".docker/bin"), filepath.Join(home, ".fabo/bin"), filepath.Join(home, "Applications/Docker.app/Contents/Resources/bin"), filepath.Join(filepath.Dir(exe), "../Resources/bin")}
 		for _, dir := range dirs {
 			if found, e := exec.LookPath(filepath.Join(dir, filename)); e == nil {
 				path, err = found, nil

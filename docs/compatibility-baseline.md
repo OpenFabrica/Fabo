@@ -2,11 +2,11 @@
 
 初始记录于 2026-11-11，待对齐清单更新于 2026-11-14（前次桌面实现提交 `6c93c03`，本地上游参考 `a649319`）。FabriBay 是独立项目，源码里只有 Go。上游 [libracoder/kiri](https://github.com/libracoder/kiri) 是功能对齐的参考，本仓库的起点是上游提交 `4418009e3f9f8cd234e37531348dd900f78e84e1`。
 
-目标是保留 Kiri 的 Docker API、现有客户端工作流和数据迁移能力，容器引擎与 guest agent 用 Go 实现，MyGo 承担主窗口和托盘。Docker CLI 的交互与流式能力属于引擎兼容范围。上游由 Rust 提供的其余功能按下面的「待对齐功能」逐步补回。架构和构建方式见[开发说明](development.md)和[桌面与引擎说明](desktop-overview.md)。
+目标是覆盖 Kiri 的 Docker API、现有客户端工作流和数据迁移能力，容器引擎与 guest agent 用 Go 实现，MyGo 承担主窗口和托盘。Docker CLI 的交互与流式能力属于引擎兼容范围。上游由 Rust 提供的其余功能按下面的「待对齐功能」逐步补回。架构和构建方式见[开发说明](development.md)和[桌面与引擎说明](desktop-overview.md)。
 
 ## Fabo 品牌入口（2026-11-13）
 
-应用显示名和图标已切换为 Fabo，公开命令入口为 `fabo`。下文历史验证记录保留当时的 `kiri` 拼写；现行构建产物、兼容标识和验证方式见[品牌与命令入口](branding.md)。
+应用显示名和图标已切换为 Fabo，公开命令入口为 `fabo`。下文的历史验证记录已改用现行名称（原记录写作 `kiri`）；现行构建产物、标识和验证方式见[品牌与命令入口](branding.md)。
 
 ## 移除 Rust 之后
 
@@ -14,58 +14,58 @@
 
 | 范围 | 现在的实现 | 验证 |
 | --- | --- | --- |
-| 启动引擎、打开桌面 | `engine/cmd/kiri`：`kiri daemon`、`kiri` / `kiri ui`、`kiri migrate-rust` | Apple Silicon macOS，`Kiri Dev.app`：引擎启动后 `/version` 返回 `"KiriEngine":"go"`，`docker run --rm alpine` 输出正常，Finder 挂载出现；`kiri ui` 在引擎未运行时把它拉起并打开窗口，关窗后引擎继续运行，SIGTERM 后正常退出并卸载。这次用的是已安装 Kiri 0.1.18 的内核，不是本仓库构建的 |
-| 打包 initramfs | `engine/cmd/kiri-mkinitramfs` | 与删除前 `cargo xtask guest-go` 的输出逐字节一致 |
-| 构建 app | `Makefile`、`scripts/macos-app.sh`、`scripts/macos-dmg.sh` | `make app-dev` 产出可运行的 `Kiri Dev.app`（ad hoc 签名）。`make dmg`、Developer ID 签名和公证没有跑过 |
-| Linux 启动 | `engine/cmd/kiri`（`make linux`） | `tests/linux-host.sh`：引擎在特权容器里启动成功，**8 通过、18 失败**。失败有两个原因，都出在用例环境没按 Go 引擎调整：外层容器在 `172.17.0.0/16` 上，与内层默认网桥冲突；启动时没有委派 cgroup，资源限制和特权容器被拒绝 |
+| 启动引擎、打开桌面 | `engine/cmd/fabo`：`fabo daemon`、`fabo` / `fabo ui`、`fabo migrate` | Apple Silicon macOS，`Fabo Dev.app`：引擎启动后 `/version` 返回 `"FaboEngine":"go"`，`docker run --rm alpine` 输出正常，Finder 挂载出现；`fabo ui` 在引擎未运行时把它拉起并打开窗口，关窗后引擎继续运行，SIGTERM 后正常退出并卸载。这次用的是已安装 Fabo 0.1.18 的内核，不是本仓库构建的 |
+| 打包 initramfs | `engine/cmd/fabo-mkinitramfs` | 与删除前 `cargo xtask guest-go` 的输出逐字节一致 |
+| 构建 app | `Makefile`、`scripts/macos-app.sh`、`scripts/macos-dmg.sh` | `make app-dev` 产出可运行的 `Fabo Dev.app`（ad hoc 签名）。`make dmg`、Developer ID 签名和公证没有跑过 |
+| Linux 启动 | `engine/cmd/fabo`（`make linux`） | `tests/linux-host.sh`：引擎在特权容器里启动成功，**8 通过、18 失败**。失败有两个原因，都出在用例环境没按 Go 引擎调整：外层容器在 `172.17.0.0/16` 上，与内层默认网桥冲突；启动时没有委派 cgroup，资源限制和特权容器被拒绝 |
 
 ### 首次设置（2026-11-11 对齐）
 
-`kiri setup`、`kiri setup --uninstall`、`kiri build-with` 和从 Finder 打开 app 时的首次设置已用 Go 实现（`engine/cmd/kiri/*_darwin.go`），对照上游 `setup.rs`、`builds.rs`、`buildwith.rs`。
+`fabo setup`、`fabo setup --uninstall`、`fabo build-with` 和从 Finder 打开 app 时的首次设置已用 Go 实现（`engine/cmd/fabo/*_darwin.go`），对照上游 `setup.rs`、`builds.rs`、`buildwith.rs`。
 
 | 做什么 | 验证 |
 | --- | --- |
-| 写 Docker context | `Kiri Dev.app` 实机：`docker context ls` 认出 `kiri-dev`，`docker --context kiri-dev version` 连通 |
-| `~/.kiri/bin` 里的 `kiri`、`docker` 链接；正式安装还写 shell profile、`/usr/local/bin/kiri`、默认 context、`cliPluginsExtraDirs` | Dev 版实机验证了链接。正式安装独有的几项只在沙盒 HOME 的单元测试里验证，没有在真实环境跑 |
+| 写 Docker context | `Fabo Dev.app` 实机：`docker context ls` 认出 `fabo-dev`，`docker --context fabo-dev version` 连通 |
+| `~/.fabo/bin` 里的 `fabo`、`docker` 链接；正式安装还写 shell profile、`/usr/local/bin/fabo`、默认 context、`cliPluginsExtraDirs` | Dev 版实机验证了链接。正式安装独有的几项只在沙盒 HOME 的单元测试里验证，没有在真实环境跑 |
 | LaunchAgent（登录自启） | 实机：`launchctl` 显示 running；引擎正常退出后不重启；再次打开 app 时由 launchd 拉起 |
-| Buildx builder 和以 context 命名的副本 | 实机：`docker --context kiri-dev build` 构建成功，镜像直接可 `docker run` |
-| 从 Finder 打开时自动设置 | 实机 `open "Kiri Dev.app"`：以上各项都就位，真实的 `~/.docker/config.json` 没有被改动 |
+| Buildx builder 和以 context 命名的副本 | 实机：`docker --context fabo-dev build` 构建成功，镜像直接可 `docker run` |
+| 从 Finder 打开时自动设置 | 实机 `open "Fabo Dev.app"`：以上各项都就位，真实的 `~/.docker/config.json` 没有被改动 |
 | `--uninstall` | 实机：LaunchAgent、context、builder、链接都移除，引擎停止，已安装的 Kiri 不受影响 |
 
 与上游的三处差异：
 
 - 带 flavor 的 app 不会在没人选择时接管全机的 `docker build`（上游会）。
 - 卸载只移除自己加进 `cliPluginsExtraDirs` 的那一项。上游按 `Kiri.app/...` 子串匹配，会连同另一份 Kiri 的条目一起删掉。
-- 设置前先确认引擎能启动。有未导入的 Kiri（Rust）数据时直接报错，不改任何东西。
+- 设置前先确认引擎能启动，不能启动时直接报错，不改任何东西。
 
 `make kernel` 和 `make disk` 的命令与原 `xtask` 相同，但这次没能跑完：本机 Kiri 虚拟机的时钟比宿主慢约 3 小时，容器里 `apt-get` 校验签名失败。
 
 ### Docker 命令透传（2026-11-13 对齐）
 
-`engine/cmd/kiri/docker.go` 对照上游 `docker.rs`：支持 `kiri run`、`ps`、`exec`、`compose`、`buildx` 等 Docker 子命令。优先使用 PATH 上的 Docker CLI，回退到当前 app 内的 CLI；以当前安装的 socket（含 `KIRI_SOCKET` 覆盖）设置 `DOCKER_HOST`，清除 `DOCKER_CONTEXT`。仅当用户未设置 `BUILDX_BUILDER` 且当前安装的 builder 已登记时，选择该 builder。
+`engine/cmd/fabo/docker.go` 对照上游 `docker.rs`：支持 `fabo run`、`ps`、`exec`、`compose`、`buildx` 等 Docker 子命令。优先使用 PATH 上的 Docker CLI，回退到当前 app 内的 CLI；以当前安装的 socket（含 `FABO_SOCKET` 覆盖）设置 `DOCKER_HOST`，清除 `DOCKER_CONTEXT`。仅当用户未设置 `BUILDX_BUILDER` 且当前安装的 builder 已登记时，选择该 builder。
 
-命令执行前检查引擎是否在线，不自动启动引擎；通过 `exec` 保留标准输入输出、终端和退出码。`import` 仍为迁移命令保留；macOS 的 `update` 为应用更新保留，容器资源更新使用 `kiri container update`。
+命令执行前检查引擎是否在线，不自动启动引擎；通过 `exec` 保留标准输入输出、终端和退出码。`import` 仍为迁移命令保留；macOS 的 `update` 为应用更新保留，容器资源更新使用 `fabo container update`。
 
-验证覆盖命令边界、CLI 查找、三种 Buildx 配置路径、显式 builder，以及独立 Unix socket 上的子进程参数、标准输入输出、退出码、SIGTERM 和引擎离线失败。`make check` 通过，实际编译的启动器通过模拟 Docker CLI 和独立 socket 验证命令分发、端点隔离及退出码；Linux 侧仅交叉编译通过。实际 Docker/VM 和交互终端尚未在本轮验证。上游执行前的 CLI/引擎版本差异提醒及 Kiri Lite 下载 CLI 回退尚未对齐，分别随版本管理和 Lite 补齐。
+验证覆盖命令边界、CLI 查找、三种 Buildx 配置路径、显式 builder，以及独立 Unix socket 上的子进程参数、标准输入输出、退出码、SIGTERM 和引擎离线失败。`make check` 通过，实际编译的启动器通过模拟 Docker CLI 和独立 socket 验证命令分发、端点隔离及退出码；Linux 侧仅交叉编译通过。实际 Docker/VM 和交互终端尚未在本轮验证。上游执行前的 CLI/引擎版本差异提醒及 Fabo Lite 下载 CLI 回退尚未对齐，分别随版本管理和 Lite 补齐。
 
 ```mermaid
 flowchart LR
-    A[kiri COMMAND] --> B{Docker 子命令?}
+    A[fabo COMMAND] --> B{Docker 子命令?}
     B -->|是| C[查找 PATH 或 app 内的 Docker CLI]
     C --> D{当前安装 socket 在线?}
     D -->|是| E[绑定 DOCKER_HOST 并选择 builder]
     E --> F[exec Docker CLI]
     D -->|否| G[报告引擎未启动]
-    B -->|否| H[已有 Kiri 子命令或用法提示]
+    B -->|否| H[已有 Fabo 子命令或用法提示]
 ```
 
 ### Linux machine 命令行（2026-11-13 对齐）
 
-`engine/cmd/kiri/machine.go` 对照本地上游 `crates/kiri/src/machine.rs`（参考 checkout `a649319`），补齐 `create`、`list` / `ls`、`shell`、`start`、`stop`、`restart`、`delete` / `rm`，支持七种发行版、自定义镜像和 `--systemd`。沿用 `machine-NAME` 容器名与 `dev.kiri.machine` 标签、宿主用户映射、共享 home、免密 sudo、重启策略和 systemd 配置。完整规则和流程见 [machines.md](machines.md)。
+`engine/cmd/fabo/machine.go` 对照本地上游 `crates/kiri/src/machine.rs`（参考 checkout `a649319`），补齐 `create`、`list` / `ls`、`shell`、`start`、`stop`、`restart`、`delete` / `rm`，支持七种发行版、自定义镜像和 `--systemd`。沿用 `machine-NAME` 容器名与 `dev.fabo.machine` 标签、宿主用户映射、共享 home、免密 sudo、重启策略和 systemd 配置。完整规则和流程见 [machines.md](machines.md)。
 
 与上游的明确差异：参数缺值、未知参数和多余参数直接报错，避免静默使用默认值；镜像 digest 原样传递；重复启动/停止的 HTTP `304` 视为成功，匹配现有端到端用例。宿主用户名进入初始化脚本时按 shell 参数引用。shell 使用进程替换，保留 Docker 的终端、信号和退出码。
 
-验证：`make check` 通过（engine / desktop vet 与测试、engine race、Linux ARM64 交叉编译）。独立 macOS Go VM 中成功创建 Alpine machine，后续 **22 项检查全部通过**，覆盖宿主用户名及 UID/GID、共享文件、工作目录、HOME、hostname、stdin、非零退出码、sudo、真实 TTY、重复启停、重启、删除与错误参数。使用当前源码构建的启动器、daemon、guest agent；内核与空数据盘模板取自已安装 Kiri，只读使用。未连接日常 Kiri 的 socket，也未注册 context 或 LaunchAgent。
+验证：`make check` 通过（engine / desktop vet 与测试、engine race、Linux ARM64 交叉编译）。独立 macOS Go VM 中成功创建 Alpine machine，后续 **22 项检查全部通过**，覆盖宿主用户名及 UID/GID、共享文件、工作目录、HOME、hostname、stdin、非零退出码、sudo、真实 TTY、重复启停、重启、删除与错误参数。使用当前源码构建的启动器、daemon、guest agent；内核与空数据盘模板取自已安装 Fabo，只读使用。未连接日常 Fabo 的 socket，也未注册 context 或 LaunchAgent。
 
 Ubuntu `--systemd` 实机也已验证：首次软件包安装约 4 分钟（最初的 120 秒就绪检查未通过，安装完成后复验通过），随后 `systemctl is-system-running` 返回 `running`，PID 1 为 systemd；默认 login shell 与退出码检查通过，另外 **8 项检查全部通过**，包括 sudo、停止、再次启动和删除。测试容器与专用 VM 数据已清理，日志保留在 `target/cli-machine-check/`。
 
@@ -93,7 +93,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 
 对照上游 `ui/term.rs` / `termwire.rs`、`detail.rs`、`k8s.rs`，新增宿主多会话 PTY、容器交互式 TTY，以及容器 / Pod 持续日志。终端复用 MyGo 的 Ghostty 组件；容器会话支持连续输入、resize、Ctrl+C、导航时保留状态和实际退出码。关闭会话结束对应 exec，正常退出窗口 / 应用或 SIGTERM 时回收相关进程。
 
-容器日志初始读取 5,000 行，Pod 日志初始读取 2,000 行；之后持续追加，切换目标或关闭详情取消旧订阅并回收 kubectl。被动请求携带后台标记；日志保留最多 5,000 行 / 1 MiB，支持跨帧和无末尾换行的输出。专用 `/kiri/exec/{id}/stop` 和 `KiriExecStop` 能力标记用于显式回收，不改变普通 Docker detach 的语义。完整规则见 [连续终端与日志](desktop-streams.md)。
+容器日志初始读取 5,000 行，Pod 日志初始读取 2,000 行；之后持续追加，切换目标或关闭详情取消旧订阅并回收 kubectl。被动请求携带后台标记；日志保留最多 5,000 行 / 1 MiB，支持跨帧和无末尾换行的输出。专用 `/fabo/exec/{id}/stop` 和 `FaboExecStop` 能力标记用于显式回收，不改变普通 Docker detach 的语义。完整规则见 [连续终端与日志](desktop-streams.md)。
 
 `make check` 和显式开启真实 PTY 的 desktop race 检查通过；macOS app 的运行库打包及 ad hoc 签名通过；Linux ARM64 / Windows AMD64 桌面仅交叉编译。隔离 macOS Go VM 中的原生窗口 17 项专项验收通过，覆盖真实 shell / 容器 TTY、状态保留、resize、Ctrl+C、静默保持、非零退出码、进程回收、持续日志及 SIGTERM 退出。记录位于 `target/desktop-streams-check/`；测试 VM、临时配置和进程已清理，日常 Dev 实例未重启。底部终端面板、分屏和完整搜索入口仍未逐项复刻，其他待验证边界不变。
 
@@ -111,8 +111,8 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | --- | --- | --- |
 | 终端工作区扩展 | 宿主多会话和容器交互式 TTY 已实现；待复刻上游底部面板、横向 / 纵向分屏及完整终端搜索入口 | `ui/index.html` 的内嵌终端面板 |
 | 文件浏览增强 | 当前依赖运行中容器的 `ls`，仅列目录和文件名；待补文件信息、预览、下载及从桌面打开 Finder 文件位置等操作。Finder 只读浏览与容器 archive API 已有实现 | `ui/detail.rs`、`ui/index.html` |
-| 扫描历史与导出 | 镜像分层、最新扫描和重新扫描已有界面；待接扫描历史选择和 CycloneDX SBOM 导出。引擎已有 `/kiri/images/scans`、`/kiri/images/sbom` | `ui/index.html` 的扫描历史 / `savesbom`，`ui/mod.rs` |
-| Kubernetes 转发 | Pods / Services、持续日志、Pod 删除、集群启停和网络设置已有界面；待补 Pod / ClusterIP 的本地端口转发入口及生命周期管理。引擎已有 `/kiri/k8s/forward` 接口 | `ui/k8s.rs`、`ui/index.html` |
+| 扫描历史与导出 | 镜像分层、最新扫描和重新扫描已有界面；待接扫描历史选择和 CycloneDX SBOM 导出。引擎已有 `/fabo/images/scans`、`/fabo/images/sbom` | `ui/index.html` 的扫描历史 / `savesbom`，`ui/mod.rs` |
+| Kubernetes 转发 | Pods / Services、持续日志、Pod 删除、集群启停和网络设置已有界面；待补 Pod / ClusterIP 的本地端口转发入口及生命周期管理。引擎已有 `/fabo/k8s/forward` 接口 | `ui/k8s.rs`、`ui/index.html` |
 | 首次引导 | macOS launcher 的首次设置已实现；桌面尚无首次语言选择及 Linux 设置检查、修复、跳过和恢复流程 | `ui/lang.rs`、`ui/linux.rs` 的 `onboarding`、`ui/index.html` |
 | Import / Build with | `fabo import`、`fabo build-with` 已实现；桌面尚无迁入来源与资源选择、导入进度及构建引擎选择入口 | `ui/mod.rs`、`ui/index.html`、`buildwith.rs` |
 | USB / Share | 两个侧栏页面仍为占位；USB CLI、helper 与 USB/IP 已实现，待接设备界面；Share 的创建、查看和停止等界面流程尚未移植 | `ui/sharing.rs`、`ui/index.html` |
@@ -130,8 +130,8 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | Share 命令 | `fabo share` 及端口简写尚未移植；需补齐共享命令、状态管理及桌面 Share 页的配套实现 | 上游 `crates/kiri/src/main.rs` 的 `share` 分发与 `share` 模块、`ui/sharing.rs` |
 | raw 兼容差异 | Go raw 使用独立存储，不共享 daemon / Rust 镜像索引；`images` 未复刻 Rust 的显示格式与拉取时间列。后续需决定保留差异还是进一步对齐 | 上游 `crates/kiri/src/main.rs` 的 `raw` 分发；见 [CLI 工具说明](cli-tools.md) |
 | 自动更新与诊断 | 更新源检查、下载与安装、崩溃报告、诊断报告和日志脱敏尚无对应 Go 实现 | 上游 `crates/kiri/src/update.rs`、`diag/` |
-| Windows 宿主与安装 | `kiri-win` 宿主的 named pipe、托盘、设置、更新与 Windows 系统凭据存储，WSL 连接用的 `fabo bridge`，以及 MSI 构建仍待移植。WSL 引擎启动脚本已支持 Go，但安装 / 打包链仍携带旧 `kiri-init` 等产物要求；不能把整个 WSL 引擎侧列为未实现 | 上游 `crates/kiri-win/`、`bridge.rs`；本仓库 `installer/windows`、`contrib/windows`、`contrib/wsl`、`scripts/kiri-linux.sh` |
-| Linux 包与 host-access | Linux 构建 / 打包链仍要求 Cargo / Rust 窗口或旧 `kiri-init`，需改为 Go launcher、daemon、guest 与 MyGo；`fabo host-access` 尚无 Go 版本 | 本仓库 `packaging/linux`、`scripts/ci/linux-build.sh`、`scripts/ci/linux-packages.sh`、`contrib/linux`；上游 `hostaccess.rs` |
+| Windows 宿主与安装 | `fabo-win` 宿主的 named pipe、托盘、设置、更新与 Windows 系统凭据存储，WSL 连接用的 `fabo bridge`，以及 MSI 构建仍待移植。WSL 引擎启动脚本已支持 Go，但安装 / 打包链仍携带旧 `fabo-init` 等产物要求；不能把整个 WSL 引擎侧列为未实现 | 上游 `crates/kiri-win/`、`bridge.rs`；本仓库 `installer/windows`、`contrib/windows`、`contrib/wsl`、`scripts/fabo-linux.sh` |
+| Linux 包与 host-access | Linux 构建 / 打包链仍要求 Cargo / Rust 窗口或旧 `fabo-init`，需改为 Go launcher、daemon、guest 与 MyGo；`fabo host-access` 尚无 Go 版本 | 本仓库 `packaging/linux`、`scripts/ci/linux-build.sh`、`scripts/ci/linux-packages.sh`、`contrib/linux`；上游 `hostaccess.rs` |
 | 发版与 Lite | 更新源 JSON、发版 tarball、Kiri Lite 与首次 Docker CLI 下载回退待补；`NOTICE` 需按 Go 依赖重新生成。macOS app 和 DMG 构建脚本已有实现，发布验证另见下表 | 上游 `xtask/src/main.rs` 的 `release`；本仓库 [发版说明](release.md) |
 | CI | 尚无执行 Go vet / 测试 / 构建的工作流；当前仅保留 CodeQL | `.github/workflows/` |
 
@@ -156,7 +156,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 
 | 范围 | 环境 | 结果 |
 | --- | --- | --- |
-| 上游默认端到端用例 `tests/e2e.sh` | Apple Silicon macOS，隔离的 `kiri-parity` 实例，存储修复前 | **496 通过、17 失败、6 跳过** |
+| 上游默认端到端用例 `tests/e2e.sh` | Apple Silicon macOS，隔离的 `fabo-parity` 实例，存储修复前 | **496 通过、17 失败、6 跳过** |
 | 原版网络用例选集 | Apple Silicon macOS | **105 通过、1 失败**。剩余用例是 `default-bridge-no-names`，同环境的 Rust 原版也失败 |
 | 原版 Finder 用例 | Apple Silicon macOS | **14 通过、0 失败**。额外验证 1,800 项目录分页及退出后的卸载 |
 | 原版存储和绑定挂载用例 | Apple Silicon macOS，存储修复后 | **28 通过、0 失败**。额外验证 Go 重启和 Rust 离线迁移后的匿名卷清理 |
@@ -206,10 +206,10 @@ GOOS=linux GOARCH=arm64 go -C engine test -exec true ./...
 
 `make check` 跑的就是这一组。最后一条仅交叉编译 Linux 测试，Linux 行为需要在真实 Linux 环境执行。构建需要 Go 1.27.3 或更新版本。
 
-macOS 全量回归使用与日常实例隔离的 App、HOME、Docker 配置、Docker context、socket 和 VM 数据盘。历史记录使用 App 标识 `dev.kiri.app.parity`、Docker context `kiri-parity`、Buildx builder `kiri-parity-build` 和 `~/Kiri Parity`。先在被测 socket 的 `/version` 中确认 `"KiriEngine":"go"`。将 `DOCKER_CONFIG` 指向隔离 HOME 下的 `.docker`，确保 Registry 用例也能找到隔离的 context。运行域名端口用例时清除 `KIRI_HTTP_PORT` 和 `KIRI_HTTPS_PORT` 覆盖。
+macOS 全量回归使用与日常实例隔离的 App、HOME、Docker 配置、Docker context、socket 和 VM 数据盘。历史记录使用 App 标识 `dev.fabo.app.parity`、Docker context `fabo-parity`、Buildx builder `fabo-parity-build` 和 `~/Fabo Parity`。先在被测 socket 的 `/version` 中确认 `"FaboEngine":"go"`。将 `DOCKER_CONFIG` 指向隔离 HOME 下的 `.docker`，确保 Registry 用例也能找到隔离的 context。运行域名端口用例时清除 `FABO_HTTP_PORT` 和 `FABO_HTTPS_PORT` 覆盖。
 
 ```sh
-DOCKER_CONTEXT=kiri-parity bash tests/e2e.sh
+DOCKER_CONTEXT=fabo-parity bash tests/e2e.sh
 ```
 
 发布前还需在对应平台运行 `tests/linux-host.sh`、`tests/wsl.sh` 和 `tests/kernel-features.sh`，并补齐迁移、Kubernetes、USB、默认域名及实际桌面交互的验证。验收记录按平台列出测试命令、结果、跳过原因和仍存在的差异。当前全量基线尚未达到可直接替换的验收条件。

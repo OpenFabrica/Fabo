@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
-	"github.com/libracoder/kiri/engine/internal/hostagent"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
 )
 
 func TestContainerListFiltersAndOrder(t *testing.T) {
@@ -48,10 +48,10 @@ func TestContainerListFiltersAndOrder(t *testing.T) {
 }
 
 func TestStartingRunningContainerReturnsNotModified(t *testing.T) {
-	c := &container{id: "node", name: "kiri-k8s", state: "running"}
+	c := &container{id: "node", name: "fabo-k8s", state: "running"}
 	e := &Engine{containers: map[string]*container{c.id: c}}
 	w := httptest.NewRecorder()
-	e.Handler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/containers/kiri-k8s/start", nil))
+	e.Handler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/containers/fabo-k8s/start", nil))
 	if w.Code != http.StatusNotModified {
 		t.Fatalf("starting a running container returned %d: %s", w.Code, w.Body.String())
 	}

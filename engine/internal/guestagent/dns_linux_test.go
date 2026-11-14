@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 	"golang.org/x/net/dns/dnsmessage"
 )
 
@@ -65,7 +65,7 @@ func TestResolverContentKeepsLocalDNSAndAllowsHostOverrides(t *testing.T) {
 	if got := string(resolverContent(nil, run, true)); got != "nameserver 192.0.2.53\noptions ndots:2\n" {
 		t.Fatalf("direct resolver: %q", got)
 	}
-	run.AdditionalNetworks = []guestwire.Network{{Bridge: "kiri1234567890"}}
+	run.AdditionalNetworks = []guestwire.Network{{Bridge: "fabo1234567890"}}
 	if got := string(resolverContent(nil, run, true)); got != "nameserver 127.0.0.11\noptions ndots:2\n" {
 		t.Fatalf("embedded resolver: %q", got)
 	}

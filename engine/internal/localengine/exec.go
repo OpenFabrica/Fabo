@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 var errHealthProbeBusy = errors.New("container operation in progress")

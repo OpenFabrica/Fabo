@@ -1,6 +1,7 @@
 {
   "name": "Fabo Desktop",
-  "identifier": "dev.kiri.desktop",
+  "identifier": "dev.fabo.desktop",
   "version": "0.0.0",
-  "out": "build"
+  "out": "build",
+  "icon": "../brand/icon/png/fabo-app-icon-1024.png"
 }

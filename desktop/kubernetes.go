@@ -17,7 +17,7 @@ import (
 )
 
 const kubernetesPage = "kubernetes"
-const kubernetesNode = "kiri-k8s"
+const kubernetesNode = "fabo-k8s"
 
 type kubernetesConfig struct {
 	LAN  bool     `json:"lan"`

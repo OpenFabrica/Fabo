@@ -158,7 +158,7 @@ func (e engineClient) openContainerLogs(ctx context.Context, id string) (io.Read
 	if err != nil {
 		return nil, nil, err
 	}
-	req.Header.Set("X-Kiri-Background", "1")
+	req.Header.Set("X-Fabo-Background", "1")
 	res, err := e.http.Do(req)
 	if err != nil {
 		return nil, nil, err

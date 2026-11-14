@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/libracoder/kiri/engine/internal/hostagent"
+	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
 )
 
 // The caller holds pulls and imageOps so no new download or container

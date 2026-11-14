@@ -12,8 +12,8 @@ import (
 
 // Uses one disposable .invalid registry, with no account/network login.
 func TestNativeRegistryCredentialsRoundTrip(t *testing.T) {
-	if os.Getenv("KIRI_KEYCHAIN_TEST") != "1" {
-		t.Skip("set KIRI_KEYCHAIN_TEST=1 for the disposable Keychain check")
+	if os.Getenv("FABO_KEYCHAIN_TEST") != "1" {
+		t.Skip("set FABO_KEYCHAIN_TEST=1 for the disposable Keychain check")
 	}
 	store := newNativeRegistryCredentials()
 	key := fmt.Sprintf("fabo-desktop-check-%d.invalid", time.Now().UnixNano())

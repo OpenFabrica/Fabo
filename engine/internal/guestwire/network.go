@@ -17,9 +17,9 @@ const (
 )
 
 // CustomBridge recognizes interface names allocated by the Go host. They
-// share Kiri's bridge prefix and stay within Linux's 15-byte name limit.
+// share Fabo's bridge prefix and stay within Linux's 15-byte name limit.
 func CustomBridge(name string) bool {
-	suffix, ok := strings.CutPrefix(name, "kiri")
+	suffix, ok := strings.CutPrefix(name, "fabo")
 	if !ok || len(suffix) != 10 {
 		return false
 	}

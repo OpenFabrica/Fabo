@@ -1,6 +1,6 @@
 //go:build linux || darwin
 
-// Package hostagent manages the local-process transport used by Kiri on Linux.
+// Package hostagent manages the local-process transport used by Fabo on Linux.
 package hostagent
 
 import (
@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 // Process owns the child and its private socket directory. Call Close to
@@ -44,7 +44,7 @@ func start(ctx context.Context, parent string, cmd *exec.Cmd, console io.Writer)
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	dir, err := os.MkdirTemp(parent, "kiri-agent-")
+	dir, err := os.MkdirTemp(parent, "fabo-agent-")
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func start(ctx context.Context, parent string, cmd *exec.Cmd, console io.Writer)
 	cmd.Env = agentEnv(cmd.Environ(), dir)
 	cmd.Stdout, cmd.Stderr = console, console
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("start Kiri agent: %w", err)
+		return nil, fmt.Errorf("start Fabo agent: %w", err)
 	}
 	p := &Process{dir: dir, cmd: cmd, done: make(chan struct{})}
 	go func() {
@@ -105,7 +105,7 @@ func start(ctx context.Context, parent string, cmd *exec.Cmd, console io.Writer)
 		default:
 		}
 		_ = p.Close()
-		return nil, fmt.Errorf("Kiri agent startup: %w", errors.Join(cause, err))
+		return nil, fmt.Errorf("Fabo agent startup: %w", errors.Join(cause, err))
 	}
 	started = true
 	return p, nil
@@ -114,11 +114,11 @@ func start(ctx context.Context, parent string, cmd *exec.Cmd, console io.Writer)
 func agentEnv(env []string, dir string) []string {
 	clean := make([]string, 0, len(env)+1)
 	for _, entry := range env {
-		if !hasEnvKey(entry, "KIRI_AGENT_DIR") && !hasEnvKey(entry, "KIRI_SOCKET") {
+		if !hasEnvKey(entry, "FABO_AGENT_DIR") && !hasEnvKey(entry, "FABO_SOCKET") {
 			clean = append(clean, entry)
 		}
 	}
-	return append(clean, "KIRI_AGENT_DIR="+dir)
+	return append(clean, "FABO_AGENT_DIR="+dir)
 }
 
 func hasEnvKey(entry, key string) bool {
@@ -164,9 +164,9 @@ func (p *Process) Dial(ctx context.Context, port uint32) (net.Conn, error) {
 		}
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("dial Kiri agent port %d: %w", port, ctx.Err())
+			return nil, fmt.Errorf("dial Fabo agent port %d: %w", port, ctx.Err())
 		case <-p.done:
-			return nil, fmt.Errorf("Kiri agent exited: %w", err)
+			return nil, fmt.Errorf("Fabo agent exited: %w", err)
 		case <-ticker.C:
 		}
 	}

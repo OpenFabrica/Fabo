@@ -84,14 +84,14 @@ type prefs struct {
 // two levels above the socket the launcher passes, so that each flavor keeps
 // its own. Without a socket it falls back to the user's config directory.
 func prefsPath() string {
-	if socket := os.Getenv("KIRI_SOCKET"); socket != "" {
+	if socket := os.Getenv("FABO_SOCKET"); socket != "" {
 		return filepath.Join(filepath.Dir(filepath.Dir(socket)), "desktop.json")
 	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(dir, "kiri", "desktop.json")
+	return filepath.Join(dir, "fabo", "desktop.json")
 }
 
 // defaultPrefs are the settings of a first launch.
@@ -339,7 +339,7 @@ func checkbox(c *ui.Context, p palette, label string, state int) bool {
 var brandSVGs = map[string]*ui.SVG{}
 
 // imageBrand finds the brand logo of an image such as bitnami/redis:7, as
-// Kiri does: by the whole repository path, then by its last component.
+// Fabo does: by the whole repository path, then by its last component.
 func imageBrand(image string) (ui.Color, *ui.SVG, bool) {
 	name, _, _ := strings.Cut(image, "@")
 	repo := name

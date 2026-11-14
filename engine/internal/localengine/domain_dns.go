@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-// serveDomainDNS answers the scoped queries sent by Kiri's macOS resolver
+// serveDomainDNS answers the scoped queries sent by Fabo's macOS resolver
 // rule. It never forwards queries to other DNS servers.
 func serveDomainDNS(socket net.PacketConn) {
 	var packet [4096]byte
@@ -35,7 +35,7 @@ func domainDNSAnswer(packet []byte) []byte {
 		Header:    dnsmessage.Header{ID: query.ID, Response: true, Authoritative: true, RecursionDesired: query.RecursionDesired},
 		Questions: query.Questions,
 	}
-	if q.Class != dnsmessage.ClassINET || name != "kiri.local." && !strings.HasSuffix(name, ".kiri.local.") {
+	if q.Class != dnsmessage.ClassINET || name != "fabo.local." && !strings.HasSuffix(name, ".fabo.local.") {
 		reply.RCode = dnsmessage.RCodeRefused
 	} else if q.Type == dnsmessage.TypeA {
 		reply.Answers = []dnsmessage.Resource{{

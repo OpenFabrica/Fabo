@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
-// UpdateWindows accepts kiri-win's current system proxy and WSL relay map.
+// UpdateWindows accepts fabo-win's current system proxy and WSL relay map.
 // The snapshot belongs to the live Windows process and is never persisted.
 func (p *Proxy) UpdateWindows(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {

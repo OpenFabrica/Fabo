@@ -17,7 +17,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 	"golang.org/x/sys/unix"
 )
 
@@ -64,7 +64,7 @@ func (r *Runtime) ServeCopy(ctx context.Context, conn io.ReadWriter, file func()
 		return
 	}
 	defer socket.Close()
-	cmd := exec.CommandContext(ctx, "/proc/self/exe", "__kiri-copy")
+	cmd := exec.CommandContext(ctx, "/proc/self/exe", "__fabo-copy")
 	cmd.Stdin = bytes.NewReader(payload)
 	cmd.Stderr = os.Stderr
 	cmd.ExtraFiles = append([]*os.File{socket}, files...)

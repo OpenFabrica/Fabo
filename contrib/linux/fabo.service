@@ -1,0 +1,29 @@
+# Fabo on a Linux host: containers on this machine's kernel, no VM.
+# Install: cargo xtask linux, copy target/linux/release/{fabo,fabo-init} to
+# /usr/local/bin, then:  cp fabo.service /etc/systemd/system/ &&
+#   groupadd -f fabo && systemctl enable --now fabo
+# Users in the `fabo` group:  docker context create fabo --docker host=unix:///run/fabo/docker.sock
+# Membership of the `fabo` group is root-equivalent (a member can mount any
+# path into a container as root), exactly like the `docker` group.
+[Unit]
+Description=Fabo container engine
+Documentation=https://kiri.canestack.com
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/fabo daemon
+Environment=FABO_SOCKET=/run/fabo/docker.sock
+Environment=FABO_SOCKET_GROUP=fabo
+Environment=HOME=/var/lib/fabo-daemon
+# The daemon creates the cgroups its containers run in.
+Delegate=yes
+KillMode=mixed
+Restart=on-failure
+RuntimeDirectory=fabo
+# 0755: members of fabo reach the socket (itself 0660 root:fabo) through it.
+RuntimeDirectoryMode=0755
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

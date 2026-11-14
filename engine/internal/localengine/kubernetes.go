@@ -12,12 +12,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 const (
-	kubernetesName       = "kiri-k8s"
-	kubernetesLabel      = "dev.kiri.k8s"
+	kubernetesName       = "fabo-k8s"
+	kubernetesLabel      = "dev.fabo.k8s"
 	kubernetesAPI        = 6443
 	kubernetesQueryLimit = 64 << 10
 )

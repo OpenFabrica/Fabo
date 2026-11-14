@@ -32,7 +32,7 @@ type buildOptions struct {
 func parseBuildOptions(q url.Values) (buildOptions, error) {
 	var o buildOptions
 	if v := q.Get("version"); v != "" && v != "1" {
-		return o, fmt.Errorf("classic builds use API version 1; select the Kiri Buildx builder for sessions")
+		return o, fmt.Errorf("classic builds use API version 1; select the Fabo Buildx builder for sessions")
 	}
 	for _, raw := range q["t"] {
 		if raw == "" {

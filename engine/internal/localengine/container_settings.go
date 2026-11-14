@@ -11,7 +11,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func (e *Engine) setEnvironmentHTTP(w http.ResponseWriter, r *http.Request) {

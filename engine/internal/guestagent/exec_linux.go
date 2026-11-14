@@ -15,7 +15,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 var execNamespaces = []struct {
@@ -132,7 +132,7 @@ func (r *Runtime) Exec(spec guestwire.ExecSpec, emit func(guestwire.RunEvent) er
 		return fmt.Errorf("check container process: %w", err)
 	}
 	launch := processLaunch{
-		mode: "__kiri-exec", id: spec.ID, flags: spec.Flags, config: spec,
+		mode: "__fabo-exec", id: spec.ID, flags: spec.Flags, config: spec,
 		attributes: &syscall.SysProcAttr{Setpgid: processGroup}, cgroup: cgroup, files: files,
 		start: func(cmd *exec.Cmd) error { return startInPIDNamespace(cmd, pidNS) },
 	}

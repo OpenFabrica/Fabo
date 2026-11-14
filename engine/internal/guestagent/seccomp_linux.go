@@ -13,7 +13,7 @@ type capabilitySyscall struct {
 	capability int
 }
 
-// capabilitySyscalls is Rust Kiri's default syscall policy. A negative
+// capabilitySyscalls is Rust Fabo's default syscall policy. A negative
 // capability means the syscall is always denied by the default profile.
 func capabilitySyscalls() []capabilitySyscall {
 	return []capabilitySyscall{
@@ -83,7 +83,7 @@ func restrictSyscalls(unconfined, syncThreads bool, capabilities uint64) error {
 		// The x32 ABI uses the same audit architecture with different numbers.
 		filter = append(filter, unix.SockFilter{Code: unix.BPF_JMP | unix.BPF_JSET | unix.BPF_K, K: 0x40000000, Jf: 1}, deny)
 	}
-	// The default policy follows Rust Kiri. Each capability relaxes only
+	// The default policy follows Rust Fabo. Each capability relaxes only
 	// its corresponding syscalls; vsock and io_uring remain outside every
 	// workload's boundary, including privileged nested builders.
 	for _, nr := range []uint32{unix.SYS_IO_URING_SETUP, unix.SYS_IO_URING_ENTER, unix.SYS_IO_URING_REGISTER} {

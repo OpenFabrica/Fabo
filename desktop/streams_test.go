@@ -68,7 +68,7 @@ func (r *oneByteReader) Read(p []byte) (int, error) {
 func TestContainerLogStreamFollowsPartialLinesAndCancels(t *testing.T) {
 	disconnected := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("X-Kiri-Background") != "1" {
+		if r.Header.Get("X-Fabo-Background") != "1" {
 			t.Error("log read keeps VM awake")
 		}
 		switch r.URL.Path {
@@ -130,7 +130,7 @@ func TestExecStreamIsDuplexResizableAndStoppedOnClose(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/info":
-			fmt.Fprint(w, `{"KiriExecStop":true}`)
+			fmt.Fprint(w, `{"FaboExecStop":true}`)
 		case "/containers/test/exec":
 			var spec struct {
 				AttachStdin, Tty bool
@@ -162,7 +162,7 @@ func TestExecStreamIsDuplexResizableAndStoppedOnClose(t *testing.T) {
 		case "/exec/owned/resize":
 			resized <- r.URL.RawQuery
 			w.WriteHeader(204)
-		case "/kiri/exec/owned/stop":
+		case "/fabo/exec/owned/stop":
 			stopped.Add(1)
 			w.WriteHeader(204)
 		default:
@@ -213,8 +213,8 @@ func TestExecStreamRejectsOldEngineBeforeCreatingAShell(t *testing.T) {
 	}
 }
 func TestHostTerminalPreservesStateAndHasARealPTY(t *testing.T) {
-	if os.Getenv("KIRI_TERMINAL_TEST") != "1" {
-		t.Skip("set KIRI_TERMINAL_TEST=1 for the native terminal library and real PTY check")
+	if os.Getenv("FABO_TERMINAL_TEST") != "1" {
+		t.Skip("set FABO_TERMINAL_TEST=1 for the native terminal library and real PTY check")
 	}
 	if runtime.GOOS == "windows" {
 		t.Skip("Unix shell; Windows ConPTY requires platform verification")
@@ -276,7 +276,7 @@ func TestSwitchingLogTargetsCancelsTheOldSubscription(t *testing.T) {
 		default:
 			return false
 		}
-		if r.Header.Get("X-Kiri-Background") != "1" {
+		if r.Header.Get("X-Fabo-Background") != "1" {
 			t.Error("foreground log subscription")
 		}
 		if r.URL.Query().Get("follow") != "1" {

@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
-type rustContainer struct {
+type kiriContainer struct {
 	ID, Name, Status string
-	Spec             rustContainerSpec
+	Spec             kiriContainerSpec
 	Layers           []string
 	CreatedNS        int64  `json:"created_ns"`
 	StartedNS        *int64 `json:"started_ns"`
@@ -30,7 +30,7 @@ type rustContainer struct {
 	RestartCount     int    `json:"restart_count"`
 }
 
-type rustContainerSpec struct {
+type kiriContainerSpec struct {
 	Image, Cwd, User, Hostname, Domainname string
 	ImageID                                string `json:"image_id"`
 	NetworkMode                            string `json:"network_mode"`
@@ -105,12 +105,12 @@ type migrationContainer struct {
 	extraHosts []string
 }
 
-func (e *Engine) migrateRustContainers(ctx context.Context, source *os.Root, destination string) error {
-	records, err := readRustIndex[rustContainer](source, "containers.json")
+func (e *Engine) migrateKiriContainers(ctx context.Context, source *os.Root, destination string) error {
+	records, err := readKiriIndex[kiriContainer](source, "containers.json")
 	if err != nil {
 		return err
 	}
-	slices.SortFunc(records, func(a, b rustContainer) int { return strings.Compare(a.ID, b.ID) })
+	slices.SortFunc(records, func(a, b kiriContainer) int { return strings.Compare(a.ID, b.ID) })
 	migrated := make([]migrationContainer, 0, len(records))
 	names := make(map[string]bool)
 	for _, old := range records {
@@ -121,11 +121,11 @@ func (e *Engine) migrateRustContainers(ctx context.Context, source *os.Root, des
 			return fmt.Errorf("invalid or duplicate source container %q", old.Name)
 		}
 		names[old.Name] = true
-		newRecord, err := e.convertRustContainer(old, destination)
+		newRecord, err := e.convertKiriContainer(old, destination)
 		if err != nil {
 			return fmt.Errorf("container %q: %w", old.Name, err)
 		}
-		if err := readRustLogs(ctx, source, newRecord.container); err != nil {
+		if err := readKiriLogs(ctx, source, newRecord.container); err != nil {
 			return fmt.Errorf("container %q logs: %w", old.Name, err)
 		}
 		migrated = append(migrated, newRecord)
@@ -200,7 +200,7 @@ func (e *Engine) migrateRustContainers(ctx context.Context, source *os.Root, des
 	return nil
 }
 
-func (e *Engine) convertRustContainer(old rustContainer, destination string) (migrationContainer, error) {
+func (e *Engine) convertKiriContainer(old kiriContainer, destination string) (migrationContainer, error) {
 	spec := old.Spec
 	if spec.AutoRemove {
 		return migrationContainer{}, fmt.Errorf("cannot migrate an auto-remove container")
@@ -235,7 +235,7 @@ func (e *Engine) convertRustContainer(old rustContainer, destination string) (mi
 		return migrationContainer{}, err
 	}
 	for _, raw := range spec.HostOpts {
-		if hasRustValue(raw) {
+		if hasKiriValue(raw) {
 			return migrationContainer{}, fmt.Errorf("uses unsupported host configuration")
 		}
 	}
@@ -303,14 +303,14 @@ func (e *Engine) convertRustContainer(old rustContainer, destination string) (mi
 	}
 	run.Sysctls, run.Devices = sysctls, devices
 	if strings.HasPrefix(mode, containerNetworkPrefix) {
-		// Rust used the target's files even for records with DNS options.
+		// Kiri used the target's files even for records with DNS options.
 		run.DNS = guestwire.DNSConfig{}
 	}
-	endpoints, err := rustEndpoints(spec, mode)
+	endpoints, err := kiriEndpoints(spec, mode)
 	if err != nil {
 		return migrationContainer{}, err
 	}
-	mounts, volumes, err := e.rustMounts(spec, destination)
+	mounts, volumes, err := e.kiriMounts(spec, destination)
 	if err != nil {
 		return migrationContainer{}, err
 	}
@@ -352,7 +352,7 @@ func (e *Engine) convertRustContainer(old rustContainer, destination string) (mi
 	return migrationContainer{c, mode, endpoints, spec.ExtraHosts}, nil
 }
 
-func rustEndpoints(spec rustContainerSpec, mode string) (map[string]endpointConfig, error) {
+func kiriEndpoints(spec kiriContainerSpec, mode string) (map[string]endpointConfig, error) {
 	if strings.HasPrefix(mode, containerNetworkPrefix) {
 		if spec.IPv4Address != "" || spec.IPv6Address != "" || spec.MACAddress != "" || len(spec.ExtraNetworks)+len(spec.Aliases)+len(spec.ExtraHosts) != 0 {
 			return nil, fmt.Errorf("shared container network has conflicting saved options")
@@ -406,7 +406,7 @@ func rustEndpoints(spec rustContainerSpec, mode string) (map[string]endpointConf
 	return endpoints, nil
 }
 
-func (e *Engine) rustMounts(spec rustContainerSpec, destination string) ([]string, []string, error) {
+func (e *Engine) kiriMounts(spec kiriContainerSpec, destination string) ([]string, []string, error) {
 	if len(spec.Mounts) != len(spec.MountInfo) {
 		return nil, nil, fmt.Errorf("incomplete mount metadata")
 	}

@@ -33,7 +33,7 @@ if command -v stat >/dev/null 2>&1; then stat -L -c 'S|%F|%s|%Y|%n' -- "$@" 2>/d
 exit 0`
 
 // previewScript prints the regular file $1, or a NUL-led marker with its
-// size when it is larger than the 256 KB the preview shows, as Kiri's.
+// size when it is larger than the 256 KB the preview shows, as Fabo's.
 const previewScript = `[ -f "$1" ] || { echo "not a regular file"; exit 2; }
 n=$(wc -c < "$1")
 if [ "$n" -gt 262144 ]; then printf '\000FABO-TOO-LARGE %s' "$n"; exit 0; fi
@@ -351,7 +351,7 @@ func (e engineClient) archiveEntry(ctx context.Context, id, path string) (*http.
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	req.Header.Set("X-Kiri-Background", "1")
+	req.Header.Set("X-Fabo-Background", "1")
 	res, err := e.http.Do(req)
 	if err != nil {
 		return nil, nil, nil, err

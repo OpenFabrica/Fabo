@@ -1,7 +1,7 @@
 //go:build linux || darwin
 
 // Package localengine implements the Linux host's local-image container
-// lifecycle over a Kiri guest control session.
+// lifecycle over a Fabo guest control session.
 package localengine
 
 import (
@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
-	"github.com/libracoder/kiri/engine/internal/hostagent"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
 )
 
 type Image struct {

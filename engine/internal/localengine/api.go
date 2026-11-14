@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 const apiVersion = "1.47"
@@ -24,7 +24,7 @@ func (e *Engine) version() string {
 	if e.release != "" {
 		return e.release
 	}
-	return "kiri-go"
+	return "fabo-go"
 }
 
 var versionPrefix = regexp.MustCompile(`^/v[0-9]+\.[0-9]+/`)
@@ -47,11 +47,11 @@ func (e *Engine) Handler() http.Handler {
 	})
 	mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{
-			"Platform": map[string]string{"Name": "Kiri"},
+			"Platform": map[string]string{"Name": "Fabo"},
 			"Components": []map[string]any{{"Name": "Engine", "Version": e.version(), "Details": map[string]string{
 				"ApiVersion": apiVersion, "MinAPIVersion": "1.24", "Arch": runtime.GOARCH, "Os": "linux",
 			}}},
-			"Version": e.version(), "KiriEngine": "go", "ApiVersion": apiVersion, "MinAPIVersion": "1.24",
+			"Version": e.version(), "FaboEngine": "go", "ApiVersion": apiVersion, "MinAPIVersion": "1.24",
 			"Os": "linux", "Arch": runtime.GOARCH, "GoVersion": runtime.Version(),
 		})
 	})
@@ -61,8 +61,8 @@ func (e *Engine) Handler() http.Handler {
 	mux.HandleFunc("POST /build", e.buildHTTP)
 	mux.HandleFunc("POST /build/cancel", e.cancelBuildHTTP)
 	mux.HandleFunc("POST /build/prune", e.pruneBuildHTTP)
-	mux.HandleFunc("GET /kiri/builder", e.builderSettingsHTTP)
-	mux.HandleFunc("POST /kiri/builder", e.builderSettingsHTTP)
+	mux.HandleFunc("GET /fabo/builder", e.builderSettingsHTTP)
+	mux.HandleFunc("POST /fabo/builder", e.builderSettingsHTTP)
 	mux.HandleFunc("POST /commit", e.commitHTTP)
 	mux.HandleFunc("POST /auth", e.registryLoginHTTP)
 	mux.HandleFunc("GET /networks", e.networksHTTP)
@@ -80,11 +80,11 @@ func (e *Engine) Handler() http.Handler {
 	mux.HandleFunc("POST /images/{ref...}", e.imageActionHTTP)
 	mux.HandleFunc("DELETE /images/{ref...}", e.removeImageHTTP)
 	mux.HandleFunc("GET /images/json", e.imagesHTTP)
-	mux.HandleFunc("GET /kiri/images/layers", e.imageLayersHTTP)
-	mux.HandleFunc("POST /kiri/images/scan", e.imageScanHTTP)
-	mux.HandleFunc("GET /kiri/images/scan", e.imageScanHTTP)
-	mux.HandleFunc("GET /kiri/images/scans", e.imageScansHTTP)
-	mux.HandleFunc("GET /kiri/images/sbom", e.imageSBOMHTTP)
+	mux.HandleFunc("GET /fabo/images/layers", e.imageLayersHTTP)
+	mux.HandleFunc("POST /fabo/images/scan", e.imageScanHTTP)
+	mux.HandleFunc("GET /fabo/images/scan", e.imageScanHTTP)
+	mux.HandleFunc("GET /fabo/images/scans", e.imageScansHTTP)
+	mux.HandleFunc("GET /fabo/images/sbom", e.imageSBOMHTTP)
 	mux.HandleFunc("POST /volumes/create", e.createVolumeHTTP)
 	mux.HandleFunc("POST /volumes/prune", e.pruneVolumesHTTP)
 	mux.HandleFunc("GET /volumes", e.listVolumesHTTP)
@@ -107,11 +107,11 @@ func (e *Engine) Handler() http.Handler {
 	mux.HandleFunc("POST /containers/{id}/kill", e.killHTTP)
 	mux.HandleFunc("POST /containers/{id}/stop", e.stopHTTP)
 	mux.HandleFunc("POST /containers/{id}/restart", e.restartHTTP)
-	mux.HandleFunc("POST /kiri/containers/{id}/env", e.setEnvironmentHTTP)
-	mux.HandleFunc("POST /kiri/containers/{id}/ports", e.setPortsHTTP)
-	mux.HandleFunc("GET /kiri/containers/{id}/listening", e.listeningHTTP)
-	mux.HandleFunc("POST /kiri/k8s/forward", e.forwardKubernetesHTTP)
-	mux.HandleFunc("DELETE /kiri/k8s/forward/{port}", e.unforwardKubernetesHTTP)
+	mux.HandleFunc("POST /fabo/containers/{id}/env", e.setEnvironmentHTTP)
+	mux.HandleFunc("POST /fabo/containers/{id}/ports", e.setPortsHTTP)
+	mux.HandleFunc("GET /fabo/containers/{id}/listening", e.listeningHTTP)
+	mux.HandleFunc("POST /fabo/k8s/forward", e.forwardKubernetesHTTP)
+	mux.HandleFunc("DELETE /fabo/k8s/forward/{port}", e.unforwardKubernetesHTTP)
 	mux.HandleFunc("POST /containers/{id}/rename", e.renameHTTP)
 	mux.HandleFunc("POST /containers/{id}/update", e.updateHTTP)
 	mux.HandleFunc("POST /containers/{id}/pause", func(w http.ResponseWriter, r *http.Request) { e.pauseHTTP(w, r, true) })
@@ -123,7 +123,7 @@ func (e *Engine) Handler() http.Handler {
 	mux.HandleFunc("POST /exec/{id}/start", e.startExecHTTP)
 	mux.HandleFunc("GET /exec/{id}/json", e.inspectExecHTTP)
 	mux.HandleFunc("POST /exec/{id}/resize", e.resizeExecHTTP)
-	mux.HandleFunc("POST /kiri/exec/{id}/stop", e.stopExecHTTP)
+	mux.HandleFunc("POST /fabo/exec/{id}/stop", e.stopExecHTTP)
 	mux.HandleFunc("GET /containers/json", e.listHTTP)
 	mux.HandleFunc("GET /containers/{id}/json", e.inspectHTTP)
 	mux.HandleFunc("GET /containers/{id}/logs", e.logsHTTP)
@@ -365,8 +365,8 @@ func (e *Engine) containerSummary(c *container) map[string]any {
 	return map[string]any{
 		"Id": c.id, "Names": []string{"/" + c.name}, "Image": c.image, "ImageID": c.imageID, "Created": c.created,
 		"Command": strings.Join(c.run.Argv, " "), "State": c.dockerState(), "Status": c.listStatus(),
-		"KiriStartedAt": unixOrNil(c.startedAt), "KiriFinishedAt": unixOrNil(c.finishedAt),
-		"KiriExitCode": c.exit, "KiriOOMKilled": c.oomKilled, "KiriVmStopped": c.vmStopped,
+		"FaboStartedAt": unixOrNil(c.startedAt), "FaboFinishedAt": unixOrNil(c.finishedAt),
+		"FaboExitCode": c.exit, "FaboOOMKilled": c.oomKilled, "FaboVmStopped": c.vmStopped,
 		"HostConfig":      map[string]string{"NetworkMode": c.networkMode()},
 		"NetworkSettings": e.networkSettings(c), "Ports": c.listedPorts(), "Labels": c.labels, "Mounts": e.containerMounts(c),
 	}

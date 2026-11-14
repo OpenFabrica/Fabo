@@ -13,8 +13,8 @@ import (
 
 type engineInfo struct {
 	Name, ServerVersion                   string
-	KiriVmAwake, KiriVMControls           *bool
-	KiriStopped                           bool
+	FaboVmAwake, FaboVMControls           *bool
+	FaboStopped                           bool
 	Containers, ContainersRunning, Images int
 	// Reported only while a VM is awake.
 	NCPU     int
@@ -23,11 +23,11 @@ type engineInfo struct {
 
 func (i engineInfo) status() string {
 	switch {
-	case i.KiriStopped:
+	case i.FaboStopped:
 		return "Stopped"
-	case i.KiriVmAwake == nil:
+	case i.FaboVmAwake == nil:
 		return "Connected"
-	case *i.KiriVmAwake:
+	case *i.FaboVmAwake:
 		return "Running"
 	default:
 		return "Asleep"
@@ -64,7 +64,7 @@ func (e engineClient) request(ctx context.Context, method, path string, input an
 	}
 	if method == http.MethodGet || ctx.Value(backgroundRead{}) == true {
 		// Browsing must not extend the lifetime of an idle VM.
-		req.Header.Set("X-Kiri-Background", "1")
+		req.Header.Set("X-Fabo-Background", "1")
 	}
 	res, err := e.http.Do(req)
 	if err != nil {
@@ -90,8 +90,8 @@ func (e engineClient) info(ctx context.Context) (engineInfo, error) {
 	if err := e.request(ctx, http.MethodGet, "/info", nil, &info); err != nil {
 		return engineInfo{}, err
 	}
-	if info.Name != "kiri" && info.KiriVmAwake == nil {
-		return engineInfo{}, fmt.Errorf("the endpoint did not identify itself as Kiri")
+	if info.Name != "fabo" && info.FaboVmAwake == nil {
+		return engineInfo{}, fmt.Errorf("the endpoint did not identify itself as Fabo")
 	}
 	return info, nil
 }

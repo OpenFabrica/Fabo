@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 const bridgeIPv6File = "bridge-ipv6.json"
@@ -104,7 +104,7 @@ func (e *Engine) restoreBridgeIPv6() error {
 }
 
 func bridgeIPv6Requested() bool {
-	value := os.Getenv("KIRI_BRIDGE_IPV6")
+	value := os.Getenv("FABO_BRIDGE_IPV6")
 	return value == "1" || value == "true"
 }
 

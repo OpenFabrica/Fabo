@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 // childInput keeps pipe backpressure off the shared control reader. The

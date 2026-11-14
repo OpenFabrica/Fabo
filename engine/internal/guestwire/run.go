@@ -64,8 +64,8 @@ type RunSpec struct {
 	Options             []string
 }
 
-// DefaultBridge is the protocol name of Kiri’s built-in bridge.
-const DefaultBridge = "kiri0"
+// DefaultBridge is the protocol name of Fabo’s built-in bridge.
+const DefaultBridge = "fabo0"
 
 type Network struct {
 	Bridge                        string

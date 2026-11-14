@@ -25,7 +25,7 @@ func Connect(socket string, d Device) (*net.UnixConn, error) {
 	fail := func(e error) (*net.UnixConn, error) { conn.Close(); return nil, e }
 	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
 	q := url.Values{"location": {d.Location}, "name": {d.Name}, "speed": {strconv.Itoa(int(d.LinuxSpeed()))}, "devid": {strconv.Itoa(int(d.DeviceID()))}}
-	req, e := http.NewRequest("POST", "http://kiri/kiri/usb?"+q.Encode(), nil)
+	req, e := http.NewRequest("POST", "http://fabo/fabo/usb?"+q.Encode(), nil)
 	if e != nil {
 		return fail(e)
 	}

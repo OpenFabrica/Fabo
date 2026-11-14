@@ -5,9 +5,9 @@ containers, images, volumes and networks, controls container and VM
 lifecycle, and edits the VM's resources. The tray reopens the main window.
 CLI behavior is independent of the window.
 
-Upstream Kiri's WebView window, which this document calls **Advanced tools**,
+Upstream Fabo's WebView window, which this document calls **Advanced tools**,
 was hosted by the Rust binary and left the tree with it. The daemon still
-serves the `/kiri/*` endpoints that window used. The sections below describe
+serves the `/fabo/*` endpoints that window used. The sections below describe
 them as the contract for the workflows the MyGo window has yet to take over:
 onboarding and Kubernetes forwards. Continuous terminals, live logs, container
 settings, registry logins and Kubernetes browsing are now provided by MyGo;
@@ -69,8 +69,8 @@ The window is a light grey shell holding the title strip and the sidebar, with t
     ends only its exec. See [Continuous terminals and logs](desktop-streams.md).
   - Files lists one directory at a time by running `ls -1Ap` in the
     container, so it needs the container running and an `ls` in the image.
-- **Images.** The dock shows layers (`/kiri/images/layers`), the stored
-  scan with a button to scan again (`/kiri/images/scan`), and the image's
+- **Images.** The dock shows layers (`/fabo/images/layers`), the stored
+  scan with a button to scan again (`/fabo/images/scan`), and the image's
   config. An image in use cannot be removed. A pull shows only that it is
   running, because the engine reports no per-layer progress.
 - **Volumes and networks.** Both list the containers using them, which open
@@ -81,19 +81,19 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   lines, with a container and previous-run choice. Pod deletion asks for confirmation.
   Browsing never starts the cluster, and passive execs use background headers.
 - **Builds.** The engine keeps no record of past builds. The page shows the
-  BuildKit builder from `/kiri/builder`, sets its cache limit, and clears
+  BuildKit builder from `/fabo/builder`, sets its cache limit, and clears
   the build cache.
 - **Overview.** Counts, the engine's CPU history and memory, disk use, the
   five busiest containers, and the last hour's events.
-- **Settings.** Six sections laid out as Kiri's are, each row a title, an
+- **Settings.** Six sections laid out as Fabo's are, each row a title, an
   explanation and its control. Appearance is described above. Resources
   starts or turns off the engine and saves the VM's CPUs and memory through
-  `/kiri/resources`; when a running VM still has its old size it offers a
-  restart, which is `/kiri/sleep` followed by `/kiri/wake`. Network edits
-  the proxy through `/kiri/proxy`. Builds shows the builder, its cache limit
+  `/fabo/resources`; when a running VM still has its old size it offers a
+  restart, which is `/fabo/sleep` followed by `/fabo/wake`. Network edits
+  the proxy through `/fabo/proxy`. Builds shows the builder, its cache limit
   and clears the build cache. Domains changes the HTTP and HTTPS ports
-  through `/kiri/domains`, and switches Local names and HTTPS through the
-  launcher's `kiri domains` command (see Container domains). Registries
+  through `/fabo/domains`, and switches Local names and HTTPS through the
+  launcher's `fabo domains` command (see Container domains). Registries
   shares Docker credential helpers or macOS Keychain records
   for sign-in, sign-out and authenticated pulls. Kubernetes controls the
   cluster and its network settings through `fabo k8s`. About lists
@@ -109,45 +109,45 @@ already up. Volume sizes come from the same read and show a dash until then.
 
 ```mermaid
 flowchart LR
-    Launcher[kiri launcher] -->|Starts when nothing answers| Daemon[Kiri daemon]
+    Launcher[fabo launcher] -->|Starts when nothing answers| Daemon[Fabo daemon]
     Launcher -->|Opens| Desktop[MyGo window and tray]
     Desktop -->|Local Docker Engine API| Daemon
-    Daemon -->|Kiri guest protocol| Agent[Guest agent]
+    Daemon -->|Fabo guest protocol| Agent[Guest agent]
 ```
 
 The desktop reads from the existing Unix socket on macOS and Linux, or named
-pipe on Windows. Reads include `X-Kiri-Background: 1` so they do not extend the
-idle timer. An explicit `KIRI_SOCKET` can direct the MyGo window to a different
+pipe on Windows. Reads include `X-Fabo-Background: 1` so they do not extend the
+idle timer. An explicit `FABO_SOCKET` can direct the MyGo window to a different
 daemon.
 
 ## Build and run
 
-On macOS, `make app` builds `target/Kiri.app` with Go 1.27.3 or newer: the
-`kiri` launcher, the engine and its guest, the MyGo window, and the docker
+On macOS, `make app` builds `target/Fabo.app` with Go 1.27.3 or newer: the
+`fabo` launcher, the engine and its guest, the MyGo window, and the docker
 CLI, Compose and buildx. It needs the guest first: `make guest`, `make kernel`
 and `make disk`. Run `make kernel` again before assembling an app with a new
 guest kernel configuration, including USB/IP support.
 
-The launcher (`engine/cmd/kiri`) handles first-launch setup, starts the
+The launcher (`engine/cmd/fabo`) handles first-launch setup, starts the
 engine when nothing answers on the socket and opens the MyGo window. Once
 its LaunchAgent is installed, launchd is the engine's one owner and the
-launcher asks it to start the engine rather than spawning a second one. It uses the `kiri` Docker context's
-`~/.kiri/run/docker.sock` path. A populated Kiri (Rust) store is left alone:
+launcher asks it to start the engine rather than spawning a second one. It uses the `fabo` Docker context's
+`~/.fabo/run/docker.sock` path. A populated Kiri store is left alone:
 the launcher refuses to start beside one until an offline import publishes
-`~/.kiri/go-engine/rust-import.json`, or `KIRI_ENGINE=go` asks for an empty
-Go store. Stop any other daemon on the same socket first. On Linux, `kiri ui`
+`~/.fabo/go-engine/kiri-import.json`, or `FABO_ENGINE=go` asks for an empty
+Go store. Stop any other daemon on the same socket first. On Linux, `fabo ui`
 opens the MyGo executable when the package includes it.
 
-To run beside an installed Kiri, build a flavored bundle with
-`KIRI_SIGN_IDENTITY=- make app-dev`. The result is `target/dev/Kiri Dev.app`,
-and `FLAVOR=go` makes `Kiri Go.app` instead. The bundle identifier
-`dev.kiri.app.<flavor>` gives the bundle its own names: the daemon listens on
-`~/.kiri-dev/run/docker.sock`, keeps its state and VM disk in
-`~/.kiri-dev/go-engine`, mounts `~/Kiri Dev` in Finder, and leaves the default
-domain ports to the installed app. Existing Kiri containers, images and
-volumes stay on the original disk. Opening the bundle, or its `kiri setup`,
-registers the `kiri-dev` Docker context, the `kiri-dev-build` Buildx builder
-and a LaunchAgent; `kiri setup --uninstall` removes them.
+To run beside an installed Fabo, build a flavored bundle with
+`FABO_SIGN_IDENTITY=- make app-dev`. The result is `target/dev/Fabo Dev.app`,
+and `FLAVOR=go` makes `Fabo Go.app` instead. The bundle identifier
+`dev.fabo.app.<flavor>` gives the bundle its own names: the daemon listens on
+`~/.fabo-dev/run/docker.sock`, keeps its state and VM disk in
+`~/.fabo-dev/go-engine`, mounts `~/Fabo Dev` in Finder, and leaves the default
+domain ports to the installed app. Existing Fabo containers, images and
+volumes stay on the original disk. Opening the bundle, or its `fabo setup`,
+registers the `fabo-dev` Docker context, the `fabo-dev-build` Buildx builder
+and a LaunchAgent; `fabo setup --uninstall` removes them.
 
 ### Intel Linux images on Apple Silicon
 
@@ -156,7 +156,7 @@ VirtioFS share alongside the host directories. The Go guest registers the
 x86-64 ELF interpreter before accepting containers and reports registration
 in the startup handshake. The engine can then execute native ARM64 and
 translated AMD64 images in the same VM. `GET /info` reports the active
-guest capability as `KiriRosetta`.
+guest capability as `FaboRosetta`.
 
 The registry resolver uses the platform supplied by Docker. An implicit
 pull prefers ARM64 and falls back to AMD64 when the registry only offers
@@ -177,26 +177,27 @@ flowchart LR
     Guest --> Run
 ```
 
-### Import an offline Rust store on macOS
+### Import an offline Kiri store on macOS
 
-Stop the original containers and shut down the Rust daemon. Keep it off while
-taking the snapshot or running the migration. Run the command from the Kiri
-bundle before creating Go engine state. The destination's parent must
+Stop Kiri's containers and shut down the Kiri daemon. Keep it off while
+taking the snapshot or running the migration. Run the command from the Fabo
+bundle before creating Fabo's engine state. The destination's parent must
 exist, and the destination itself must be absent. The source and
 destination must be on the same APFS volume.
 
 ```sh
-mkdir -p -m 700 "$HOME/.kiri"
-"/path/to/Kiri.app/Contents/MacOS/kiri" migrate-rust \
+mkdir -p -m 700 "$HOME/.fabo"
+"/path/to/Fabo.app/Contents/MacOS/fabo" migrate \
   --snapshot "$HOME/Library/Application Support/Kiri" \
   --source-socket "$HOME/.kiri/run/docker.sock" \
   --source-config "$HOME/.kiri" \
-  --state "$HOME/.kiri/go-engine"
+  --state "$HOME/.fabo/go-engine"
 ```
 
-The next start of the standard app uses the imported data on the same Docker
-context. To test the import alongside the standard installation, run the
-command from `Kiri Go.app` and use `$HOME/.kiri-go/go-engine` as the destination.
+The next start of the standard app uses the imported data on its `fabo` Docker
+context; Kiri's data and context stay as they were. To test the import with a
+flavored build, run the command from `Fabo Dev.app` and use
+`$HOME/.fabo-dev/go-engine` as the destination.
 
 Pass the actual source daemon socket and store path for a customized
 installation. The command checks for a listening source daemon and
@@ -219,8 +220,8 @@ retains anonymous volume data and records the container that allocated it.
 
 The Advanced tools WebView reads layers and scan history from the current
 daemon on macOS, Linux and Windows WSL. Go serves
-`/kiri/images/layers`, `/kiri/images/scan`, `/kiri/images/scans` and
-`/kiri/images/sbom` while the VM is stopped. The daemon resolves the image
+`/fabo/images/layers`, `/fabo/images/scan`, `/fabo/images/scans` and
+`/fabo/images/sbom` while the VM is stopped. The daemon resolves the image
 to its config digest, prepares an OCI layout from its local layers, and runs
 the checksum-pinned Grype release. Scanner downloads and database updates
 use the daemon's proxy settings. If an update fails, Grype can use a valid
@@ -259,7 +260,7 @@ stay in their original locations.
 
 ```mermaid
 flowchart LR
-    Rust[Stopped Rust store] --> Validate[Validate indexes and blobs]
+    Kiri[Stopped Kiri store] --> Validate[Validate indexes and blobs]
     Validate --> Stage[Write Go records and clone data disk]
     Stage --> Publish[Publish new private Go state]
     Publish --> Start[Start Go VM using the clone]
@@ -272,37 +273,37 @@ cd desktop
 go run .
 ```
 
-Set `KIRI_SOCKET` or `KIRI_PIPE` to use a development instance. The Windows
-desktop code can connect to an existing Kiri pipe, but there is no Windows
+Set `FABO_SOCKET` or `FABO_PIPE` to use a development instance. The Windows
+desktop code can connect to an existing Fabo pipe, but there is no Windows
 host or installer in this tree yet.
 
 ### Engine selection in Windows WSL
 
-The Windows host (`kiri-win`: the named pipe, tray, setup and updates) and
-the `kiri bridge` that carried its connections into the distro were Rust and
+The Windows host (`fabo-win`: the named pipe, tray, setup and updates) and
+the `fabo bridge` that carried its connections into the distro were Rust and
 are not ported yet. This section describes the distro side, which the Go
 launcher and daemon keep. Both Windows architectures use static Linux Go
-binaries for the daemon and guest agent, installed in `/usr/libexec/kiri`.
+binaries for the daemon and guest agent, installed in `/usr/libexec/fabo`.
 
-New distros use `auto` in `/etc/kiri/wsl-engine`. The launcher starts the
+New distros use `auto` in `/etc/fabo/wsl-engine`. The launcher starts the
 engine when both Go binaries are installed, cgroup v2 is available, and
-there is no initialized Rust store. It refuses to start beside a nonempty
-Rust store until that store is imported into the default Go state
+there is no initialized Kiri store. It refuses to start beside a nonempty
+Kiri store until that store is imported into the default Go state
 directory. An explicit `go` value skips that check and survives updates. An
 explicit `rust` value is an error, since this tree has no Rust engine.
-Restart with `/usr/local/bin/kiri-start restart` on Kiri Linux or with
-`systemctl restart kiri` on a distro using systemd. From Windows,
-`docker --context kiri version` checks the connection. The raw
-`/version` response identifies Go with `"KiriEngine":"go"`.
+Restart with `/usr/local/bin/fabo-start restart` on Fabo Linux or with
+`systemctl restart fabo` on a distro using systemd. From Windows,
+`docker --context fabo version` checks the connection. The raw
+`/version` response identifies Go with `"FaboEngine":"go"`.
 
-The Go engine writes to `/var/lib/kiri-daemon/.kiri/go-engine`. For an
+The Go engine writes to `/var/lib/fabo-daemon/.fabo/go-engine`. For an
 offline import in WSL, pass `--source-socket` with
-`/var/lib/kiri-daemon/.kiri/run/docker.sock` to the Linux migration command.
+`/var/lib/fabo-daemon/.fabo/run/docker.sock` to the Linux migration command.
 
 ```mermaid
 flowchart LR
-    Docker[Windows Docker client] --> Pipe[kiri-win named pipe]
-    Pipe -->|Framed stdio over WSL| Bridge[kiri bridge]
+    Docker[Windows Docker client] --> Pipe[fabo-win named pipe]
+    Pipe -->|Framed stdio over WSL| Bridge[fabo bridge]
     Bridge -->|Unix socket| Engine[Selected daemon in the distro]
     Engine --> Agent[Container agent]
 ```
@@ -310,12 +311,12 @@ flowchart LR
 ## Go engine migration
 
 `engine/internal/guestwire` implements the version 4 framing and the
-Hello/Ping/Pong and resource-statistics exchanges. `kiri-guest-check` listens
+Hello/Ping/Pong and resource-statistics exchanges. `fabo-guest-check` listens
 on a private test agent directory and reports the hello and stats as JSON.
 The daemon serves the Docker API and manages the Go guest. The guest
 executes containers and reports their state over this protocol.
 
-The engine migration retains Kiri's own guest agent design and container
+The engine migration retains Fabo's own guest agent design and container
 mechanisms. The existing Docker, host, WSL and kernel suites in `tests/` are
 the compatibility baseline.
 
@@ -325,7 +326,7 @@ Hello before returning the process to its caller. If startup fails or is
 canceled, it closes the control socket, reaps the agent and removes the
 directory. The control protocol has a single owner.
 
-In an isolated Linux test environment, `kiri-guest-check -agent /path/to/test-agent`
+In an isolated Linux test environment, `fabo-guest-check -agent /path/to/test-agent`
 runs through that launcher, then requests a ping and a resource sample. Use
 `-agent-dir` instead when the peer is started separately.
 
@@ -344,7 +345,7 @@ then waits for LayerStored before writing another request. A short source
 or a guest upload error ends the session because the stream can no longer
 guarantee where the next frame starts.
 
-On Linux, `kiri-host-run -agent /path/to/kiri-init -spec /path/to/run.json`
+On Linux, `fabo-host-run -agent /path/to/fabo-init -spec /path/to/run.json`
 exercises the complete host path for a local image. The JSON has `Run`
 (the protocol run spec, including top-to-base layer digests and argv) and
 `Layers` (local blobs with `Digest`, `MediaType` and `Path`). It starts the
@@ -357,7 +358,7 @@ Rust agent and a local OCI tar layer containing a static test program.
 The Go host received both output streams and returned the program's
 nonzero exit code.
 
-`kiri-go-daemon -agent /path/to/kiri-init -socket /private/dir/docker.sock
+`fabo-daemon -agent /path/to/fabo-init -socket /private/dir/docker.sock
 -images /path/to/catalog.json -state /private/state` serves the initial Docker API on Linux. The
 catalog maps image references to objects with `Layers` in base-to-top OCI
 order and optional `Entrypoint`, `Cmd`, `Env`, `WorkingDir` and `User`.
@@ -370,16 +371,16 @@ Records are replaced atomically, and up to 1 MiB of recent logs is saved
 with the terminal state. A record left starting or running after a crash
 is restored as exited with a failure; the daemon does not replay it. Logs
 that had not reached a terminal state can be lost on a crash.
-For the Go-to-Go Linux path, pass the `kiri-go-init` executable as
+For the Go-to-Go Linux path, pass the `fabo-init` executable as
 `-agent`. The daemon uses the private `-state` directory for container
 records, the image index and local volumes. It also passes
 `<state>/guest` to the agent as its persistent root. OCI layers live in
 `guest/layers` and writable container files in `guest/containers`. The
-temporary `/run/kiri-agent-*` directory holds only the agent's communication
+temporary `/run/fabo-agent-*` directory holds only the agent's communication
 sockets and is removed on clean shutdown. Keep the state directory on a
 filesystem suitable for OverlayFS and retain it when restarting the
-daemon or rebooting the host. Explicit `KIRI_GO_LAYER_DIR` and
-`KIRI_GO_CONTAINER_DIR` overrides keep their existing precedence.
+daemon or rebooting the host. Explicit `FABO_LAYER_DIR` and
+`FABO_CONTAINER_DIR` overrides keep their existing precedence.
 
 ```mermaid
 flowchart LR
@@ -391,11 +392,11 @@ flowchart LR
 
 #### Linux socket access
 
-Set `KIRI_SOCKET_GROUP=kiri` for a Linux host daemon whose socket should
-be usable by the system's `kiri` group. The socket directory must be owned
+Set `FABO_SOCKET_GROUP=fabo` for a Linux host daemon whose socket should
+be usable by the system's `fabo` group. The socket directory must be owned
 by the daemon account and cannot be writable by other users. A typical
-system service uses a root-owned `/run/kiri` directory with mode 0755
-and a `root:kiri` socket with mode 0660. The separate engine state
+system service uses a root-owned `/run/fabo` directory with mode 0755
+and a `root:fabo` socket with mode 0660. The separate engine state
 directory remains private. Without the group setting, the socket and its
 directory retain their private modes.
 
@@ -405,51 +406,51 @@ existing sessions can connect, and checks the peer UID at admission.
 It rechecks open connections every two seconds and closes those whose
 account no longer belongs to the group. Filesystems without POSIX ACL
 support rely on the Unix group mode, so a newly added member signs in
-again. Membership gives the same engine control as the original Kiri
+again. Membership gives the same engine control as the original Fabo
 service's group.
 
 #### Linux package service
 
 Linux packages built with the Go daemon and agent include both under
-`/usr/libexec/kiri`. The installed `kiri.service` uses the `kiri daemon`
+`/usr/libexec/fabo`. The installed `fabo.service` uses the `fabo daemon`
 entry point, which needs cgroup v2. On a fresh installation it starts the
-engine. When the configured Rust store is already initialized, it refuses
+engine. When the configured Kiri store is already initialized, it refuses
 to start until an offline import into the default Go state directory
 succeeds. To start with an empty Go store instead, set a service override
-with `sudo systemctl edit kiri`.
+with `sudo systemctl edit fabo`.
 
 ```ini
 [Service]
-Environment=KIRI_ENGINE=go
+Environment=FABO_ENGINE=go
 ```
 
-Apply the override with `sudo systemctl restart kiri`. The Go daemon
-uses the package's usual `/run/kiri/docker.sock` and group. It keeps its
-state in `/var/lib/kiri-daemon/.kiri/go-engine`. The daemon and agent
-run in the unit's `kiri-host` leaf, and containers use the sibling
-`kiri` subtree for delegated CPU, memory, process and I/O controls.
+Apply the override with `sudo systemctl restart fabo`. The Go daemon
+uses the package's usual `/run/fabo/docker.sock` and group. It keeps its
+state in `/var/lib/fabo-daemon/.fabo/go-engine`. The daemon and agent
+run in the unit's `fabo-host` leaf, and containers use the sibling
+`fabo` subtree for delegated CPU, memory, process and I/O controls.
 On SIGTERM it gives running containers their configured stop signals
 and a bounded shutdown window before closing the agent.
 
-The Go engine never writes to the Rust store, which keeps its own
-directories. `KIRI_ENGINE=rust` is an error. Imports from earlier builds
-that lack `rust-import.json` continue to require `KIRI_ENGINE=go`.
+The Go engine never writes to the Kiri store, which keeps its own
+directories. `FABO_ENGINE=rust` is an error. Imports from earlier builds
+that lack `kiri-import.json` continue to require `FABO_ENGINE=go`.
 
-#### Import an offline Linux Rust store
+#### Import an offline Linux Kiri store
 
-Stop the Rust workloads and service before migrating. For a default
+Stop Kiri's workloads and service before migrating. For a default
 package installation, run:
 
 ```sh
 sudo systemctl stop kiri
-sudo install -d -m 700 /var/lib/kiri-daemon/.kiri
-sudo kiri migrate-rust --source-config /var/lib/kiri-daemon/.kiri
+sudo install -d -m 700 /var/lib/fabo-daemon/.fabo
+sudo fabo migrate --source-config /var/lib/kiri-daemon/.kiri
 ```
 
 The default metadata and image-blob source is
-`/var/lib/kiri-daemon/.local/share/kiri`, the old agent's data tree is
+`/var/lib/kiri-daemon/.local/share/kiri`, Kiri's agent data tree is
 `/var/lib/kiri`, and the new directory is
-`/var/lib/kiri-daemon/.kiri/go-engine`. Override them with
+`/var/lib/fabo-daemon/.fabo/go-engine`. Override them with
 `--snapshot`, `--source-data`, and `--state`, respectively. Use
 `--source-socket` for a customized socket. The destination must be
 absent and its parent must exist. Start the service after the command
@@ -492,17 +493,17 @@ From the repository root on macOS, build and sign the test daemon:
 
 ```sh
 make guest
-make daemon    # target/kiri-go-daemon, signed with packaging/macos/kiri.entitlements
+make daemon    # target/fabo-daemon, signed with packaging/macos/fabo.entitlements
 ```
 
-Run it against a Kiri kernel for the Mac's CPU architecture and private
+Run it against a Fabo kernel for the Mac's CPU architecture and private
 directories for the test socket and state:
 
 ```sh
-instance=$(mktemp -d /tmp/kiri-go-vm.XXXXXX)
+instance=$(mktemp -d /tmp/fabo-vm.XXXXXX)
 mkdir -m 700 "$instance/run" "$instance/state"
-target/kiri-go-daemon -socket "$instance/run/docker.sock" -state "$instance/state" \
-  -kernel /path/to/Kiri-kernel -initrd guest/out/initramfs-go.cpio \
+target/fabo-daemon -socket "$instance/run/docker.sock" -state "$instance/state" \
+  -kernel /path/to/Fabo-kernel -initrd guest/out/initramfs-go.cpio \
   -console "$instance/console.log"
 ```
 
@@ -514,16 +515,16 @@ the guest keeps OCI layers and writable container layers across VM boots.
 Without it, guest files live in memory. On normal daemon shutdown, the
 guest stops containers, unmounts the data disk and powers off.
 
-On macOS, `POST /kiri/sleep` stops the workloads gracefully and releases
+On macOS, `POST /fabo/sleep` stops the workloads gracefully and releases
 the VM. A client restarts it by following sleep with
-`POST /kiri/wake`, which applies saved CPU and memory settings. Sleep
+`POST /fabo/wake`, which applies saved CPU and memory settings. Sleep
 keeps the daemon available for metadata reads, and a Docker operation
-requiring the guest boots it again. `POST /kiri/stop` instead records
+requiring the guest boots it again. `POST /fabo/stop` instead records
 that the engine must remain off until explicitly started, including
 across daemon restarts. `/info` reports VM availability and the manual
 stop flag independently.
 
-On macOS the VM also sleeps after `KIRI_IDLE_SECS` (60 seconds by
+On macOS the VM also sleeps after `FABO_IDLE_SECS` (60 seconds by
 default, 0 disables it). Background UI polls do not reset the timer.
 Running containers, live exec sessions, queued restarts, and in-flight
 guest requests keep it awake. An idle BuildKit container can be paused and
@@ -550,7 +551,7 @@ vsock. Host port publishing remains available in offline mode.
 #### MyGo desktop with the Go VM
 
 With the private daemon from the example above running, use
-`(cd desktop && KIRI_SOCKET="$instance/run/docker.sock" go run .)`.
+`(cd desktop && FABO_SOCKET="$instance/run/docker.sock" go run .)`.
 The Overview reads Docker's `/info`, and the containers page can open a
 retained log snapshot. The daemon exposes image inspection, volume
 inspection, and built-in and custom bridge networks. Built-in
@@ -575,14 +576,14 @@ stateDiagram-v2
 
 VM settings are validated against the host virtualization limits and
 saved in the private state directory. CPU and memory changes apply at
-the next boot. The bundled engine starts with Kiri's usual CPU and memory
+the next boot. The bundled engine starts with Fabo's usual CPU and memory
 defaults unless Go VM settings have already been saved. An explicit stop
 is persisted across daemon restarts.
 Use `-disk` for durable guest data across these boots. Linux host-process
 mode exposes its resource lists but has no VM controls.
 
 The macOS app shares `/Users`, `/Volumes`, `/private` and the user's home
-over VirtioFS, including the host directories used by Kiri's Kubernetes
+over VirtioFS, including the host directories used by Fabo's Kubernetes
 node. A standalone Go daemon can pass `-share /absolute/host/directory`
 once for each directory it should share. Both `-v` and
 `--mount type=bind` support files, directories and read-only bindings.
@@ -593,7 +594,7 @@ whose resolved path is outside the configured shares is rejected.
 
 Local named volumes on macOS require `-disk`. The daemon stores volume
 metadata and container references in its state directory. The guest
-creates volume data under `/var/lib/kiri/volumes/<name>/_data` on ext4
+creates volume data under `/var/lib/fabo/volumes/<name>/_data` on ext4
 when first mounted. Use the same state directory and data disk across
 boots. Empty volumes can be populated from the image, and
 `volume-nocopy` skips that step. `docker rm -v` and `docker run --rm`
@@ -606,9 +607,9 @@ one-way guest protocol command remains separate.
 
 ### Managed Kubernetes
 
-`kiri k8s` uses the Docker API to manage the existing single-node k3s
-cluster and its `kiri-k8s` volume. It publishes the API port and writes
-the `kiri` kubeconfig context. `start` waits for the API server and the
+`fabo k8s` uses the Docker API to manage the existing single-node k3s
+cluster and its `fabo-k8s` volume. It publishes the API port and writes
+the `fabo` kubeconfig context. `start` waits for the API server and the
 node to become ready. An offline Rust import preserves the node and its
 cluster state in the volume. The Go agent enables `cpuset` where the
 kernel or parent cgroup delegates it. Privileged containers get device
@@ -624,9 +625,9 @@ through the node. Routes and forwards are released when the node stops.
 
 ```mermaid
 flowchart LR
-    CLI[kiri k8s] --> API[Go Docker API]
+    CLI[fabo k8s] --> API[Go Docker API]
     API --> Node[Privileged k3s node]
-    Node --> Volume[kiri-k8s volume]
+    Node --> Volume[fabo-k8s volume]
     API --> Relay[Host port forwards]
     Relay --> Node
 ```
@@ -793,7 +794,7 @@ single master for input and output.
 `HostConfig.ConsoleSize` and the Docker resize API carry rows and columns.
 The host remembers a size supplied before start and sends it when the
 guest reports Started. Later resize requests update the live terminal over
-Kiri's existing Resize frame. Output drains before the guest reports Exited.
+Fabo's existing Resize frame. Output drains before the guest reports Exited.
 
 ```mermaid
 flowchart LR
@@ -872,18 +873,18 @@ registered removal waiter still receives the exit status. Guest Remove
 is a one-way message. Crash recovery does not currently reconcile
 writable layers left by an interrupted removal.
 
-The new Linux `kiri-go-init` executable can connect to the host-process
+The new Linux `fabo-init` executable can connect to the host-process
 control socket and serve the version-4 Hello, Ping and Stats exchanges.
 Its metrics come from Linux boottime, procfs and cgroup v2. It exits
 on Shutdown or host disconnect. To verify the Go-to-Go path in a test
-environment, run `kiri-guest-check -agent /path/to/kiri-go-init`.
+environment, run `fabo-guest-check -agent /path/to/fabo-init`.
 In the Go VM, the same executable runs as PID 1 from `initramfs-go.cpio`.
 
 The Go guest accepts LayerQuery and LayerBegin. It verifies the transferred
 blob digest, bounds decompression, unpacks beneath a confined archive root,
 and publishes a completion marker only after successful installation. It
 accepts plain, gzip and zstd tar layers and translates OCI whiteouts for
-overlayfs. Set `KIRI_GO_LAYER_DIR` to a private persistent directory to
+overlayfs. Set `FABO_LAYER_DIR` to a private persistent directory to
 reuse layers across guest restarts. By default layers live in the temporary
 host-agent directory.
 
@@ -892,7 +893,7 @@ separate mount, PID, network, UTS, IPC and cgroup namespaces. A Go child
 mounts the overlay, pivots into it, and prepares proc, sysfs and minimal
 devices. Sysfs is read-only unless the container is privileged.
 Container root retains the available capabilities from the original
-Kiri fallback set without device-node creation. Non-root processes run
+Fabo fallback set without device-node creation. Non-root processes run
 without capabilities.
 The child applies the container's no-new-privileges policy before exec.
 Its initial syscall filter blocks namespace changes, io_uring and non-IP/non-Unix
@@ -930,7 +931,7 @@ flowchart LR
 
 ### Default container network
 
-Plain `docker run` and `--network bridge` use `kiri0` with IPv4
+Plain `docker run` and `--network bridge` use `fabo0` with IPv4
 `172.17.0.0/16`. The daemon saves each address with the container so a stop,
 restart or daemon reload preserves the reservation. The guest creates a
 veth pair before releasing the container bootstrap and sets its address
@@ -944,7 +945,7 @@ A container's hostname and `docker run --add-host` entries are saved with its
 configuration. At start, the guest writes `/etc/hostname` and `/etc/hosts`
 inside the container. A mount over either file or over `/etc` takes
 precedence. On Linux bridge networks, `host-gateway` resolves to the
-bridge's gateway address. In the macOS VM it resolves to Kiri's host relay.
+bridge's gateway address. In the macOS VM it resolves to Fabo's host relay.
 Offline import preserves Rust's host mappings.
 A subnet overlap in the main routing table fails before bridge creation.
 Graceful agent shutdown removes the bridge and its nftables table and
@@ -970,7 +971,7 @@ and IPC namespaces. It uses Linux's resolver configuration unless a
 mount supplies the resolver file. Host-network containers have no
 bridge IP and cannot be attached to additional bridge networks.
 
-Kiri's TCP and UDP publishing and HTTP domains can forward to the
+Fabo's TCP and UDP publishing and HTTP domains can forward to the
 container's IPv4 loopback listeners in the shared namespace. A mapping
 that would forward a Linux port to its own listening socket is rejected.
 HTTP domain routing and listening-port discovery select sockets owned
@@ -992,7 +993,7 @@ retain their IP reservations. The guest checks for overlapping routes when
 it creates a bridge. Offline Rust import preserves custom IPv4 and IPv6
 networks, their options and pools, and fixed endpoint addresses.
 
-Set `KIRI_BRIDGE_IPV6=1` in the daemon environment to enable IPv6 on the
+Set `FABO_BRIDGE_IPV6=1` in the daemon environment to enable IPv6 on the
 built-in bridge. The next start assigns addresses to its existing
 endpoints as needed. The daemon persists the /64 pool and endpoint
 reservations. Starting with the option disabled keeps the reservations
@@ -1048,7 +1049,7 @@ keeps domain names and link targets.
 
 The daemon persists additional endpoints alongside the original primary
 endpoint record. A Run message prepares every configured interface before
-the application starts. Live connect and disconnect use Kiri's NetAttach
+the application starts. Live connect and disconnect use Fabo's NetAttach
 and NetDetach messages and update the saved record after guest acknowledgment.
 If saving fails, the daemon attempts the inverse operation. A live
 primary endpoint with published ports must remain attached while the
@@ -1108,7 +1109,7 @@ directories are traversable even when the daemon starts with umask 077.
 Older experimental caches created with that umask can still contain
 root-only directories. The guest does not rewrite already cached layers.
 
-Set `KIRI_GO_CGROUP_DIR` to a delegated cgroup v2 parent to use memory,
+Set `FABO_CGROUP_DIR` to a delegated cgroup v2 parent to use memory,
 CPU and PID limits. The Go guest creates a container cgroup, sets the
 requested controls, and uses clone3 to start the child inside it. The
 container sees a read-only cgroup view. The guest reports OOM kills and
@@ -1146,7 +1147,7 @@ and cpuset updates are outside this path.
 `docker pause` and `docker unpause` control the whole container
 cgroup, including descendants and existing exec processes. The Go VM
 creates the required cgroups. A Linux host-process guest needs
-`KIRI_GO_CGROUP_DIR` set to a delegated cgroup v2 parent.
+`FABO_CGROUP_DIR` set to a delegated cgroup v2 parent.
 
 ```mermaid
 flowchart LR
@@ -1171,9 +1172,9 @@ the finish time on exit. A VM shutdown or lost guest connection marks the
 interrupted run as stopped by the engine. The last run's timestamps and
 stop reason survive daemon restarts and offline Rust imports. Older Go
 records with no known timestamps report Docker's zero time in inspect and
-`null` in the Kiri list fields.
+`null` in the Fabo list fields.
 
-`docker ps` lists newest containers first and supports the original Kiri
+`docker ps` lists newest containers first and supports the original Fabo
 filters for names, labels, image ancestors, networks, mounted volumes,
 state, health and exit code. State and exit-code filters include stopped
 containers automatically. The WebView uses the list timestamps and exit
@@ -1197,7 +1198,7 @@ docker stats --no-stream app
 
 The guest samples CPU, memory, process count, network traffic and block
 I/O using the existing protocol-v4 container stats reply. Linux
-host-process mode needs a delegated `KIRI_GO_CGROUP_DIR` with the
+host-process mode needs a delegated `FABO_CGROUP_DIR` with the
 accounting controllers available. Network and block I/O counters are
 aggregated across the container's interfaces and devices.
 
@@ -1219,7 +1220,7 @@ second, and ends at exit. Stopped containers have no live counters.
 
 #### Container process listing
 
-`docker top app` returns the original Kiri columns for the live or
+`docker top app` returns the original Fabo columns for the live or
 paused container. The guest enumerates process IDs in the container's
 cgroup and descendant cgroups, then reads their metadata from Linux
 `/proc`. This includes child processes and running exec sessions.
@@ -1238,7 +1239,7 @@ flowchart LR
 
 PID and PPID are guest-visible on macOS and host-visible in Linux
 host-process mode. Linux host-process mode needs a delegated
-`KIRI_GO_CGROUP_DIR`. The table has fixed columns, as in the Rust
+`FABO_CGROUP_DIR`. The table has fixed columns, as in the Rust
 engine. Custom `ps` layouts are outside this path.
 
 Linux host-process mode accepts existing absolute bind sources via
@@ -1268,7 +1269,7 @@ example, `type=none,device=/path/to/data,o=bind` uses an existing host directory
 and `type=tmpfs,device=tmpfs,o=size=32m` creates a memory-backed named volume.
 On macOS, bind devices must be inside the VM share. Network mounts such as
 NFS and CIFS require filesystem support in the Linux kernel running the agent.
-The Kiri macOS guest kernel does not currently include those filesystems.
+The Fabo macOS guest kernel does not currently include those filesystems.
 Volume plugins and per-volume quotas are unsupported.
 
 The agent mounts a local driver volume when the first container starts and
@@ -1310,13 +1311,13 @@ Volume prune supports `label` and `label!`. Each resource is checked
 again by the existing deletion path before removal. For a macOS VM
 volume, the host removes its record after the guest acknowledges deletion.
 Container and volume prune report the deleted objects with zero reclaimed
-bytes, matching the original Kiri API.
+bytes, matching the original Fabo API.
 
 ### Docker disk usage
 
 `docker system df` and `docker system df -v` report the same image,
 container, volume and BuildKit breakdown as `GET /system/df`. The Go guest
-answers the original Kiri usage frames from a separate worker. The scan
+answers the original Fabo usage frames from a separate worker. The scan
 uses allocated blocks, counts hard links once per tree, and skips
 symlinks and files on other devices. Linux host volumes are measured
 through the same allocation walker. The `diskusage` package only owns
@@ -1427,7 +1428,7 @@ or on a Linux host with delegated cgroup v2. The worker uses the existing
 container lifecycle and a named volume for its state. The Go agent lets
 the worker create nested namespaces and cgroups while blocking vsock and
 io_uring. The packaged Linux service delegates cgroups automatically.
-For a manual Linux daemon, set `KIRI_GO_CGROUP_DIR` to a delegated parent.
+For a manual Linux daemon, set `FABO_CGROUP_DIR` to a delegated parent.
 The macOS managed builder requires a VM data disk.
 
 ```mermaid
@@ -1440,16 +1441,16 @@ flowchart LR
 When BuildKit moves to a child cgroup, new execs join that cgroup.
 Container exit removes the worker's empty descendant cgroups so the
 builder can start again with the same state volume. The first Buildx
-build creates Kiri's named builder and its state volume. Kiri writes
+build creates Fabo's named builder and its state volume. Fabo writes
 the managed worker configuration at each start. Separately named
 Buildx builders can upload their own configuration before starting.
 
-`GET /kiri/builder` reports the saved cache limit, effective limit in
-bytes, idle timeout and builder state. `POST /kiri/builder` accepts
+`GET /fabo/builder` reports the saved cache limit, effective limit in
+bytes, idle timeout and builder state. `POST /fabo/builder` accepts
 `cache_gb` (a whole number, with zero or `null` selecting the default)
 and `idle_secs` (zero disables automatic pause). Omitted fields keep their
 current value. The default cache cap is 10% of the state filesystem,
-bounded to 1–20 GiB. The `KIRI_BUILD_CACHE_GB` and `KIRI_BUILDER_IDLE_SECS`
+bounded to 1–20 GiB. The `FABO_BUILD_CACHE_GB` and `FABO_BUILDER_IDLE_SECS`
 environment variables override the saved values. Offline Rust migration
 copies the settings from `builder.json`.
 
@@ -1460,7 +1461,7 @@ resumes a paused builder and reuses the named cache volume.
 The daemon ends Buildx's `buildctl dial-stdio` relay when the client
 disconnects so an abandoned relay cannot keep the builder awake.
 
-The managed builder resolves `FROM` and `COPY --from` against Kiri's
+The managed builder resolves `FROM` and `COPY --from` against Fabo's
 tagged image store. At each start it configures the read-only mirror for
 Docker Hub and the registries already represented in that store. New tags
 from those registries are visible immediately. To add a registry that
@@ -1503,12 +1504,12 @@ flowchart LR
 
 #### Container files in Finder
 
-On macOS, the Go daemon exports the running containers under `~/Kiri`
+On macOS, the Go daemon exports the running containers under `~/Fabo`
 with the system's read-only NFSv3 mount. The selected app flavor supplies
 the mount directory and a private Unix socket. The daemon accepts the
 current user and the macOS kernel client on that socket. A folder that
 contains user files or another mount remains available to the user.
-`KIRI_NO_FINDER=1` leaves the socket available and skips the mount.
+`FABO_NO_FINDER=1` leaves the socket available and skips the mount.
 
 ```mermaid
 flowchart LR
@@ -1680,7 +1681,7 @@ Internal bridge networks retain their isolated routing.
 #### Windows system proxy in WSL
 
 The Windows tray sends the current system proxy and the relay port map to
-`PUT /kiri/proxy/system` over the existing Docker bridge. The Go daemon
+`PUT /fabo/proxy/system` over the existing Docker bridge. The Go daemon
 keeps that snapshot in memory. System mode uses Windows settings when a
 snapshot is available and falls back to the Linux environment before the
 first update. Custom mode uses the saved addresses. Both modes use the
@@ -1715,7 +1716,7 @@ flowchart LR
 The Go daemon serves container domains directly. The router matches the
 container name, a 12-character or longer ID prefix, a Compose
 `service.project` name, or one of the comma-separated names in
-`dev.kiri.domain`. It uses the `dev.kiri.http.port` label if set. Otherwise
+`dev.fabo.domain`. It uses the `dev.fabo.http.port` label if set. Otherwise
 it considers published and exposed TCP ports and can query the guest for
 listeners. The destination needs a bridge address reachable from the
 daemon or its VM relay.
@@ -1728,26 +1729,26 @@ flowchart LR
     Relay --> Service[Container HTTP service]
 ```
 
-In the side-by-side Kiri Go bundle, choose free HTTP and HTTPS ports under
+In the side-by-side Fabo Go bundle, choose free HTTP and HTTPS ports under
 **Advanced tools → Settings → Domains**. Use
-`http://myapp.kiri.localhost:<port>` or
-`https://myapp.kiri.localhost:<port>`. This bundle leaves the shared
-macOS resolver rule to the installed Kiri. A primary macOS bundle can
-start the loopback DNS service for the existing `kiri.local` rule.
-`KIRI_HTTP_PORT` and `KIRI_HTTPS_PORT` take precedence over saved ports.
+`http://myapp.fabo.localhost:<port>` or
+`https://myapp.fabo.localhost:<port>`. This bundle leaves the shared
+macOS resolver rule to the installed Fabo. A primary macOS bundle can
+start the loopback DNS service for the existing `fabo.local` rule.
+`FABO_HTTP_PORT` and `FABO_HTTPS_PORT` take precedence over saved ports.
 
 The two machine-level settings belong to the launcher, since the engine
-runs without privileges. `kiri domains` prints them as JSON
+runs without privileges. `fabo domains` prints them as JSON
 (`{"on", "suffix", "https"}`) and the window's **Settings → Domains**
 reads and changes them through it:
 
-- `kiri domains local on|off` (also `kiri setup --domains`) writes or
-  removes `/etc/resolver/kiri.local`, which sends `*.kiri.local` lookups to
+- `fabo domains local on|off` (also `fabo setup --domains`) writes or
+  removes `/etc/resolver/fabo.local`, which sends `*.fabo.local` lookups to
   the engine's answerer on `127.0.0.1:53535`. macOS asks for an
   administrator's password. A flavored bundle refuses: the rule is one per
-  machine and stays the installed app's. `kiri setup --uninstall` removes
+  machine and stays the installed app's. `fabo setup --uninstall` removes
   the rule.
-- `kiri domains https on|off` trusts `<state>/tls/ca.pem` as a root for
+- `fabo domains https on|off` trusts `<state>/tls/ca.pem` as a root for
   websites only, for the current user, or removes that trust and deletes
   the certificate from the login keychain by fingerprint, so another
   installation's authority of the same name is left alone. Trust is read
@@ -1755,7 +1756,7 @@ reads and changes them through it:
   exists once the engine has bound its HTTPS port.
 
 A closed password prompt changes nothing. A window started without the
-launcher beside it, and Linux, show names as `*.kiri.localhost` with
+launcher beside it, and Linux, show names as `*.fabo.localhost` with
 nothing to switch.
 
 The daemon binds both replacement ports before saving the setting or
@@ -1764,8 +1765,8 @@ takes precedence while it owns the port. The router tries to reclaim the
 port every three seconds. Accepted requests remain on their original
 connection when a listener moves.
 
-HTTPS uses the per-bundle CA under the Kiri state directory's `tls`
-subdirectory. It can issue only for the two Kiri DNS suffixes and
+HTTPS uses the per-bundle CA under the Fabo state directory's `tls`
+subdirectory. It can issue only for the two Fabo DNS suffixes and
 excludes IP addresses. The bundle retains the existing macOS certificate
 trust controls. For isolated tests, pass `tls/ca.pem` to `curl --cacert`.
 
@@ -1789,7 +1790,7 @@ flowchart LR
     Process --> Exec[Main process and later execs]
 ```
 
-The guest attaches the original Kiri cgroup device policy before starting
+The guest attaches the original Fabo cgroup device policy before starting
 the container. By default, it allows standard character devices and denies
 opening block devices. If the kernel cannot attach the default filter, the
 agent removes `CAP_MKNOD` for the workload and its execs.
@@ -1809,7 +1810,7 @@ if its cgroup filter cannot be installed.
 ### USB passthrough on macOS
 
 The platform helper captures a selected Mac USB device and speaks USB/IP.
-It upgrades a request to the Go daemon's `/kiri/usb` endpoint on the local
+It upgrades a request to the Go daemon's `/fabo/usb` endpoint on the local
 engine socket. The daemon reserves the device location and connects to
 the Go guest over vsock. The guest selects a free Linux `vhci_hcd` port
 and gives the socket to the kernel. After enumeration, containers can
@@ -1828,7 +1829,7 @@ sleep closes the session before stopping the guest. Detach, helper exit,
 and device disconnect release the location so it can be attached again.
 The Go `fabo usb fake` fixtures exercise the same daemon, guest and
 Linux driver path with software serial and HID devices. Run
-`tests/usb.sh` with `KIRI` pointing to the built `fabo` and an isolated Docker
+`tests/usb.sh` with `FABO` pointing to the built `fabo` and an isolated Docker
 context to verify that path. CLI contracts and host capture verification
 boundaries are documented in [CLI tools](cli-tools.md).
 
@@ -1837,7 +1838,7 @@ boundaries are documented in [CLI tools](cli-tools.md).
 `--security-opt seccomp=unconfined` skips the default syscall policy.
 The guest still filters vsock and io_uring, as it does for privileged
 containers. `--security-opt no-new-privileges` prevents privilege gains
-through exec. New containers follow Rust Kiri's default when no option is
+through exec. New containers follow Rust Fabo's default when no option is
 specified. Existing Go records retain the no-new-privileges policy they
 were created with. Exec and health checks use the live container policy.
 Custom seccomp profiles, AppArmor profiles and SELinux labels are
@@ -1845,7 +1846,7 @@ unsupported.
 
 The Go launcher's [machine commands](machines.md) support creation, listing,
 interactive shells and lifecycle operations. Linux Machines created by
-`kiri machine create` use the regular container
+`fabo machine create` use the regular container
 API and keep their user accounts and files in the writable container layer.
 Set-ID executables in the image or writable root follow the process
 policy, so a machine's non-root user can run its passwordless `sudo`.

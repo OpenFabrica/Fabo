@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"slices"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 	"testing"
 )
 

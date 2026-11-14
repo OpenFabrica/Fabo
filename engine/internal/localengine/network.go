@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 var defaultSubnet = netip.MustParsePrefix("172.17.0.0/16")
@@ -373,7 +373,7 @@ func (e *Engine) networkSettings(c *container) map[string]any {
 	return settings
 }
 
-// networkAddress is the target of Kiri's port and HTTP domain relays.
+// networkAddress is the target of Fabo's port and HTTP domain relays.
 func (c *container) networkAddress() netip.Addr {
 	if c.run.Flags&guestwire.RunNetworkHost != 0 {
 		return netip.AddrFrom4([4]byte{127, 0, 0, 1})

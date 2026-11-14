@@ -46,7 +46,7 @@ func (s *execStream) Close() error {
 			if s.background {
 				ctx = context.WithValue(ctx, backgroundRead{}, true)
 			}
-			s.cleanupErr = s.engine.request(ctx, http.MethodPost, "/kiri/exec/"+url.PathEscape(s.id)+"/stop", nil, nil)
+			s.cleanupErr = s.engine.request(ctx, http.MethodPost, "/fabo/exec/"+url.PathEscape(s.id)+"/stop", nil, nil)
 			// Removal of the container also removes its exec records.
 			if failed, ok := s.cleanupErr.(*engineError); ok && failed.status == http.StatusNotFound && strings.Contains(strings.ToLower(failed.message), "no such exec") {
 				s.cleanupErr = nil
@@ -63,12 +63,12 @@ func (e engineClient) openExec(parent context.Context, id string, args []string,
 	}
 	timer := time.AfterFunc(15*time.Second, cancel)
 	defer timer.Stop()
-	var capabilities struct{ KiriExecStop bool }
+	var capabilities struct{ FaboExecStop bool }
 	if err = e.get(ctx, "/info", &capabilities); err != nil {
 		cancel()
 		return nil, err
 	}
-	if !capabilities.KiriExecStop {
+	if !capabilities.FaboExecStop {
 		cancel()
 		return nil, fmt.Errorf("this engine cannot close desktop exec sessions yet; restart the engine from the updated app")
 	}
@@ -98,7 +98,7 @@ func (e engineClient) openExec(parent context.Context, id string, args []string,
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
 	if background {
-		req.Header.Set("X-Kiri-Background", "1")
+		req.Header.Set("X-Fabo-Background", "1")
 	}
 	res, err := e.http.Do(req)
 	if err != nil {

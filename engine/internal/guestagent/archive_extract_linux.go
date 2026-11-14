@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 	"golang.org/x/sys/unix"
 )
 
@@ -76,7 +76,7 @@ func replaceArchiveEntry(root *os.Root, source io.Reader, header *tar.Header, fl
 	if header.Name == "." {
 		return fmt.Errorf("archive file cannot replace the extraction directory")
 	}
-	tmp := filepath.Join(filepath.Dir(header.Name), ".kiri-copy-"+rand.Text())
+	tmp := filepath.Join(filepath.Dir(header.Name), ".fabo-copy-"+rand.Text())
 	switch header.Typeflag {
 	case tar.TypeReg:
 		f, err := root.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)

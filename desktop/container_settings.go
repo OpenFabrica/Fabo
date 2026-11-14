@@ -136,7 +136,7 @@ func (s *desktop) saveContainerSettings(kind string) {
 	s.containerDraft.problem = ""
 	s.working["container-settings"] = true
 	s.run(2*time.Minute, func(ctx context.Context) func() {
-		err := s.engine.request(ctx, http.MethodPost, "/kiri/containers/"+url.PathEscape(d.id)+"/"+kind, body, nil)
+		err := s.engine.request(ctx, http.MethodPost, "/fabo/containers/"+url.PathEscape(d.id)+"/"+kind, body, nil)
 		return func() {
 			delete(s.working, "container-settings")
 			if s.containerDraft.id == d.id {

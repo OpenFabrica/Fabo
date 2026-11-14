@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 	"golang.org/x/net/dns/dnsmessage"
 )
 
@@ -90,7 +90,7 @@ func dnsKey(name string) string {
 	return strings.ToLower(strings.TrimSuffix(name, "."))
 }
 
-var hostRelayNames = []string{"host.docker.internal", "host.kiri.internal", "gateway.docker.internal"}
+var hostRelayNames = []string{"host.docker.internal", "host.fabo.internal", "gateway.docker.internal"}
 
 func isHostRelayName(name string) bool {
 	return slices.Contains(hostRelayNames, name)

@@ -15,10 +15,10 @@ func TestDomainDNSAnswersOnlyLocalNames(t *testing.T) {
 		code  dnsmessage.RCode
 		wantA bool
 	}{
-		{"API.Sample.Kiri.Local.", dnsmessage.TypeA, dnsmessage.RCodeSuccess, true},
-		{"api.kiri.local.", dnsmessage.TypeAAAA, dnsmessage.RCodeSuccess, false},
-		{"notkiri.local.", dnsmessage.TypeA, dnsmessage.RCodeRefused, false},
-		{"kiri.local.example.", dnsmessage.TypeA, dnsmessage.RCodeRefused, false},
+		{"API.Sample.Fabo.Local.", dnsmessage.TypeA, dnsmessage.RCodeSuccess, true},
+		{"api.fabo.local.", dnsmessage.TypeAAAA, dnsmessage.RCodeSuccess, false},
+		{"notfabo.local.", dnsmessage.TypeA, dnsmessage.RCodeRefused, false},
+		{"fabo.local.example.", dnsmessage.TypeA, dnsmessage.RCodeRefused, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			query := dnsmessage.Message{

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func TestProxyPersistenceAndBypass(t *testing.T) {
@@ -22,7 +22,7 @@ func TestProxyPersistenceAndBypass(t *testing.T) {
 	}
 	request := func(body string) *httptest.ResponseRecorder {
 		t.Helper()
-		r := httptest.NewRequest(http.MethodPost, "/kiri/proxy", strings.NewReader(body))
+		r := httptest.NewRequest(http.MethodPost, "/fabo/proxy", strings.NewReader(body))
 		w := httptest.NewRecorder()
 		p.ServeHTTP(w, r)
 		return w
@@ -100,11 +100,11 @@ func TestWindowsProxySnapshotAndContainerOverrides(t *testing.T) {
 	}
 	post := func(body string) {
 		t.Helper()
-		send(p.ServeHTTP, http.MethodPost, "/kiri/proxy", body, http.StatusOK)
+		send(p.ServeHTTP, http.MethodPost, "/fabo/proxy", body, http.StatusOK)
 	}
 	update := func(body string, status int) string {
 		t.Helper()
-		return send(p.UpdateWindows, http.MethodPut, "/kiri/proxy/system", body, status)
+		return send(p.UpdateWindows, http.MethodPut, "/fabo/proxy/system", body, status)
 	}
 	proxyFor := func(target, host string) {
 		t.Helper()
@@ -123,7 +123,7 @@ func TestWindowsProxySnapshotAndContainerOverrides(t *testing.T) {
 	env, options := p.containerEnv(false, false, []string{"HTTP_PROXY=http://explicit.invalid:8080"})
 	if !slices.Contains(env, "HTTP_PROXY=http://explicit.invalid:8080") ||
 		!slices.Contains(env, "HTTPS_PROXY=http://user:fixture@127.0.0.2:7892") ||
-		!slices.Equal(options, []string{"kiri.windows-proxy:7892"}) {
+		!slices.Equal(options, []string{"fabo.windows-proxy:7892"}) {
 		t.Fatal("container proxy settings did not preserve overrides and deduplicate relay ports")
 	}
 	joined := p.joinedContainerEnv(false, []string{"http_proxy=http://explicit.invalid:8080"}, containerProxyNetwork{relayOptions: options})

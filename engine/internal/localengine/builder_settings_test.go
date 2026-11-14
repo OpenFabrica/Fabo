@@ -11,14 +11,14 @@ import (
 )
 
 func TestBuilderSettingsPatchPersistsAndOverridesApply(t *testing.T) {
-	t.Setenv("KIRI_BUILD_CACHE_GB", "8")
-	t.Setenv("KIRI_BUILDER_IDLE_SECS", "0")
+	t.Setenv("FABO_BUILD_CACHE_GB", "8")
+	t.Setenv("FABO_BUILDER_IDLE_SECS", "0")
 	state := &State{dir: t.TempDir()}
 	e := &Engine{state: state}
 	post := func(body string, status int) *httptest.ResponseRecorder {
 		t.Helper()
 		w := httptest.NewRecorder()
-		e.Handler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/kiri/builder", strings.NewReader(body)))
+		e.Handler().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/fabo/builder", strings.NewReader(body)))
 		if w.Code != status {
 			t.Fatalf("status %d, expected %d: %s", w.Code, status, w.Body.String())
 		}

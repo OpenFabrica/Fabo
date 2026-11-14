@@ -12,17 +12,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func TestGoGuestPersistsVerifiedLayers(t *testing.T) {
-	binary := os.Getenv("KIRI_TEST_GO_AGENT")
+	binary := os.Getenv("FABO_TEST_GO_AGENT")
 	if binary == "" {
-		t.Skip("set KIRI_TEST_GO_AGENT to the compiled Go agent")
+		t.Skip("set FABO_TEST_GO_AGENT to the compiled Go agent")
 	}
 	dir := shortTemp(t)
 	layerDir := filepath.Join(dir, "layers")
-	t.Setenv("KIRI_GO_LAYER_DIR", layerDir)
+	t.Setenv("FABO_LAYER_DIR", layerDir)
 	p, err := Start(t.Context(), binary, os.Stderr)
 	if err != nil {
 		t.Fatal(err)

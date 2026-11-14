@@ -1,5 +1,5 @@
 // A flavored app's icon (`make app-dev`): the app icon with a blue DEV band
-// across the bottom, so it can't be mistaken for Kiri, as a 1024px PNG.
+// across the bottom, so it can't be mistaken for Fabo, as a 1024px PNG.
 //   swift scripts/dev-icon.swift <app icon 1024px png> <out.png> [LABEL]
 // `make app-dev FLAVOR=name` puts that name in the band.
 import AppKit

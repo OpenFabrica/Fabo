@@ -5,13 +5,13 @@ import (
 	"strings"
 )
 
-// CapabilityNone is Rust Kiri's wire marker for an explicit empty set.
+// CapabilityNone is Rust Fabo's wire marker for an explicit empty set.
 const CapabilityNone uint64 = 1 << 63
 
 // AllCapabilities covers the Linux capabilities through CHECKPOINT_RESTORE.
 const AllCapabilities uint64 = (1 << 41) - 1
 
-// DefaultCapabilities is Docker and Rust Kiri's default set, in Linux bit order.
+// DefaultCapabilities is Docker and Rust Fabo's default set, in Linux bit order.
 const DefaultCapabilities uint64 = 1<<0 | 1<<1 | 1<<3 | 1<<4 | 1<<5 | 1<<6 | 1<<7 | 1<<8 |
 	1<<10 | 1<<13 | 1<<18 | 1<<27 | 1<<29 | 1<<31
 

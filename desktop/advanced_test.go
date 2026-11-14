@@ -83,7 +83,7 @@ func TestContainerEnvironmentAndPortsAreEditedIndependently(t *testing.T) {
 			fmt.Fprint(w, `{"Config":{"Env":["NODE_ENV=development","TOKEN=a=b"]},"HostConfig":{"PortBindings":{"80/tcp":[{"HostIP":"127.0.0.1","HostPort":""}],"53/udp":[{"HostIP":"::1","HostPort":"5353"}]}}}`)
 			return true
 		}
-		if strings.HasPrefix(r.URL.Path, "/kiri/containers/") {
+		if strings.HasPrefix(r.URL.Path, "/fabo/containers/") {
 			var raw json.RawMessage
 			_ = json.NewDecoder(r.Body).Decode(&raw)
 			mu.Lock()
@@ -117,11 +117,11 @@ func TestContainerEnvironmentAndPortsAreEditedIndependently(t *testing.T) {
 	}
 	click(t, tt, "Save environment")
 	click(t, tt, "Save")
-	if len(requests) != 1 || requests[0] != "/kiri/containers/c-api/env" || !strings.Contains(bodies[0], "NODE_ENV=production") || !strings.Contains(bodies[0], "TOKEN=a=b") {
+	if len(requests) != 1 || requests[0] != "/fabo/containers/c-api/env" || !strings.Contains(bodies[0], "NODE_ENV=production") || !strings.Contains(bodies[0], "TOKEN=a=b") {
 		t.Fatalf("requests %v %v", requests, bodies)
 	}
 	click(t, tt, "Save ports")
-	if len(requests) != 2 || requests[1] != "/kiri/containers/c-api/ports" || !strings.Contains(bodies[1], `"host_port":0`) {
+	if len(requests) != 2 || requests[1] != "/fabo/containers/c-api/ports" || !strings.Contains(bodies[1], `"host_port":0`) {
 		t.Fatalf("ports: %v %v", requests, bodies)
 	}
 	// An empty list is an explicit removal, never JSON null.
@@ -144,7 +144,7 @@ func TestContainerSettingsFailureKeepsDraftAndCannotSaveUnreadSettings(t *testin
 			fmt.Fprint(w, `{"message":"inspect failed"}`)
 			return true
 		}
-		if r.URL.Path == "/kiri/containers/c-api/env" {
+		if r.URL.Path == "/fabo/containers/c-api/env" {
 			w.WriteHeader(409)
 			fmt.Fprint(w, `{"message":"environment saved but restart failed"}`)
 			return true
@@ -186,7 +186,7 @@ func TestContainerDraftValidation(t *testing.T) {
 	}
 }
 
-const kubeFixture = `{"items":[{"kind":"Pod","metadata":{"namespace":"default","name":"web-1","uid":"uid-1"},"spec":{"nodeName":"kiri","containers":[{"name":"web","image":"nginx"},{"name":"side","image":"busybox"}]},"status":{"phase":"Running","podIP":"10.42.0.9","containerStatuses":[{"name":"web","ready":true,"restartCount":1,"state":{"running":{}}},{"name":"side","ready":false,"restartCount":3,"state":{"waiting":{"reason":"CrashLoopBackOff"}}}]}},{"kind":"Service","metadata":{"namespace":"default","name":"web"},"spec":{"type":"LoadBalancer","clusterIP":"10.43.0.5","ports":[{"port":8080,"targetPort":80,"protocol":"TCP"}]},"status":{"loadBalancer":{"ingress":[{"ip":"127.0.0.1"}]}}}]}`
+const kubeFixture = `{"items":[{"kind":"Pod","metadata":{"namespace":"default","name":"web-1","uid":"uid-1"},"spec":{"nodeName":"fabo","containers":[{"name":"web","image":"nginx"},{"name":"side","image":"busybox"}]},"status":{"phase":"Running","podIP":"10.42.0.9","containerStatuses":[{"name":"web","ready":true,"restartCount":1,"state":{"running":{}}},{"name":"side","ready":false,"restartCount":3,"state":{"waiting":{"reason":"CrashLoopBackOff"}}}]}},{"kind":"Service","metadata":{"namespace":"default","name":"web"},"spec":{"type":"LoadBalancer","clusterIP":"10.43.0.5","ports":[{"port":8080,"targetPort":80,"protocol":"TCP"}]},"status":{"loadBalancer":{"ingress":[{"ip":"127.0.0.1"}]}}}]}`
 
 type kubeEngine struct {
 	mu         sync.Mutex
@@ -204,7 +204,7 @@ func installKube(t *testing.T, f *fakeEngine) *kubeEngine {
 	intercept(f, func(w http.ResponseWriter, r *http.Request) bool {
 		k.mu.Lock()
 		defer k.mu.Unlock()
-		if r.URL.Path == "/containers/kiri-k8s/json" {
+		if r.URL.Path == "/containers/fabo-k8s/json" {
 			if k.state == "absent" {
 				w.WriteHeader(404)
 				fmt.Fprint(w, `{"message":"No such container"}`)
@@ -213,13 +213,13 @@ func installKube(t *testing.T, f *fakeEngine) *kubeEngine {
 			fmt.Fprintf(w, `{"State":{"Status":%q,"Running":%v},"NetworkSettings":{"Ports":{"6443/tcp":[{"HostPort":"7443"}]}}}`, k.state, k.state == "running")
 			return true
 		}
-		if r.URL.Path == "/containers/kiri-k8s/exec" {
+		if r.URL.Path == "/containers/fabo-k8s/exec" {
 			var spec struct{ Cmd []string }
 			if err := json.NewDecoder(r.Body).Decode(&spec); err != nil {
 				t.Error(err)
 			}
 			k.commands = append(k.commands, spec.Cmd)
-			k.background = append(k.background, r.Header.Get("X-Kiri-Background") == "1")
+			k.background = append(k.background, r.Header.Get("X-Fabo-Background") == "1")
 			k.last = spec.Cmd
 			id := fmt.Sprintf("kube-%d", len(k.commands))
 			out := kubeFixture
@@ -237,7 +237,7 @@ func installKube(t *testing.T, f *fakeEngine) *kubeEngine {
 			return true
 		}
 		if strings.HasPrefix(r.URL.Path, "/exec/kube-") {
-			if r.Header.Get("X-Kiri-Background") != "1" && (len(k.last) < 6 || k.last[5] != "delete") {
+			if r.Header.Get("X-Fabo-Background") != "1" && (len(k.last) < 6 || k.last[5] != "delete") {
 				t.Error("passive exec start/inspect lacks background marker")
 			}
 			id := strings.Split(r.URL.Path, "/")[2]
@@ -516,9 +516,9 @@ func TestRegistryKeys(t *testing.T) {
 }
 
 func TestAdvancedScreenshots(t *testing.T) {
-	dir := os.Getenv("KIRI_SHOTS")
+	dir := os.Getenv("FABO_SHOTS")
 	if dir == "" {
-		t.Skip("set KIRI_SHOTS")
+		t.Skip("set FABO_SHOTS")
 	}
 	for _, theme := range []string{"dark", "light"} {
 		f, s := newFakeEngine(t)

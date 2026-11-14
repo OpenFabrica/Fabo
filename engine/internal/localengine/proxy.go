@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"golang.org/x/net/http/httpproxy"
@@ -232,7 +232,7 @@ func (p *Proxy) applyContainerProxy(vm bool, env []string, network containerProx
 	}
 	if active.HTTP != "" || https != "" {
 		bypass := append([]string{}, active.NoProxy...)
-		bypass = append(bypass, "localhost", "127.0.0.1", ".kiri.local", ".kiri.localhost", "host.docker.internal")
+		bypass = append(bypass, "localhost", "127.0.0.1", ".fabo.local", ".fabo.localhost", "host.docker.internal")
 		noProxy := strings.Join(bypass, ",")
 		set("NO_PROXY", noProxy)
 		set("no_proxy", noProxy)
@@ -241,7 +241,7 @@ func (p *Proxy) applyContainerProxy(vm bool, env []string, network containerProx
 }
 
 // windowsProxyPort matches the loopback hosts and explicit ports supported
-// by kiri-win's relay.
+// by fabo-win's relay.
 func windowsProxyPort(u *url.URL) uint16 {
 	if !windowsLoopback(u) {
 		return 0

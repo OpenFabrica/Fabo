@@ -28,7 +28,7 @@ type domainPorts struct {
 }
 
 var domainDefaults = [2]uint16{80, 443}
-var domainEnv = [2]string{"KIRI_HTTP_PORT", "KIRI_HTTPS_PORT"}
+var domainEnv = [2]string{"FABO_HTTP_PORT", "FABO_HTTPS_PORT"}
 
 type domainListener struct {
 	port      uint16

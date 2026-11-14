@@ -22,16 +22,20 @@
 
 ## 当前状态
 
-Fabo 是独立项目，源码只有 Go：引擎（`engine/`）和桌面（`desktop/`）。应用显示为 Fabo，命令入口为 `fabo`；Docker context、状态目录和内部协议暂时沿用 Kiri 的标识，详见[品牌与命令入口](docs/branding.md)。
+<p align="center">
+  <img src="docs/images/fabo-window.png" alt="Fabo 窗口：按 Compose 项目分组的容器，右侧是项目详情" width="900">
+</p>
 
-- 能用的：macOS 上的 Go 引擎和虚拟机、MyGo 主窗口和托盘、通过 `docker` CLI 使用的容器、镜像、网络、卷、Compose 和 Buildx、`fabo` Docker 命令透传、`fabo machine` Linux 开发环境、`k8s` / `import` / `usb` / `bench` / `raw` 命令，以及从 Kiri（Rust）离线导入数据。
+Fabo 是独立项目，源码只有 Go：引擎（`engine/`）和桌面（`desktop/`）。应用显示为 Fabo，命令入口为 `fabo`；状态目录、Docker context、环境变量、程序名和引擎协议也都使用 Fabo 的名字，详见[品牌与命令入口](docs/branding.md)。
+
+- 能用的：macOS 上的 Go 引擎和虚拟机、MyGo 主窗口和托盘、通过 `docker` CLI 使用的容器、镜像、网络、卷、Compose 和 Buildx、`fabo` Docker 命令透传、`fabo machine` Linux 开发环境、`k8s` / `import` / `usb` / `bench` / `raw` 命令，以及用 `fabo migrate` 从 Kiri 离线导入数据。
 - 还没有的：原 WebView 窗口的高级功能、Windows 宿主、Linux 安装包、自动更新。完整清单和验证结果见[功能对齐基线](docs/compatibility-baseline.md)。
 
 ```sh
 make guest kernel disk                 # guest，内核和数据盘模板各做一次
-KIRI_SIGN_IDENTITY=- make app-dev      # target/dev/Fabo Dev.app，与已安装的 Kiri 并存
-open "target/dev/Fabo Dev.app"         # 首次打开会注册 kiri-dev context、builder 和登录自启
-docker --context kiri-dev run --rm alpine echo hello
+FABO_SIGN_IDENTITY=- make app-dev      # target/dev/Fabo Dev.app，与已安装的 Kiri 或 Fabo 并存
+open "target/dev/Fabo Dev.app"         # 首次打开会注册 fabo-dev context、builder 和登录自启
+docker --context fabo-dev run --rm alpine echo hello
 ```
 
 新命令的使用、数据边界和验证结果见 [CLI 工具说明](docs/cli-tools.md)。
@@ -39,10 +43,6 @@ docker --context kiri-dev run --rm alpine echo hello
 ## 上游 Kiri
 
 以下为上游 Kiri 的介绍和安装说明，是 Fabo 对齐的目标，其中的 `kiri` 子命令和安装包不等于本仓库现状。
-
-<p align="center">
-  <img src="docs/images/kiri-window.png" alt="The Kiri window, showing containers grouped by Compose project with their state, ports, local domains and size" width="900">
-</p>
 
 ---
 

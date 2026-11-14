@@ -10,7 +10,7 @@ const KubernetesRoutesMessage Kind = 80
 
 var kubernetesRanges = [2]netip.Prefix{netip.MustParsePrefix("10.42.0.0/16"), netip.MustParsePrefix("10.43.0.0/16")}
 
-// KubernetesRanges are the pod and service CIDRs of Kiri's k3s node.
+// KubernetesRanges are the pod and service CIDRs of Fabo's k3s node.
 func KubernetesRanges() [2]netip.Prefix { return kubernetesRanges }
 
 func KubernetesAddress(ip netip.Addr) bool {

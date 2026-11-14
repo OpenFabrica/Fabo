@@ -9,7 +9,7 @@ import (
 	"net/netip"
 	"slices"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 type ipv6Pool struct {

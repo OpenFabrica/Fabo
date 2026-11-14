@@ -8,12 +8,12 @@ ARCH ?= arm64
 ifeq ($(ARCH),x86_64)
 GOARCH := amd64
 GUEST_OUT := guest/out/x86_64
-KERNEL_CACHE := kiri-kbuild-x86_64
+KERNEL_CACHE := fabo-kbuild-x86_64
 CLANG_ARCH := x86_64
 else ifeq ($(ARCH),arm64)
 GOARCH := arm64
 GUEST_OUT := guest/out
-KERNEL_CACHE := kiri-kbuild
+KERNEL_CACHE := fabo-kbuild
 CLANG_ARCH := arm64
 else
 $(error ARCH is arm64 or x86_64, not $(ARCH))
@@ -33,14 +33,14 @@ help:
 	@echo "make guest     Go guest agent and $(GUEST_OUT)/initramfs-go.cpio"
 	@echo "make kernel    guest kernel in $(GUEST_OUT) (needs a Docker engine)"
 	@echo "make disk      empty data disk template guest/out/data.img (needs a Docker engine)"
-	@echo "make daemon    target/kiri-go-daemon, signed for Virtualization.framework"
+	@echo "make daemon    target/fabo-daemon, signed for Virtualization.framework"
 	@echo "make app       target/Fabo.app: engine, guest, desktop, docker CLI, Compose, buildx"
 	@echo "make app-dev   target/dev/Fabo Dev.app: a second installation with its own state"
 	@echo "               (FLAVOR=name builds Fabo <Name>.app instead)"
 	@echo "make dev       build and open the development app (also accepts FLAVOR=name)"
 	@echo "make dmg       target/Fabo-<version>-$(ARCH).dmg from the app, notarized when"
-	@echo "               KIRI_NOTARY_PROFILE names a notarytool profile"
-	@echo "make linux     target/linux/release: fabo, kiri-go-daemon, kiri-go-init"
+	@echo "               FABO_NOTARY_PROFILE names a notarytool profile"
+	@echo "make linux     target/linux/release: fabo, fabo-daemon, fabo-init"
 	@echo "ARCH=x86_64 builds guest, kernel, daemon, app and dmg for Intel Macs."
 
 check:
@@ -53,8 +53,8 @@ check:
 
 guest:
 	mkdir -p $(GUEST_OUT)
-	GOOS=linux GOARCH=$(GOARCH) CGO_ENABLED=0 go -C engine build -trimpath -o $(CURDIR)/$(GUEST_OUT)/kiri-go-init ./cmd/kiri-go-init
-	go -C engine run ./cmd/kiri-mkinitramfs $(CURDIR)/$(GUEST_OUT)/kiri-go-init $(CURDIR)/$(GUEST_OUT)/initramfs-go.cpio
+	GOOS=linux GOARCH=$(GOARCH) CGO_ENABLED=0 go -C engine build -trimpath -o $(CURDIR)/$(GUEST_OUT)/fabo-init ./cmd/fabo-init
+	go -C engine run ./cmd/fabo-mkinitramfs $(CURDIR)/$(GUEST_OUT)/fabo-init $(CURDIR)/$(GUEST_OUT)/initramfs-go.cpio
 
 # Both kernels build in their source tree, so each keeps its own cached tree
 # in a named volume. On Apple Silicon the x86-64 kernel is cross-compiled.
@@ -71,14 +71,14 @@ disk:
 	docker run --rm -v $(CURDIR)/guest/out:/out debian:trixie sh -c '\
 		set -e; apt-get update -qq >/dev/null && apt-get install -y -qq e2fsprogs >/dev/null; \
 		rm -f /out/data.img; truncate -s 64G /out/data.img; \
-		mkfs.ext4 -q -F -m 0 -L kiri-data -E lazy_itable_init=1,lazy_journal_init=1 /out/data.img'
+		mkfs.ext4 -q -F -m 0 -L fabo-data -E lazy_itable_init=1,lazy_journal_init=1 /out/data.img'
 
 # Virtualization.framework refuses to start a VM without the entitlement.
 daemon:
 	mkdir -p target
 	GOOS=darwin GOARCH=$(GOARCH) CGO_ENABLED=1 CC="clang -arch $(CLANG_ARCH)" MACOSX_DEPLOYMENT_TARGET=14.0 \
-		go -C engine build -trimpath -ldflags "-X main.engineRelease=$(VERSION)" -o $(CURDIR)/target/kiri-go-daemon ./cmd/kiri-go-daemon
-	codesign --force --sign - --entitlements packaging/macos/kiri.entitlements target/kiri-go-daemon
+		go -C engine build -trimpath -ldflags "-X main.engineRelease=$(VERSION)" -o $(CURDIR)/target/fabo-daemon ./cmd/fabo-daemon
+	codesign --force --sign - --entitlements packaging/macos/fabo.entitlements target/fabo-daemon
 
 app: guest
 	scripts/macos-app.sh $(ARCH) $(VERSION)
@@ -97,9 +97,9 @@ dmg:
 # Static binaries, so one build runs on every distribution.
 linux:
 	mkdir -p target/linux/release
-	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -o $(CURDIR)/target/linux/release/fabo ./cmd/kiri
-	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "-X main.engineRelease=$(VERSION)" -o $(CURDIR)/target/linux/release/kiri-go-daemon ./cmd/kiri-go-daemon
-	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -o $(CURDIR)/target/linux/release/kiri-go-init ./cmd/kiri-go-init
+	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -o $(CURDIR)/target/linux/release/fabo ./cmd/fabo
+	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "-X main.engineRelease=$(VERSION)" -o $(CURDIR)/target/linux/release/fabo-daemon ./cmd/fabo-daemon
+	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -o $(CURDIR)/target/linux/release/fabo-init ./cmd/fabo-init
 
 clean:
 	rm -rf target

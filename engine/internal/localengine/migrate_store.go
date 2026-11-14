@@ -18,11 +18,11 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
-	"github.com/libracoder/kiri/engine/internal/hostagent"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
 )
 
-type rustImage struct {
+type kiriImage struct {
 	Name, Digest string
 	IndexDigest  string `json:"index_digest"`
 	ConfigDigest string `json:"config_digest"`
@@ -33,7 +33,7 @@ type rustImage struct {
 	}
 }
 
-func rustDigest(digest string) (string, error) {
+func kiriDigest(digest string) (string, error) {
 	hex, ok := strings.CutPrefix(digest, "sha256:")
 	if !ok || !validBlobName(hex) {
 		return "", fmt.Errorf("invalid SHA-256 digest %q", digest)
@@ -41,9 +41,9 @@ func rustDigest(digest string) (string, error) {
 	return hex, nil
 }
 
-func migrateRustImages(ctx context.Context, source *os.Root, stage, dest string) (imageIndex, error) {
+func migrateKiriImages(ctx context.Context, source *os.Root, stage, dest string) (imageIndex, error) {
 	index := imageIndex{}.clone()
-	records, err := readRustIndex[rustImage](source, "images.json")
+	records, err := readKiriIndex[kiriImage](source, "images.json")
 	if err != nil {
 		return index, err
 	}
@@ -55,7 +55,7 @@ func migrateRustImages(ctx context.Context, source *os.Root, stage, dest string)
 		if err := ctx.Err(); err != nil {
 			return index, err
 		}
-		config, err := rustDigest(record.ConfigDigest)
+		config, err := kiriDigest(record.ConfigDigest)
 		if err != nil {
 			return index, err
 		}
@@ -83,7 +83,7 @@ func migrateRustImages(ctx context.Context, source *os.Root, stage, dest string)
 			return index, fmt.Errorf("image %s has an incompatible platform, config or layer count", record.Name)
 		}
 		for _, layer := range record.Layers {
-			hex, err := rustDigest(layer.Digest)
+			hex, err := kiriDigest(layer.Digest)
 			if err != nil {
 				return index, err
 			}
@@ -101,7 +101,7 @@ func migrateRustImages(ctx context.Context, source *os.Root, stage, dest string)
 					return index, fmt.Errorf("inconsistent size for layer %s", layer.Digest)
 				}
 			} else {
-				if err := copyRustLayer(ctx, source, stage, hex, layer.Size); err != nil {
+				if err := copyKiriLayer(ctx, source, stage, hex, layer.Size); err != nil {
 					return index, err
 				}
 				blobs[hex] = layer.Size
@@ -124,7 +124,7 @@ func migrateRustImages(ctx context.Context, source *os.Root, stage, dest string)
 			digest = record.Digest
 		}
 		if digest != "" && digest != image.ID {
-			if _, err := rustDigest(digest); err != nil {
+			if _, err := kiriDigest(digest); err != nil {
 				return index, err
 			}
 			image.RepoDigest = ref.Context().Name() + "@" + digest
@@ -140,9 +140,9 @@ func migrateRustImages(ctx context.Context, source *os.Root, stage, dest string)
 	return index, nil
 }
 
-func copyRustLayer(ctx context.Context, source *os.Root, stage, hex string, expectedSize int64) error {
+func copyKiriLayer(ctx context.Context, source *os.Root, stage, hex string, expectedSize int64) error {
 	dest := filepath.Join(stage, "blobs", hex)
-	if err := copyRustFile(ctx, source, path.Join("blobs/sha256", hex), dest); err != nil {
+	if err := copyKiriFile(ctx, source, path.Join("blobs/sha256", hex), dest); err != nil {
 		return fmt.Errorf("copy image layer %s: %w", hex, err)
 	}
 	file, err := os.Open(dest)
@@ -161,15 +161,15 @@ func copyRustLayer(ctx context.Context, source *os.Root, stage, hex string, expe
 	return nil
 }
 
-type rustVolume struct {
+type kiriVolume struct {
 	Name            string
 	CreatedNS       int64 `json:"created_ns"`
 	Anonymous       bool
 	Labels, Options map[string]string
 }
 
-func migrateRustVolumes(ctx context.Context, source *os.Root, state *State) (int, error) {
-	records, err := readRustIndex[rustVolume](source, "volumes.json")
+func migrateKiriVolumes(ctx context.Context, source *os.Root, state *State) (int, error) {
+	records, err := readKiriIndex[kiriVolume](source, "volumes.json")
 	if err != nil {
 		return 0, err
 	}
@@ -199,7 +199,7 @@ func migrateRustVolumes(ctx context.Context, source *os.Root, state *State) (int
 	return len(records), nil
 }
 
-type rustNetwork struct {
+type kiriNetwork struct {
 	ID, Name, Driver     string
 	Subnet, Gateway      [4]byte
 	Prefix               uint8
@@ -210,22 +210,22 @@ type rustNetwork struct {
 	IPRange              json.RawMessage   `json:"ip_range"`
 	Aux                  map[string][4]byte
 	NoIPv4               bool `json:"no_ipv4"`
-	V6                   *rustNetworkV6
+	V6                   *kiriNetworkV6
 }
 
-type rustNetworkV6 struct {
+type kiriNetworkV6 struct {
 	Subnet, Gateway [16]byte
 	Prefix          uint8
 	IPRange         json.RawMessage `json:"ip_range"`
 	Aux             map[string][16]byte
 }
 
-func (v rustNetworkV6) pool() (*ipv6Pool, error) {
+func (v kiriNetworkV6) pool() (*ipv6Pool, error) {
 	pool := &ipv6Pool{
 		Subnet:  netip.PrefixFrom(netip.AddrFrom16(v.Subnet), int(v.Prefix)),
 		Gateway: netip.AddrFrom16(v.Gateway),
 	}
-	if hasRustValue(v.IPRange) {
+	if hasKiriValue(v.IPRange) {
 		var tuple []json.RawMessage
 		var address [16]byte
 		var bits uint8
@@ -247,8 +247,8 @@ func (v rustNetworkV6) pool() (*ipv6Pool, error) {
 	return pool, nil
 }
 
-func migrateRustNetworks(source *os.Root, state *State) (map[string]dockerNetwork, error) {
-	records, err := readRustIndex[rustNetwork](source, "networks.json")
+func migrateKiriNetworks(source *os.Root, state *State) (map[string]dockerNetwork, error) {
+	records, err := readKiriIndex[kiriNetwork](source, "networks.json")
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +261,7 @@ func migrateRustNetworks(source *os.Root, state *State) (map[string]dockerNetwor
 			return nil, fmt.Errorf("duplicate source network %q", entry.Name)
 		}
 		n := dockerNetwork{
-			ID: entry.ID, Name: entry.Name, Bridge: "kiri" + entry.ID[:10],
+			ID: entry.ID, Name: entry.Name, Bridge: "fabo" + entry.ID[:10],
 			NoIPv4:   entry.NoIPv4,
 			Internal: entry.Internal, Attachable: entry.Attachable, Created: time.Unix(0, entry.CreatedNS).UTC(), Labels: entry.Labels,
 			Options: entry.Options, IPAMOptions: entry.IPAMOptions,
@@ -270,7 +270,7 @@ func migrateRustNetworks(source *os.Root, state *State) (map[string]dockerNetwor
 			n.Subnet = netip.PrefixFrom(netip.AddrFrom4(entry.Subnet), int(entry.Prefix))
 			n.Gateway = netip.AddrFrom4(entry.Gateway)
 		}
-		if hasRustValue(entry.IPRange) {
+		if hasKiriValue(entry.IPRange) {
 			var tuple []json.RawMessage
 			var address [4]byte
 			var bits uint8
@@ -300,7 +300,7 @@ func migrateRustNetworks(source *os.Root, state *State) (map[string]dockerNetwor
 	return state.restoreNetworks()
 }
 
-func hasRustValue(raw json.RawMessage) bool {
+func hasKiriValue(raw json.RawMessage) bool {
 	switch strings.TrimSpace(string(raw)) {
 	case "", "null", "false", "0", "[]", "{}":
 		return false

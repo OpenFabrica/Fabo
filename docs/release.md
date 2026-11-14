@@ -5,7 +5,7 @@ FabriBay 是 Go 项目，版本号不存在源码里，只来自 git 标签 `vX.
 ## 版本号从哪来
 
 - `Makefile` 用 `git describe --tags --dirty` 取版本，去掉前缀 `v`，传给构建：
-  `-ldflags "-X main.engineRelease=<版本>"` 写进 `kiri-go-daemon`，`scripts/macos-app.sh` 写进 `Info.plist`。
+  `-ldflags "-X main.engineRelease=<版本>"` 写进 `fabo-daemon`，`scripts/macos-app.sh` 写进 `Info.plist`。
 - 两次发版之间的构建自动带开发标记，例如 `0.1.3-2-g1a2b3c4-dirty`：上个标签之后第 2 个提交，工作区有未提交改动。
   不带后缀的版本号一定是从标签构建出来的包。
 - 仓库目前还没有标签，这时构建出来的版本是 `0.0.0-dev`。首个版本号由用户定。
@@ -20,7 +20,7 @@ FabriBay 是 Go 项目，版本号不存在源码里，只来自 git 标签 `vX.
    更新日志手写，面向用户，一行一条。先按上个标签以来的 `git log` 起草，给用户看过再定稿。
 2. 提交 `chore(release): <版本>`。
 3. 打注释标签 `v<版本>`，推送分支和标签。**打标签和推送前先问用户。**
-4. 从标签构建：`make guest kernel disk app dmg`。公证时传 `KIRI_NOTARY_PROFILE`。
+4. 从标签构建：`make guest kernel disk app dmg`。公证时传 `FABO_NOTARY_PROFILE`。
 
 没有「推进到下一个开发版」的提交：标签之后的构建自动变成开发版。日常 push 不动版本。
 

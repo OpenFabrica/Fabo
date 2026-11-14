@@ -62,7 +62,7 @@ func lookupIdentity(raw, passwd, groups string) (identity, error) {
 	uid, numeric := accountID(user)
 	out := identity{uid: uid, gid: uid}
 	// The empty user has root's default GID. An explicitly numeric user
-	// without a passwd entry uses the same numeric GID, as Kiri does.
+	// without a passwd entry uses the same numeric GID, as Fabo does.
 	name := ""
 	for line := range strings.SplitSeq(passwd, "\n") {
 		fields := strings.Split(line, ":")

@@ -5,11 +5,11 @@ package localengine
 import (
 	"testing"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func TestVMEngineSocketUsesDedicatedGuestRelay(t *testing.T) {
-	e := &Engine{remoteGuest: true, engineSocket: "/private/kiri-go/run/docker.sock"}
+	e := &Engine{remoteGuest: true, engineSocket: "/private/fabo-go/run/docker.sock"}
 	for _, source := range []string{"/var/run/docker.sock", "/run/docker.sock", "/private/var/run/docker.sock", e.engineSocket} {
 		value, err := (guestwire.BindMount{Source: source, Target: "/var/run/docker.sock", ReadOnly: true}).Encode()
 		if err != nil {

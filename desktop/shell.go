@@ -285,7 +285,7 @@ func (s *desktop) engineWords() (kind, text string) {
 // engineSwitch is the button that starts or stops the engine. An engine that
 // runs directly on Linux has no VM to control and shows none.
 func (s *desktop) engineSwitch(c *ui.Context, p palette) {
-	if s.info.KiriVMControls != nil && !*s.info.KiriVMControls {
+	if s.info.FaboVMControls != nil && !*s.info.FaboVMControls {
 		return
 	}
 	switch s.engineState() {
@@ -295,7 +295,7 @@ func (s *desktop) engineSwitch(c *ui.Context, p palette) {
 		}
 	case "stopped", "asleep":
 		if iconButton(c.Key("engine-start"), p, "play", tr("启动引擎", "Start engine"), false).Clicked() {
-			s.do("engine", engineAction{http.MethodPost, "/kiri/wake", nil}, tr("引擎已启动", "Engine started"))
+			s.do("engine", engineAction{http.MethodPost, "/fabo/wake", nil}, tr("引擎已启动", "Engine started"))
 		}
 	}
 }
@@ -509,7 +509,7 @@ func (s *desktop) pageBody(c *ui.Context, p palette) {
 			return
 		case "stopped":
 			if empty(c, p, "power", tr("引擎已停止", "The engine is stopped"), tr("启动引擎", "Start engine")) {
-				s.do("engine", engineAction{http.MethodPost, "/kiri/wake", nil}, tr("引擎已启动", "Engine started"))
+				s.do("engine", engineAction{http.MethodPost, "/fabo/wake", nil}, tr("引擎已启动", "Engine started"))
 			}
 			return
 		}

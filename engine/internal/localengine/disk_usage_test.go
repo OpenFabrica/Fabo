@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/libracoder/kiri/engine/internal/hostagent"
+	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
 )
 
 func TestDiskUsageFindsBlobAfterStatePathChanges(t *testing.T) {

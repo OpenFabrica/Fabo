@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates desktop/brands.go from Kiri's crates/kiri/src/ui/brands.rs.
+"""Generates desktop/brands.go from upstream Kiri's crates/kiri/src/ui/brands.rs.
 
 Kiri ships brand logos for commonly containerized images (Simple Icons,
 CC0) and a table from image names to them. The desktop shows the same logos

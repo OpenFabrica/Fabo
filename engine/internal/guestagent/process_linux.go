@@ -17,7 +17,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 // Runtime owns the agent's live child processes and writable layers.
@@ -174,7 +174,7 @@ func (r *Runtime) Run(spec guestwire.RunSpec, emit func(guestwire.RunEvent) erro
 			if !spec.Devices.Empty() {
 				return fmt.Errorf("apply custom device policy: %w", err)
 			}
-			fmt.Fprintf(os.Stderr, "kiri: device filter unavailable, dropping CAP_MKNOD: %v\n", err)
+			fmt.Fprintf(os.Stderr, "fabo: device filter unavailable, dropping CAP_MKNOD: %v\n", err)
 			cfg.Spec.Caps = guestwire.EncodeCapabilities(guestwire.EffectiveCapabilities(spec.Caps) &^ (1 << unix.CAP_MKNOD))
 		}
 	}
@@ -216,7 +216,7 @@ func (r *Runtime) Run(spec guestwire.RunSpec, emit func(guestwire.RunEvent) erro
 	if !hostNetwork && target == "" {
 		attributes.Cloneflags |= unix.CLONE_NEWNET
 	}
-	launch := processLaunch{mode: "__kiri-container", id: spec.ID, flags: spec.Flags, config: cfg, attributes: attributes, cgroup: cgroup, files: files}
+	launch := processLaunch{mode: "__fabo-container", id: spec.ID, flags: spec.Flags, config: cfg, attributes: attributes, cgroup: cgroup, files: files}
 	launch.prepare = func(pid int) error {
 		if hostNetwork || target != "" {
 			return nil

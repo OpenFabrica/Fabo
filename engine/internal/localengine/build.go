@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/libracoder/kiri/engine/internal/guestwire"
 )
 
 const maxBuildDockerfile = 8 << 20
@@ -72,7 +72,7 @@ func (e *Engine) buildHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	progress := &buildProgress{out: json.NewEncoder(w), ctrl: ctrl, quiet: options.quiet}
-	if err := progress.stream("Preparing Kiri's BuildKit builder\n"); err != nil {
+	if err := progress.stream("Preparing Fabo's BuildKit builder\n"); err != nil {
 		return
 	}
 
@@ -235,8 +235,8 @@ func (e *Engine) classicBuild(ctx context.Context, o buildOptions, input io.Read
 		return "", nil, err
 	}
 	nonce := rand.Text()
-	dir := "/tmp/kiri-build-" + nonce
-	authDir := "/dev/shm/kiri-build-" + nonce
+	dir := "/tmp/fabo-build-" + nonce
+	authDir := "/dev/shm/fabo-build-" + nonce
 	// Cleanup is independent of the request. Authentication lives in
 	// tmpfs so a builder stop also discards credentials.
 	defer func() {

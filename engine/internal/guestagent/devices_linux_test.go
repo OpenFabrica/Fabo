@@ -1,7 +1,7 @@
 package guestagent
 
 import (
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 	"testing"
 )
 

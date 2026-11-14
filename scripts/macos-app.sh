@@ -7,12 +7,12 @@
 # Without a flavor: target/Fabo.app (target/intel/Fabo.app for x86_64),
 # signed for distribution when a Developer ID identity is available.
 # With one (dev, go, ...): target/dev/Fabo <Flavor>.app with the bundle
-# identifier dev.kiri.app.<flavor>, which gives it its own state directory,
-# socket and Finder folder beside the installed app (engine/cmd/kiri/names.go)
+# identifier dev.fabo.app.<flavor>, which gives it its own state directory,
+# socket and Finder folder beside the installed app (engine/cmd/fabo/names.go)
 # and a labelled band on its icon. A flavored app is never notarized.
 #
 # Needs the guest first: make guest, make kernel, make disk.
-# KIRI_SIGN_IDENTITY picks the signing identity; "-" signs ad hoc.
+# FABO_SIGN_IDENTITY picks the signing identity; "-" signs ad hoc.
 set -euo pipefail
 arch=${1:?arch} version=${2:?version} flavor=${3:-}
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -23,10 +23,10 @@ case $arch in
   x86_64) goarch=amd64 guest=guest/out/x86_64 kernel=bzImage out=target/intel cache=target/cli-cache/x86_64 pin=X86_ docker_arch=x86_64 ;;
   *) echo "arch is arm64 or x86_64, not $arch" >&2; exit 2 ;;
 esac
-name=Fabo id=dev.kiri.app
+name=Fabo id=dev.fabo.app
 if [ -n "$flavor" ]; then
   [[ $flavor =~ ^[a-z0-9]+$ ]] || { echo "a flavor is lowercase letters and digits, not $flavor" >&2; exit 2; }
-  name="Fabo $(printf %s "${flavor:0:1}" | tr a-z A-Z)${flavor:1}" id=dev.kiri.app.$flavor out=$out/dev
+  name="Fabo $(printf %s "${flavor:0:1}" | tr a-z A-Z)${flavor:1}" id=dev.fabo.app.$flavor out=$out/dev
 fi
 for f in "$guest/$kernel" "$guest/initramfs-go.cpio" guest/out/data.img; do
   [ -f "$f" ] || { echo "no $f: run make guest, make kernel and make disk first" >&2; exit 1; }
@@ -40,10 +40,10 @@ mkdir -p "$macos" "$res/guest" "$res/bin/cli-plugins" "$cache"
 # The launcher and the window are pure Go. The engine links Apple's
 # Virtualization framework through cgo.
 export GOOS=darwin GOARCH=$goarch
-CGO_ENABLED=0 go -C engine build -trimpath -o "$root/$macos/fabo" ./cmd/kiri
-CGO_ENABLED=0 go -C desktop build -trimpath -o "$root/$macos/kiri-desktop" .
+CGO_ENABLED=0 go -C engine build -trimpath -o "$root/$macos/fabo" ./cmd/fabo
+CGO_ENABLED=0 go -C desktop build -trimpath -o "$root/$macos/fabo-desktop" .
 CGO_ENABLED=1 CC="clang -arch $arch" MACOSX_DEPLOYMENT_TARGET=14.0 \
-  go -C engine build -trimpath -ldflags "-X main.engineRelease=$version" -o "$root/$macos/kiri-go-daemon" ./cmd/kiri-go-daemon
+  go -C engine build -trimpath -ldflags "-X main.engineRelease=$version" -o "$root/$macos/fabo-daemon" ./cmd/fabo-daemon
 unset GOOS GOARCH
 
 # In Resources, not loose in Contents: codesign refuses a file there.
@@ -137,9 +137,9 @@ cat > "$app/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# KIRI_SIGN_IDENTITY, else the keychain's Developer ID Application identity,
+# FABO_SIGN_IDENTITY, else the keychain's Developer ID Application identity,
 # else ad hoc ("-"), which runs only on this Mac.
-identity=${KIRI_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -1)}
+identity=${FABO_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -1)}
 identity=${identity:--}
 # The hardened runtime and a secure timestamp are what notarization requires.
 # A flavored app is never notarized, and the timestamp asks Apple's server on
@@ -153,8 +153,8 @@ fi
 for f in libghostty-vt.dylib bin/docker bin/cli-plugins/docker-compose bin/cli-plugins/docker-buildx; do
   "${sign[@]}" "$res/$f"
 done
-"${sign[@]}" "$macos/kiri-desktop"
-"${sign[@]}" --entitlements packaging/macos/kiri.entitlements "$macos/kiri-go-daemon"
+"${sign[@]}" "$macos/fabo-desktop"
+"${sign[@]}" --entitlements packaging/macos/fabo.entitlements "$macos/fabo-daemon"
 "${sign[@]}" "$app"
 codesign --verify --deep --strict "$app"
 if [ "$identity" = - ]; then echo "signed: ad hoc"; else echo "signed: $identity"; fi

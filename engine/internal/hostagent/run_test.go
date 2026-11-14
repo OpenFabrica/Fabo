@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func TestRustRunInterop(t *testing.T) {
-	binary := os.Getenv("KIRI_TEST_RUST_PEER")
+	binary := os.Getenv("FABO_TEST_RUST_PEER")
 	if binary == "" {
-		t.Skip("set KIRI_TEST_RUST_PEER to the compiled Rust peer")
+		t.Skip("set FABO_TEST_RUST_PEER to the compiled Rust peer")
 	}
 	cmd := exec.Command(binary)
-	cmd.Env = append(os.Environ(), "KIRI_TEST_RUN=1")
+	cmd.Env = append(os.Environ(), "FABO_TEST_RUN=1")
 	p, err := start(t.Context(), shortTemp(t), cmd, os.Stderr)
 	if err != nil {
 		t.Fatal(err)

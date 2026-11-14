@@ -12,8 +12,8 @@ import (
 const (
 	// The Windows proxy listener is local to each container namespace.
 	WindowsProxyAddress = "127.0.0.2"
-	WindowsProxyOption  = "kiri.windows-proxy:"
-	WindowsProxyPath    = "/kiri/proxy/relay/"
+	WindowsProxyOption  = "fabo.windows-proxy:"
+	WindowsProxyPath    = "/fabo/proxy/relay/"
 	HostRelayPort       = 1026
 	HostRelayAddress    = "198.19.248.254"
 	EngineSocketPath    = "/run/host-services/docker.sock"

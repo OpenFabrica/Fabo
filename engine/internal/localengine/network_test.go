@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
-	"github.com/libracoder/kiri/engine/internal/hostagent"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
 )
 
 func TestCustomNetworkRestoresAddressReservations(t *testing.T) {
@@ -300,7 +300,7 @@ func TestNetworkConnectRejectsLinkCycles(t *testing.T) {
 }
 
 func TestDefaultBridgeIPv6ToggleRetainsReservation(t *testing.T) {
-	t.Setenv("KIRI_BRIDGE_IPV6", "0")
+	t.Setenv("FABO_BRIDGE_IPV6", "0")
 	dir := t.TempDir()
 	if err := os.Chmod(dir, 0700); err != nil {
 		t.Fatal(err)
@@ -319,7 +319,7 @@ func TestDefaultBridgeIPv6ToggleRetainsReservation(t *testing.T) {
 
 	reopen := func(value string) *Engine {
 		t.Helper()
-		t.Setenv("KIRI_BRIDGE_IPV6", value)
+		t.Setenv("FABO_BRIDGE_IPV6", value)
 		engine, err := New(t.Context(), nil, images, state, VMOptions{})
 		if err != nil {
 			t.Fatal(err)

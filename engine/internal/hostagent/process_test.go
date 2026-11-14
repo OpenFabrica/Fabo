@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func TestStartAndClose(t *testing.T) {
@@ -67,7 +67,7 @@ func TestCancelDuringHello(t *testing.T) {
 
 func shortTemp(t *testing.T) string {
 	t.Helper()
-	dir, err := os.MkdirTemp("/tmp", "kiri-agent-test-")
+	dir, err := os.MkdirTemp("/tmp", "fabo-agent-test-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,20 +85,20 @@ func requireEmpty(t *testing.T, dir string) {
 
 func peer(mode string) *exec.Cmd {
 	cmd := exec.Command(os.Args[0], "-test.run=^TestAgentPeer$")
-	cmd.Env = append(os.Environ(), "KIRI_TEST_AGENT="+mode, "KIRI_SOCKET=unused")
+	cmd.Env = append(os.Environ(), "FABO_TEST_AGENT="+mode, "FABO_SOCKET=unused")
 	return cmd
 }
 
 func TestAgentPeer(t *testing.T) {
-	mode := os.Getenv("KIRI_TEST_AGENT")
+	mode := os.Getenv("FABO_TEST_AGENT")
 	if mode == "" {
 		return
 	}
 	if mode == "fail" {
 		os.Exit(23)
 	}
-	dir := os.Getenv("KIRI_AGENT_DIR")
-	if os.Getenv("KIRI_SOCKET") != "" {
+	dir := os.Getenv("FABO_AGENT_DIR")
+	if os.Getenv("FABO_SOCKET") != "" {
 		t.Fatal("agent inherited daemon socket")
 	}
 	if info, err := os.Stat(dir); err != nil || info.Mode().Perm() != 0700 {

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func (e *Engine) pruneContainersHTTP(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +50,7 @@ func (e *Engine) pruneContainersHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (e *Engine) prunableContainer(c *container) bool {
 	return !c.removing && c.restartTimer == nil && (c.state == "created" || c.state == "exited") &&
-		!(c.labels["dev.kiri.builder"] == "1" && e.managedBuilderName(c.name) != "")
+		!(c.labels["dev.fabo.builder"] == "1" && e.managedBuilderName(c.name) != "")
 }
 
 func (e *Engine) pruneContainer(ctx context.Context, id string) (bool, error) {

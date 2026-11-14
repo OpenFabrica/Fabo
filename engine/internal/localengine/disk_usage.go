@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/diskusage"
-	"github.com/libracoder/kiri/engine/internal/hostagent"
+	"github.com/OpenFabrica/FabriBay/engine/internal/diskusage"
+	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
 )
 
 type diskUsage struct {

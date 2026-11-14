@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 	"golang.org/x/sys/unix"
 )
 
@@ -85,7 +85,7 @@ func (s *State) updateBuilderSettings(cache json.RawMessage, idle *uint64) (buil
 }
 
 func builderIdleSeconds(settings builderSettings) uint64 {
-	if idle, err := strconv.ParseUint(os.Getenv("KIRI_BUILDER_IDLE_SECS"), 10, 64); err == nil && idle <= math.MaxInt64/uint64(time.Second) {
+	if idle, err := strconv.ParseUint(os.Getenv("FABO_BUILDER_IDLE_SECS"), 10, 64); err == nil && idle <= math.MaxInt64/uint64(time.Second) {
 		return idle
 	}
 	if settings.IdleSecs != nil {
@@ -108,7 +108,7 @@ func defaultBuilderCache(dir string) uint64 {
 }
 
 func builderCacheLimit(settings builderSettings, fallback uint64) uint64 {
-	if gb, err := strconv.ParseUint(os.Getenv("KIRI_BUILD_CACHE_GB"), 10, 64); err == nil && gb <= math.MaxUint64/builderGiB {
+	if gb, err := strconv.ParseUint(os.Getenv("FABO_BUILD_CACHE_GB"), 10, 64); err == nil && gb <= math.MaxUint64/builderGiB {
 		if gb == 0 {
 			return fallback
 		}
@@ -146,8 +146,8 @@ func (e *Engine) builderSettingsHTTP(w http.ResponseWriter, r *http.Request) {
 		state = c.state
 	}
 	e.mu.Unlock()
-	_, cacheOverride := os.LookupEnv("KIRI_BUILD_CACHE_GB")
-	_, idleOverride := os.LookupEnv("KIRI_BUILDER_IDLE_SECS")
+	_, cacheOverride := os.LookupEnv("FABO_BUILD_CACHE_GB")
+	_, idleOverride := os.LookupEnv("FABO_BUILDER_IDLE_SECS")
 	defaultCache := defaultBuilderCache(e.state.dir)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"cache_gb": settings.CacheGB, "default_cache_gb": defaultCache / builderGiB,
@@ -165,7 +165,7 @@ func (e *Engine) writeBuilderConfig(c *container) error {
 		return err
 	}
 	limit := builderCacheLimit(settings, defaultBuilderCache(e.state.dir))
-	config := fmt.Sprintf("# Managed by Kiri\n[worker.oci]\n  gc = true\n  maxUsedSpace = %d\n  reservedSpace = %d\n", limit, limit/4)
+	config := fmt.Sprintf("# Managed by Fabo\n[worker.oci]\n  gc = true\n  maxUsedSpace = %d\n  reservedSpace = %d\n", limit, limit/4)
 	config += e.buildMirror.config(e)
 	archive, err := buildFileArchive("buildkit/buildkitd.toml", 0644, []byte(config))
 	if err != nil {

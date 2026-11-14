@@ -11,11 +11,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
-const defaultManagedBuilder = "buildx_buildkit_kiri-build0"
+const defaultManagedBuilder = "buildx_buildkit_fabo-build0"
 
 const managedBuilderImage = "moby/buildkit:buildx-stable-1"
 
-// This is the same multi-platform image index pinned by Kiri's Rust builder.
+// This is the same multi-platform image index pinned by Fabo's Rust builder.
 const managedBuilderPin = "moby/buildkit@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea"
 
 func (e *Engine) defaultBuilder() string {
@@ -34,7 +34,7 @@ func (e *Engine) managedBuilderName(raw string) string {
 		return ""
 	}
 	switch name {
-	case defaultManagedBuilder, "buildx_buildkit_kiri-dev-build0":
+	case defaultManagedBuilder, "buildx_buildkit_fabo-dev-build0":
 		return name
 	default:
 		return ""
@@ -42,7 +42,7 @@ func (e *Engine) managedBuilderName(raw string) string {
 }
 
 // createManagedBuilder owns the same named container and state volume as
-// Kiri's buildx docker-container driver. The buildx client starts it.
+// Fabo's buildx docker-container driver. The buildx client starts it.
 func (e *Engine) createManagedBuilder(ctx context.Context, builder string) (string, error) {
 	e.builderOps.Lock()
 	defer e.builderOps.Unlock()
@@ -51,7 +51,7 @@ func (e *Engine) createManagedBuilder(ctx context.Context, builder string) (stri
 
 func (e *Engine) checkBuilderRuntime() error {
 	if e.remoteGuest && !e.guestDisk {
-		return fmt.Errorf("%w: the managed builder requires a Kiri VM data disk", errInvalid)
+		return fmt.Errorf("%w: the managed builder requires a Fabo VM data disk", errInvalid)
 	}
 	if !e.remoteGuest && !e.hostCgroups {
 		return fmt.Errorf("%w: the managed builder requires delegated cgroups on Linux", errInvalid)
@@ -73,7 +73,7 @@ func (e *Engine) newManagedBuilder(ctx context.Context, builder string) (string,
 	cfg := Config{
 		Image:      managedBuilderImage,
 		Cmd:        []string{"--allow-insecure-entitlement=network.host"},
-		Labels:     map[string]string{"dev.kiri.builder": "1"},
+		Labels:     map[string]string{"dev.fabo.builder": "1"},
 		volumes:    []volumeMount{{name: builder + "_state", target: "/var/lib/buildkit"}},
 		privileged: true, bridge: true,
 	}
@@ -93,7 +93,7 @@ func (e *Engine) ensureBuilderImage(ctx context.Context) error {
 	}
 	image, err := e.pull(ctx, ref, authn.AuthConfig{})
 	if err != nil {
-		return fmt.Errorf("pull Kiri BuildKit image: %w", err)
+		return fmt.Errorf("pull Fabo BuildKit image: %w", err)
 	}
 	tag, err := name.NewTag(managedBuilderImage)
 	if err != nil {

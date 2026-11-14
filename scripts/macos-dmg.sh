@@ -8,7 +8,7 @@
 #
 #   scripts/macos-dmg.sh <arm64|x86_64> <version>
 #
-# Leaves target/Fabo-<version>-<arch>.dmg, signed. When KIRI_NOTARY_PROFILE
+# Leaves target/Fabo-<version>-<arch>.dmg, signed. When FABO_NOTARY_PROFILE
 # names credentials stored with `xcrun notarytool store-credentials`, the DMG
 # is notarized in one submission and the ticket stapled to the DMG and the
 # app, so Gatekeeper opens both offline. Unset or empty skips that.
@@ -38,7 +38,7 @@ dmg=target/Fabo-$version-$arch.dmg
 rm -f "$dmg"
 "$venv/bin/dmgbuild" -s scripts/dmg-settings.py -D "app=$app" -D "background=target/dmg-background/background.png" "$volume" "$dmg"
 
-identity=${KIRI_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -1)}
+identity=${FABO_SIGN_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -1)}
 identity=${identity:--}
 if [ "$identity" = - ]; then
   codesign --force --sign - "$dmg"
@@ -48,8 +48,8 @@ fi
 
 # Sign first, then notarize, then staple: signing again afterwards would
 # invalidate the ticket.
-if [ -n "${KIRI_NOTARY_PROFILE:-}" ]; then
-  xcrun notarytool submit "$dmg" --keychain-profile "$KIRI_NOTARY_PROFILE" --wait
+if [ -n "${FABO_NOTARY_PROFILE:-}" ]; then
+  xcrun notarytool submit "$dmg" --keychain-profile "$FABO_NOTARY_PROFILE" --wait
   xcrun stapler staple "$dmg"
   xcrun stapler staple "$app"
   echo "notarized and stapled: $dmg"

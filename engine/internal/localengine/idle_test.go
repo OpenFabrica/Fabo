@@ -10,7 +10,7 @@ import (
 func TestIdleShutdownProtectsWorkAndAllowsOnlyManagedBuilders(t *testing.T) {
 	managed := &container{
 		name: defaultManagedBuilder, state: "running",
-		labels: map[string]string{"dev.kiri.builder": "1"},
+		labels: map[string]string{"dev.fabo.builder": "1"},
 	}
 	job := &container{name: "app", state: "running", labels: managed.labels}
 	e := &Engine{containers: map[string]*container{"builder": managed, "app": job}}

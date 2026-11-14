@@ -4,7 +4,7 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 // An exec cannot fill the host queue past its credit, and a detached

@@ -12,7 +12,7 @@ const NetworkNoIPv4 = "noipv4=1"
 const networkAddress6 = "ip6="
 const networkGateway6 = "gw6="
 
-// IPv6 reads Kiri's existing ip6 and gw6 options for a bridge endpoint.
+// IPv6 reads Fabo's existing ip6 and gw6 options for a bridge endpoint.
 func (n Network) IPv6() (netip.Prefix, netip.Addr, error) {
 	var address, gateway string
 	for _, option := range n.Options {
@@ -63,7 +63,7 @@ func (n Network) WithoutIPv6() Network {
 	return n
 }
 
-// IPv6Disabled matches Rust Kiri's per-interface IPv6 sysctl handling.
+// IPv6Disabled matches Rust Fabo's per-interface IPv6 sysctl handling.
 func IPv6Disabled(settings map[string]string, iface string) bool {
 	for key, value := range settings {
 		if strings.TrimSpace(value) != "1" {

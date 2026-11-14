@@ -6,7 +6,7 @@ import (
 )
 
 // PruneLayersMessage is the acknowledged form of the guest's layer-retention
-// operation. The original Kiri RetainLayers command is one-way.
+// operation. The original Fabo RetainLayers command is one-way.
 const PruneLayersMessage Kind = 79
 
 func (s *Session) PruneLayers(ctx context.Context, keep []string) error {

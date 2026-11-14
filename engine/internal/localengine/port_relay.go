@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 type publishedPorts struct {
@@ -69,7 +69,7 @@ func reservePortsWithYield(bindings []portBinding, target netip.Addr, relay gues
 			return nil, err
 		}
 		b.HostIP, b.HostPort = "::", p.bound[len(p.bound)-1].HostPort
-		// As in Kiri, the IPv6 wildcard is optional when unavailable.
+		// As in Fabo, the IPv6 wildcard is optional when unavailable.
 		_ = bind(b)
 	}
 	return p, nil

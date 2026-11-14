@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func (e *Engine) updateHTTP(w http.ResponseWriter, r *http.Request) {

@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/libracoder/kiri/engine/internal/guestwire"
+	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
 )
 
 func TestWaitNextExitFlushesBeforeStart(t *testing.T) {
@@ -82,7 +82,7 @@ func testAttachHalfCloseKeepsOutput(t *testing.T, tty bool) {
 	}
 	defer conn.Close()
 	_ = conn.SetDeadline(deadline)
-	if _, err := fmt.Fprint(conn, "POST /containers/id/attach?stdin=1&stdout=1&stream=1 HTTP/1.1\r\nHost: kiri\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n"); err != nil {
+	if _, err := fmt.Fprint(conn, "POST /containers/id/attach?stdin=1&stdout=1&stream=1 HTTP/1.1\r\nHost: fabo\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n"); err != nil {
 		t.Fatal(err)
 	}
 	reader := bufio.NewReader(conn)
