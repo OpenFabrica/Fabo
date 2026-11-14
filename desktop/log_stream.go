@@ -15,8 +15,11 @@ import (
 const maxLiveLogBytes = 1 << 20
 const maxLiveLogLines = 5000
 
+// logSnapshot is a copy of a stream's lines; first is the number of the
+// first one, counted from the start of the stream or its last clearing.
 type logSnapshot struct {
 	lines            []string
+	first            int
 	problem          string
 	finished, loaded bool
 }
@@ -31,9 +34,21 @@ type liveLogs struct {
 	problem          string
 	loaded, finished bool
 	revision         uint64
+	// dropped counts the lines let go to bound the buffer, so that the
+	// ones kept keep their numbers.
+	dropped int
 }
 
 func (l *liveLogs) close() { l.cancel() }
+
+// clear forgets the lines read so far; the stream goes on, and what comes
+// next is numbered from one.
+func (l *liveLogs) clear() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.lines, l.partial, l.bytes, l.dropped = nil, "", 0, 0
+	l.revision++
+}
 func (l *liveLogs) snapshot() logSnapshot {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -41,7 +56,7 @@ func (l *liveLogs) snapshot() logSnapshot {
 	if l.partial != "" {
 		lines = append(lines, l.partial)
 	}
-	return logSnapshot{lines, l.problem, l.finished, l.loaded}
+	return logSnapshot{lines, l.dropped + 1, l.problem, l.finished, l.loaded}
 }
 func (l *liveLogs) append(data []byte) {
 	l.mu.Lock()
@@ -60,6 +75,7 @@ func (l *liveLogs) append(data []byte) {
 	for len(l.lines) > 0 && (len(l.lines) > maxLiveLogLines || l.bytes+len(l.partial) > maxLiveLogBytes) {
 		l.bytes -= len(l.lines[0]) + 1
 		l.lines = l.lines[1:]
+		l.dropped++
 	}
 	l.loaded = true
 	l.revision++

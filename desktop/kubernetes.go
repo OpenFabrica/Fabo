@@ -248,7 +248,6 @@ func (s *desktop) kubernetesAction(args ...string) {
 func (s *desktop) kubernetesView(c *ui.Context, p palette) {
 	busy := s.working["k8s"]
 	toolbar(c, func() {
-		choice(c.Key("kind"), p, tr("资源类型", "Resource type"), &s.kube.tab, "Pods", "Services")
 		ui.Box(c).Grow(1)
 		if busy {
 			label(c, tr("正在配置 Kubernetes…", "Configuring Kubernetes…"), p.muted)
@@ -281,7 +280,7 @@ func (s *desktop) kubernetesView(c *ui.Context, p palette) {
 		cols[2].title = tr("类型", "Type")
 		cols[3] = column{"Cluster IP", 145, 0, false}
 	}
-	tableHeader(c, p, cols, 0)
+	tableHeader(c, p, cols, 0, nil)
 	if !s.dockMax {
 		ui.Scroll(c.Key("k8s-items")).FillWidth().Grow(1).MinHeight(0).Children(func() {
 			for _, o := range s.kube.items {
@@ -292,7 +291,7 @@ func (s *desktop) kubernetesView(c *ui.Context, p palette) {
 				if o.Kind != kind || !strings.Contains(strings.ToLower(o.Metadata.Namespace+"/"+o.Metadata.Name), strings.ToLower(s.search)) {
 					continue
 				}
-				s.tableRow(c.Key(o.key()), p, o.key(), o.Metadata.Name, 0, func() {
+				s.tableRow(c.Key(o.key()), p, o.key(), o.Metadata.Name, 0, nil, func() {
 					cell(c, 0, 1).Children(func() { label(c, o.Metadata.Name, p.text) })
 					cell(c, 150, 0).Children(func() { label(c, o.Metadata.Namespace, p.muted) })
 					cell(c, 180, 0).Children(func() {
@@ -412,7 +411,9 @@ func (s *desktop) podLogsTab(c *ui.Context, p palette, o kubeObject) {
 		if source.problem != "" {
 			remark(c, p, source.problem)
 		}
-		s.lines(c, p, "pod-logs", source.lines, true)
+		if len(source.lines) > 0 {
+			s.logWell(c, "pod-logs", source.lines, numbered(source.lines, source.first), true, true)
+		}
 	}
 }
 

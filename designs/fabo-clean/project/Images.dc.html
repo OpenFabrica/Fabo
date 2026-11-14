@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Fabo · 镜像</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F6F9}
+a{color:#3B5BDB;text-decoration:none}a:hover{color:#2B48B8}
+button{font:inherit;cursor:pointer}
+input{font:inherit}
+.fb-row:hover{background:#F8F9FB}
+.fb-icon:hover{background:#EEF0F4;color:#171A1F}
+.fb-nav:hover{background:#ECEFF3}
+.fb-ghost:hover{background:#ECEFF3}
+</style>
+</helmet>
+<div style="min-height: 900px; display: flex; flex-wrap: wrap; background: #F4F6F9; color: #171A1F; font-family: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+
+<aside style="flex: 1 1 208px; box-sizing: border-box; padding: 18px 12px 14px; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 8px">
+<img src="/_blob/761f36e4c12f8d6ad4e7c472db30e4eb" alt="Fabo" style="width: 28px; height: 28px; object-fit: contain">
+<span style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em">Fabo</span>
+</div>
+<nav aria-label="主导航" style="display: flex; flex-direction: column; gap: 2px">
+<a class="fb-nav" href="Overview.dc.html" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+<span>概览</span>
+</a>
+<a class="fb-nav" href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="M4.5 7.5 12 12l8-4.5M12 12v9"/></svg>
+<span style="flex: 1">容器</span>
+<span style="font-size: 12px; color: #646B78">11</span>
+</a>
+<a href="Images.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; background: #FFFFFF; color: #171A1F; font-weight: 500; box-shadow: 0 0 0 1px #E6E9EE, 0 1px 2px rgba(16,24,40,0.05)">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg>
+<span style="flex: 1">镜像</span>
+<span style="font-size: 12px; color: #646B78">24</span>
+</a>
+<a class="fb-nav" href="#volumes" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.5"/><path d="M4.5 5.5v13c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5v-13"/><path d="M4.5 12c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5"/></svg>
+<span>卷</span>
+</a>
+<a class="fb-nav" href="#networks" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-2.5h12V16"/></svg>
+<span>网络</span>
+</a>
+<a class="fb-nav" href="#builds" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 20 9-9"/><path d="M12.5 4.5h4l3 3-3.5 3.5-5-5z"/></svg>
+<span>构建</span>
+</a>
+<a class="fb-nav" href="#kubernetes" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7"/></svg>
+<span>Kubernetes</span>
+</a>
+<a class="fb-nav" href="#terminal" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="m7 9.5 3 2.5-3 2.5M12.5 15H17"/></svg>
+<span>终端</span>
+</a>
+</nav>
+<div style="flex: 1"></div>
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 12px; background: #FFFFFF; box-shadow: 0 0 0 1px #E6E9EE">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #1E9E5A; box-shadow: 0 0 0 3px #DDF3E6"></span>
+<span style="font-weight: 500">引擎运行中</span>
+<span style="margin-left: auto; font-size: 12px; color: #646B78">v0.4.0</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 5px">
+<div style="display: flex; justify-content: space-between; font-size: 12px; color: #646B78"><span>内存</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace">2.7 / 8 GB</span></div>
+<div style="height: 4px; border-radius: 4px; background: #EEF0F4"><div style="width: 34%; height: 4px; border-radius: 4px; background: {{accent}}"></div></div>
+</div>
+</div>
+<a class="fb-nav" href="Settings.dc.html" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+<span>设置</span>
+</a>
+</aside>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; margin: 8px 8px 8px 0; min-height: 884px; background: #FFFFFF; border-radius: 14px; box-shadow: 0 0 0 1px #E6E9EE, 0 1px 3px rgba(16,24,40,0.04); display: flex; flex-direction: column; overflow: hidden">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 22px 28px 18px">
+<div style="display: flex; align-items: baseline; gap: 10px; flex: 1 1 200px">
+<h1 style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.015em">镜像</h1>
+<span style="color: #646B78">6.1 GB</span>
+</div>
+<label style="display: flex; align-items: center; gap: 8px; width: 260px; max-width: 100%; height: 36px; padding: 0 12px; box-sizing: border-box; border-radius: 9px; background: #F4F6F9; color: #646B78">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">搜索镜像</span>
+<input type="search" placeholder="搜索仓库或标签" style="flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: #171A1F; font-size: 13px">
+</label>
+<button type="button" style="display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border: 0; border-radius: 9px; background: {{accent}}; color: #FFFFFF; font-weight: 500; box-shadow: 0 1px 2px rgba(16,24,40,0.12)">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+<span>拉取镜像</span>
+</button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 0 28px 14px">
+<div role="group" aria-label="按使用情况筛选" style="display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: #F4F6F9">
+<sc-for list="{{filters}}" as="f" hint-placeholder-count="3">
+<button type="button" onClick="{{f.pick}}" aria-pressed="{{f.pressed}}" style="display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: {{f.bg}}; color: {{f.color}}; font-weight: 500; box-shadow: {{f.shadow}}">
+<span>{{f.label}}</span>
+<span style="font-size: 12px; color: #646B78">{{f.count}}</span>
+</button>
+</sc-for>
+</div>
+<div style="flex: 1"></div>
+<button type="button" class="fb-ghost" style="height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: #4B5361">清理未使用 · 1.4 GB</button>
+</div>
+
+<div style="flex: 1; display: flex; flex-wrap: wrap; border-top: 1px solid #ECEEF2; min-height: 0">
+<section aria-label="镜像列表" style="flex: 999 1 560px; min-width: 0; overflow-x: auto">
+<div style="min-width: 700px">
+<div style="display: grid; grid-template-columns: minmax(0,1.5fr) 110px 120px 150px 96px 80px 64px; align-items: center; column-gap: 14px; height: 38px; padding: 0 20px 0 28px; font-size: 12px; color: #646B78; border-bottom: 1px solid #ECEEF2">
+<span>仓库</span><span>标签</span><span>镜像 ID</span><span>大小</span><span>安全</span><span>创建</span><span></span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+<div class="fb-row" style="display: grid; grid-template-columns: minmax(0,1.5fr) 110px 120px 150px 96px 80px 64px; align-items: center; column-gap: 14px; height: 52px; padding: 0 20px 0 28px; border-bottom: 1px solid #F0F2F5; background: {{r.rowBg}}">
+<div style="display: flex; align-items: center; gap: 10px; min-width: 0">
+<span style="flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: {{r.tileBg}}; color: {{r.tileInk}}; font-size: 12px; font-weight: 600">{{r.initial}}</span>
+<button type="button" onClick="{{r.pick}}" style="min-width: 0; padding: 0; border: 0; background: transparent; color: #171A1F; font-weight: 500; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.repo}}</button>
+<sc-if value="{{r.inUse}}" hint-placeholder-val="{{ true }}"><span style="flex: none; font-size: 11px; padding: 1px 7px; border-radius: 20px; background: #DDF3E6; color: #17804A">使用中</span></sc-if>
+</div>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #4B5361; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.tag}}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #646B78">{{r.id}}</span>
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="flex: 1; height: 5px; border-radius: 5px; background: #EEF0F4"><div style="width: {{r.w}}; height: 5px; border-radius: 5px; background: {{accent}}; opacity: 0.75"></div></div>
+<span style="width: 58px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px">{{r.size}}</span>
+</div>
+<span style="justify-self: start; display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 20px; background: {{r.secBg}}; color: {{r.secInk}}; font-size: 12px; font-weight: 500">{{r.sec}}</span>
+<span style="color: #646B78">{{r.created}}</span>
+<div style="display: flex; justify-content: flex-end; gap: 2px; color: #646B78">
+<button type="button" class="fb-icon" aria-label="用 {{r.repo}} 运行容器" style="width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: inherit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg></button>
+<button type="button" class="fb-icon" aria-label="更多操作 {{r.repo}}" style="width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 7px; background: transparent; color: inherit"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18.5" cy="12" r="1.5"/></svg></button>
+</div>
+</div>
+</sc-for>
+</div>
+</section>
+
+<sc-if value="{{hasSel}}" hint-placeholder-val="{{ true }}">
+<section aria-label="镜像详情" style="flex: 1 1 360px; min-width: 0; box-sizing: border-box; border-left: 1px solid #ECEEF2; display: flex; flex-direction: column; gap: 20px; padding: 20px 22px 24px">
+<div style="display: flex; align-items: flex-start; gap: 10px">
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{sel.repo}}<span style="color: #646B78; font-weight: 400">:{{sel.tag}}</span></h2>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #646B78">sha256:{{sel.id}} · linux/arm64</span>
+</div>
+<button type="button" onClick="{{closeSel}}" class="fb-icon" aria-label="关闭详情" style="width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #646B78"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+</div>
+<div style="display: flex; gap: 8px">
+<button type="button" style="flex: 1; display: flex; justify-content: center; align-items: center; gap: 6px; height: 34px; border: 0; border-radius: 9px; background: {{accent}}; color: #FFFFFF; font-weight: 500"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>运行</button>
+<button type="button" class="fb-ghost" style="flex: 1; height: 34px; border: 0; border-radius: 9px; background: #F4F6F9; color: #171A1F; font-weight: 500">推送</button>
+<button type="button" class="fb-icon" aria-label="删除镜像 {{sel.repo}}" style="width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 9px; background: transparent; color: #C2352C"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/></svg></button>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 12px; background: #F8F9FB">
+<div style="display: flex; align-items: center">
+<span style="flex: 1; font-weight: 600">安全扫描</span>
+<a href="#scan" style="font-size: 12px; font-weight: 500">重新扫描</a>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{vulns}}" as="v" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; background: #FFFFFF; box-shadow: 0 0 0 1px #ECEEF2">
+<span style="font-size: 18px; font-weight: 600; color: {{v.ink}}">{{v.n}}</span>
+<span style="font-size: 12px; color: #646B78">{{v.label}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; align-items: baseline; margin-bottom: 6px"><span style="flex: 1; font-weight: 600">层</span><span style="font-size: 12px; color: #646B78">{{layerCount}}</span></div>
+<sc-for list="{{layers}}" as="l" hint-placeholder-count="6">
+<div style="display: grid; grid-template-columns: 18px minmax(0, 1fr) 64px; align-items: center; gap: 10px; height: 32px">
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: #8A919D">{{l.n}}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #2B313B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{l.cmd}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: #646B78">{{l.size}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+</sc-if>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#3B5BDB","options":["#3B5BDB","#0B7F74","#6B4FD8","#C2410C"]},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 'all', sel: 'shop/api' };
+  }
+  renderVals() {
+    const accent = this.props.accent ?? '#3B5BDB';
+    const s = this.state;
+    // 镜像数据；mb 用来画相对大小条
+    const all = [
+      { repo: 'shop/api', tag: 'dev', id: '7c0be2d9f4a1', mb: 412, size: '412 MB', sec: 'medium', inUse: true, created: '3 天前' },
+      { repo: 'postgres', tag: '17', id: 'e1b7a3f20c94', mb: 438, size: '438 MB', sec: 'clean', inUse: true, created: '2 周前' },
+      { repo: 'grafana/grafana', tag: '11.3', id: '51ab7e0c9d23', mb: 486, size: '486 MB', sec: 'low', inUse: true, created: '3 周前' },
+      { repo: 'prom/prometheus', tag: 'v3.0', id: '0f6c3a8be472', mb: 295, size: '295 MB', sec: 'clean', inUse: true, created: '3 周前' },
+      { repo: 'minio/minio', tag: 'latest', id: '6a1f53e8c9d0', mb: 168, size: '168 MB', sec: 'clean', inUse: true, created: '1 个月前' },
+      { repo: 'grafana/loki', tag: '3.2', id: 'c27d91e05b38', mb: 84, size: '84 MB', sec: 'high', inUse: true, created: '1 个月前' },
+      { repo: 'nginx', tag: '1.27-alpine', id: 'a41f09c2e1d7', mb: 48, size: '48 MB', sec: 'clean', inUse: true, created: '1 个月前' },
+      { repo: 'redis', tag: '7.4-alpine', id: '3be08f7a21c9', mb: 41, size: '41 MB', sec: 'clean', inUse: true, created: '1 个月前' },
+      { repo: 'node', tag: '22-bookworm', id: 'b93e0c71d5a2', mb: 1100, size: '1.1 GB', sec: 'low', inUse: false, created: '2 个月前' },
+      { repo: 'golang', tag: '1.23', id: '2d84f6a09e13', mb: 820, size: '820 MB', sec: 'clean', inUse: false, created: '2 个月前' }
+    ];
+    const secLook = {
+      clean: { label: '无漏洞', bg: '#DDF3E6', ink: '#17804A' },
+      low: { label: '低危 3', bg: '#EEF0F4', ink: '#4B5361' },
+      medium: { label: '中危 2', bg: '#FDF0D5', ink: '#8A5A00' },
+      high: { label: '高危 1', bg: '#FCE4E2', ink: '#C2352C' }
+    };
+    const palette = [['#EEF2FF', '#3B5BDB'], ['#E6F5F3', '#0B7F74'], ['#F1ECFE', '#6B4FD8'], ['#FDF0E6', '#B4520E']];
+    const max = Math.max(...all.map((r) => r.mb));
+    const visible = all.filter((r) => s.filter === 'all' || (s.filter === 'used' ? r.inUse : !r.inUse));
+    const rows = visible.map((r, i) => {
+      const [tileBg, tileInk] = palette[r.repo.length % palette.length];
+      const sec = secLook[r.sec];
+      return {
+        ...r, tileBg, tileInk,
+        initial: r.repo.split('/').pop().slice(0, 1).toUpperCase(),
+        w: Math.max(4, Math.round(r.mb / max * 100)) + '%',
+        sec: sec.label, secBg: sec.bg, secInk: sec.ink,
+        rowBg: s.sel === r.repo ? accent + '12' : 'transparent',
+        pick: () => this.setState({ sel: r.repo })
+      };
+    });
+    const counts = { all: all.length, used: all.filter((r) => r.inUse).length, unused: all.filter((r) => !r.inUse).length };
+    const filters = [['all', '全部'], ['used', '使用中'], ['unused', '未使用']].map(([id, label]) => ({
+      label, count: counts[id], pressed: s.filter === id ? 'true' : 'false',
+      bg: s.filter === id ? '#FFFFFF' : 'transparent',
+      color: s.filter === id ? '#171A1F' : '#4B5361',
+      shadow: s.filter === id ? '0 0 0 1px #E2E5EA, 0 1px 2px rgba(16,24,40,0.06)' : 'none',
+      pick: () => this.setState({ filter: id })
+    }));
+    const sel = all.find((r) => r.repo === s.sel);
+    const vulnBy = { clean: [0, 0, 0, 0], low: [0, 0, 0, 3], medium: [0, 0, 2, 5], high: [0, 1, 1, 4] };
+    const counts4 = vulnBy[sel ? sel.sec : 'clean'];
+    const vulns = [['严重', '#9F1D16'], ['高危', '#C2352C'], ['中危', '#8A5A00'], ['低危', '#4B5361']]
+      .map(([label, ink], i) => ({ label, n: counts4[i], ink: counts4[i] ? ink : '#A3A9B4' }));
+    const layers = [
+      ['FROM node:22-alpine', '132 MB'],
+      ['WORKDIR /app', '0 B'],
+      ['COPY package.json pnpm-lock.yaml ./', '88 KB'],
+      ['RUN pnpm install --frozen-lockfile', '241 MB'],
+      ['COPY . .', '6.2 MB'],
+      ['RUN pnpm build', '32 MB'],
+      ['CMD ["node", "dist/server.js"]', '0 B']
+    ].map(([cmd, size], i) => ({ n: i + 1, cmd, size }));
+    return {
+      accent, filters, rows,
+      hasSel: !!sel, sel: sel || {}, closeSel: () => this.setState({ sel: '' }),
+      vulns, layers, layerCount: layers.length + ' 层'
+    };
+  }
+}
+</script>
+</body>
+</html>

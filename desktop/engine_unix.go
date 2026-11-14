@@ -10,7 +10,9 @@ import (
 	"runtime"
 )
 
-func dialEngine(ctx context.Context) (net.Conn, error) {
+// engineSocket is where the engine listens: KIRI_SOCKET, else the system
+// service's socket on Linux, else ~/.kiri/run/docker.sock.
+func engineSocket() (string, error) {
 	socket := os.Getenv("KIRI_SOCKET")
 	if socket == "" && runtime.GOOS == "linux" {
 		const serviceSocket = "/run/kiri/docker.sock"
@@ -21,9 +23,27 @@ func dialEngine(ctx context.Context) (net.Conn, error) {
 	if socket == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		socket = filepath.Join(home, ".kiri", "run", "docker.sock")
 	}
+	return socket, nil
+}
+
+func dialEngine(ctx context.Context) (net.Conn, error) {
+	socket, err := engineSocket()
+	if err != nil {
+		return nil, err
+	}
 	return (&net.Dialer{}).DialContext(ctx, "unix", socket)
+}
+
+// engineHost is the engine's address as DOCKER_HOST spells it, for the
+// docker tools the window runs.
+func engineHost() string {
+	socket, err := engineSocket()
+	if err != nil {
+		return ""
+	}
+	return "unix://" + socket
 }

@@ -23,6 +23,10 @@ func (s *desktop) onMain(fn func()) {
 	s.window.Update(fn)
 }
 
+// imageOptional are the columns left out beside a detail panel: ID, the
+// number of containers and the creation time.
+var imageOptional = []int{1, 4, 5}
+
 // imageColumns are shared by the header and the rows of the images table.
 func imageColumns() []column {
 	return []column{
@@ -105,13 +109,11 @@ func (s *desktop) imagesView(c *ui.Context, p palette) {
 	}
 	toolbar(c, func() {
 		labels := []string{tr("全部", "All"), tr("使用中", "In use"), tr("未使用", "Unused")}
-		for i, n := range []int{len(s.images), used, len(idle)} {
-			if pill(c.Key(i), p, labels[i], n, filter == i) {
-				s.filter[imagesPage] = i
-				s.list(imagesPage).ScrollTo(0, ui.Start)
-			}
+		at := filter
+		if filters(c.Key("filter"), p, tr("按使用情况筛选", "Filter by use"), &at, labels, []int{len(s.images), used, len(idle)}) {
+			s.filter[imagesPage] = at
+			s.list(imagesPage).ScrollTo(0, ui.Start)
 		}
-		ui.Text(c, displaySize(total)).FontSize(12).FontFeatures("tnum").TextColor(p.muted).Margin(0, 0, 0, 6)
 		ui.Box(c).Grow(1)
 		if len(idle) > 0 && button(c.Key("prune"), p, fmt.Sprintf(tr("清理未使用 %d", "Remove unused %d"), len(idle)), "", ghostButton, false) {
 			s.pending = &confirmation{
@@ -132,10 +134,11 @@ func (s *desktop) imagesView(c *ui.Context, p palette) {
 			s.form = form{kind: "pull"}
 		}
 	})
-	const actionsWidth = 76
+	const actionsWidth = 92
 	cols := imageColumns()
+	narrow := s.narrow()
 	if !s.dockMax {
-		tableHeader(c, p, cols, actionsWidth)
+		tableHeader(c, p, narrowColumns(cols, narrow, imageOptional...), actionsWidth, nil)
 		if len(shown) == 0 {
 			title := tr("没有匹配的镜像", "No matching images")
 			if len(s.images) == 0 {
@@ -148,14 +151,19 @@ func (s *desktop) imagesView(c *ui.Context, p palette) {
 				Rows(func(r ui.ListRow) {
 					rc, img := r.Context, shown[r.Index]
 					users := len(s.imageUsers(img))
-					s.tableRow(rc, p, img.ID, img.ref(), actionsWidth, func() {
+					s.tableRow(rc, p, img.ID, img.ref(), actionsWidth, nil, func() {
 						cell(rc, 0, cols[0].grow).Children(func() { label(rc, img.ref(), p.text).FontWeight(500) })
-						cell(rc, cols[1].width, 0).Children(func() { label(rc, shortID(img.ID), p.muted) })
+						if !narrow {
+							cell(rc, cols[1].width, 0).Children(func() { label(rc, shortID(img.ID), p.muted) })
+						}
 						cell(rc, cols[2].width, 0).Children(func() { number(rc, displaySize(img.Size), p.text) })
 						cell(rc, cols[3].width, 0).Children(func() {
 							text, ink := s.scanWords(p, img)
 							label(rc, text, ink)
 						})
+						if narrow {
+							return
+						}
 						cell(rc, cols[4].width, 0).Children(func() {
 							if users > 0 {
 								label(rc, strconv.Itoa(users), p.text)
@@ -325,7 +333,7 @@ func (s *desktop) volumesView(c *ui.Context, p palette) {
 		{tr("使用者", "Used by"), 0, 1.2, false}, {tr("创建", "Created"), 86, 0, false}}
 	const actionsWidth = 28
 	if !s.dockMax {
-		tableHeader(c, p, cols, actionsWidth)
+		tableHeader(c, p, cols, actionsWidth, nil)
 		if len(shown) == 0 {
 			title := tr("没有匹配的卷", "No matching volumes")
 			if len(s.volumes) == 0 {
@@ -342,7 +350,7 @@ func (s *desktop) volumesView(c *ui.Context, p palette) {
 					for i, x := range users {
 						names[i] = x.Name
 					}
-					s.tableRow(rc, p, v.Name, v.Name, actionsWidth, func() {
+					s.tableRow(rc, p, v.Name, v.Name, actionsWidth, nil, func() {
 						cell(rc, 0, cols[0].grow).Children(func() { label(rc, v.Name, p.text).FontWeight(500) })
 						cell(rc, cols[1].width, 0).Children(func() { label(rc, v.Driver, p.muted) })
 						cell(rc, cols[2].width, 0).Children(func() { number(rc, size(v), p.text) })
@@ -411,7 +419,7 @@ func (s *desktop) networksView(c *ui.Context, p palette) {
 		label(rc, text, ink)
 	}
 	if !s.dockMax {
-		tableHeader(c, p, cols, actionsWidth)
+		tableHeader(c, p, cols, actionsWidth, nil)
 		if len(shown) == 0 {
 			empty(c, p, "network", tr("没有匹配的网络", "No matching networks"), "")
 		} else {
@@ -420,11 +428,11 @@ func (s *desktop) networksView(c *ui.Context, p palette) {
 				Rows(func(r ui.ListRow) {
 					rc, n := r.Context, shown[r.Index]
 					users := len(s.networkUsers(n.Name))
-					s.tableRow(rc, p, n.ID, n.Name, actionsWidth, func() {
+					s.tableRow(rc, p, n.ID, n.Name, actionsWidth, nil, func() {
 						cell(rc, 0, cols[0].grow).Gap(8).Children(func() {
 							label(rc, n.Name, p.text).FontWeight(500)
 							if n.builtin() {
-								ui.Text(rc, tr("内置", "built-in")).FontSize(10).TextColor(p.muted).Padding(0, 4).Radius(3).Border(1, p.line).Shrink(0)
+								ui.Text(rc, tr("内置", "built-in")).FontSize(11).TextColor(p.sub).Padding(1, 7).Radius(10).Background(p.soft).Shrink(0)
 							}
 						})
 						cell(rc, cols[1].width, 0).Children(func() { label(rc, n.Driver, p.muted) })
@@ -480,18 +488,34 @@ func (s *desktop) buildsView(c *ui.Context, p palette) {
 	})
 }
 
-// tile is one figure of the overview's top row; a click opens its page.
+// tile is one count of the overview: a card that opens its page. The
+// page's icon sits in an accent chip at its corner.
 func (s *desktop) tile(c *ui.Context, p palette, page, title, big, small string, ink ui.Color) {
-	b := clickable(c.Key("tile-"+page)).Label(title).Grow(1).Width(0).MinWidth(0).Padding(15, 18).
-		AlignItems(ui.Start).Justify(ui.Start).BorderWidth(0, 1, 1, 0).BorderColor(p.line)
+	b := clickable(c.Key("tile-"+page)).Label(title).Grow(1).Width(0).MinWidth(0).Padding(16, 18).
+		AlignItems(ui.Stretch).Justify(ui.Start).Radius(12).Background(p.panel).Border(1, p.line)
 	if b.Hovered() {
-		b.Background(p.hover)
+		b.Border(1, p.raised.Mix(p.text, 0.08)).Shadow(0, 2, 6, 0, ui.RGBA(16, 24, 40, 0.05))
 	}
+	icon := "grid"
+	for _, n := range navItems {
+		if n.page == page {
+			icon = n.icon
+		}
+	}
+	// A button lays its children in a row; the card stacks a label line
+	// over the figure.
 	b.Children(func() {
-		ui.Column(c).Gap(3).Children(func() {
-			ui.Text(c, title).FontSize(11).LetterSpacing(0.4).TextColor(p.muted)
-			ui.Text(c, big).FontSize(30).FontWeight(600).LetterSpacing(-0.9).FontFeatures("tnum").TextColor(p.text)
-			ui.Text(c, small).FontSize(12).FontFeatures("tnum").TextColor(ink).SingleLine()
+		ui.Column(c).Grow(1).Width(0).MinWidth(0).Gap(12).Children(func() {
+			ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
+				ui.Text(c, title).FontSize(13).TextColor(p.sub).Grow(1)
+				ui.Box(c).Size(30, 30).Radius(8).Background(p.accent.Alpha(0.1)).Center().Children(func() {
+					ui.Icon(c, icons[icon]).Size(16, 16).TextColor(p.accent)
+				})
+			})
+			ui.Row(c).FillWidth().Gap(8).AlignItems(ui.End).Children(func() {
+				ui.Text(c, big).FontSize(28).FontWeight(600).LetterSpacing(-0.6).FontFeatures("tnum").TextColor(p.text).Shrink(0)
+				ui.Text(c, small).FontSize(12.5).FontFeatures("tnum").TextColor(ink).SingleLine().MinWidth(0).Padding(0, 0, 5)
+			})
 		})
 	})
 	if b.Clicked() {
@@ -499,15 +523,11 @@ func (s *desktop) tile(c *ui.Context, p palette, page, title, big, small string,
 	}
 }
 
-// panel is one titled block of the overview grid.
-func panel(c *ui.Context, p palette, grow float32, last bool, head, body func()) {
-	right := float32(1)
-	if last {
-		right = 0
-	}
-	ui.Column(c).Grow(grow).Width(0).MinWidth(0).Padding(14, 18, 16).Gap(10).
-		BorderWidth(0, right, 1, 0).BorderColor(p.line).Children(func() {
-		ui.Row(c).FillWidth().Height(26).Gap(10).AlignItems(ui.Center).Children(head)
+// panel is one titled card of the overview grid.
+func panel(c *ui.Context, p palette, grow float32, head, body func()) {
+	ui.Column(c).Grow(grow).Width(0).MinWidth(0).Padding(16, 18, 18).Gap(12).
+		Radius(12).Background(p.panel).Border(1, p.line).Children(func() {
+		ui.Row(c).FillWidth().Height(28).Gap(10).AlignItems(ui.Center).Children(head)
 		body()
 	})
 }
@@ -528,52 +548,54 @@ func (s *desktop) overview(c *ui.Context, p palette) {
 	for _, img := range s.images {
 		imageSize += img.Size
 	}
-	head := func(title string) { ui.Text(c, title).FontSize(12.5).FontWeight(600).TextColor(p.text) }
+	head := func(title string) { ui.Text(c, title).FontSize(14).FontWeight(600).TextColor(p.text) }
 	figure := func(text string) { ui.Text(c, text).FontSize(12).FontFeatures("tnum").TextColor(p.muted) }
 	ui.Scroll(c.Key("overview")).Fill().Grow(1).MinHeight(0).Children(func() {
-		ui.Row(c.Key("tiles")).FillWidth().AlignItems(ui.Stretch).Children(func() {
-			small, ink := tr("运行中", "running"), p.muted
-			if failed > 0 {
-				small, ink = fmt.Sprintf(tr("%d 个异常", "%d failed"), failed), p.err
-			}
-			s.tile(c, p, containersPage, tr("容器", "Containers"), fmt.Sprintf("%d / %d", running, len(s.containers)), small, ink)
-			s.tile(c, p, imagesPage, tr("镜像", "Images"), strconv.Itoa(len(s.images)), displaySize(imageSize), p.muted)
-			s.tile(c, p, volumesPage, tr("卷", "Volumes"), strconv.Itoa(len(s.volumes)), tr("本地", "local"), p.muted)
-			s.tile(c, p, networksPage, tr("网络", "Networks"), strconv.Itoa(len(s.networks)), "bridge", p.muted)
-		})
-		ui.Row(c.Key("load")).FillWidth().AlignItems(ui.Stretch).Children(func() {
-			panel(c, p, 1.5, false, func() {
-				head("CPU")
-				figure(fmt.Sprintf("%.0f%%", s.cpuNow()))
-				figure(fmt.Sprintf(tr("%d 核", "%d cores"), s.cores()))
-			}, func() {
-				s.cpuChart(c, p)
-				used, total := s.memoryUse()
-				ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-					head(tr("内存", "Memory"))
-					text := displaySize(used)
-					if total > 0 {
-						text += " / " + displaySize(total)
-					}
-					figure(text)
-				})
-				meter(c, p, float64(used)/float64(max(1, total)), 6, p.accent)
-			})
-			panel(c, p, 1, true, func() {
-				head(tr("磁盘", "Disk"))
-				ui.Box(c).Grow(1)
-				if button(c.Key("cleanup"), p, tr("清理", "Clean up"), "", ghostButton, false) {
-					s.pending = &confirmation{
-						title: tr("清理未使用的数据？", "Remove unused data?"),
-						body:  tr("删除已停止的容器、未使用的镜像和构建缓存。", "Removes stopped containers, unused images and the build cache."),
-						ok:    tr("清理", "Remove"), run: s.cleanup,
-					}
+		ui.Column(c.Key("cards")).FillWidth().Padding(0, pageInset, pageInset).Gap(14).Children(func() {
+			ui.Row(c.Key("tiles")).FillWidth().Gap(14).AlignItems(ui.Stretch).Children(func() {
+				small, ink := tr("运行中", "running"), p.muted
+				if failed > 0 {
+					small, ink = fmt.Sprintf(tr("%d 个异常", "%d failed"), failed), p.err
 				}
-			}, func() { s.diskBody(c, p) })
-		})
-		ui.Row(c.Key("lists")).FillWidth().AlignItems(ui.Stretch).Children(func() {
-			panel(c, p, 1.5, false, func() { head(tr("占用最高", "Busiest")) }, func() { s.busiest(c, p) })
-			panel(c, p, 1, true, func() { head(tr("最近事件", "Recent events")) }, func() { s.recent(c, p) })
+				s.tile(c, p, containersPage, tr("容器", "Containers"), fmt.Sprintf("%d / %d", running, len(s.containers)), small, ink)
+				s.tile(c, p, imagesPage, tr("镜像", "Images"), strconv.Itoa(len(s.images)), displaySize(imageSize), p.muted)
+				s.tile(c, p, volumesPage, tr("卷", "Volumes"), strconv.Itoa(len(s.volumes)), tr("本地", "local"), p.muted)
+				s.tile(c, p, networksPage, tr("网络", "Networks"), strconv.Itoa(len(s.networks)), "bridge", p.muted)
+			})
+			ui.Row(c.Key("load")).FillWidth().Gap(14).AlignItems(ui.Stretch).Children(func() {
+				panel(c, p, 1.5, func() {
+					head("CPU")
+					figure(fmt.Sprintf("%.0f%%", s.cpuNow()))
+					figure(fmt.Sprintf(tr("%d 核", "%d cores"), s.cores()))
+				}, func() {
+					s.cpuChart(c, p)
+					used, total := s.memoryUse()
+					ui.Row(c).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
+						head(tr("内存", "Memory"))
+						text := displaySize(used)
+						if total > 0 {
+							text += " / " + displaySize(total)
+						}
+						figure(text)
+					})
+					meter(c, p, float64(used)/float64(max(1, total)), 6, p.accent)
+				})
+				panel(c, p, 1, func() {
+					head(tr("磁盘", "Disk"))
+					ui.Box(c).Grow(1)
+					if button(c.Key("cleanup"), p, tr("清理", "Clean up"), "", plainButton, false) {
+						s.pending = &confirmation{
+							title: tr("清理未使用的数据？", "Remove unused data?"),
+							body:  tr("删除已停止的容器、未使用的镜像和构建缓存。", "Removes stopped containers, unused images and the build cache."),
+							ok:    tr("清理", "Remove"), run: s.cleanup,
+						}
+					}
+				}, func() { s.diskBody(c, p) })
+			})
+			ui.Row(c.Key("lists")).FillWidth().Gap(14).AlignItems(ui.Stretch).Children(func() {
+				panel(c, p, 1.5, func() { head(tr("占用最高", "Busiest")) }, func() { s.busiest(c, p) })
+				panel(c, p, 1, func() { head(tr("最近事件", "Recent events")) }, func() { s.recent(c, p) })
+			})
 		})
 	})
 }
@@ -637,24 +659,24 @@ func (s *desktop) diskBody(c *ui.Context, p palette) {
 		size int64
 		ink  ui.Color
 	}{
-		{tr("镜像", "Images"), d.images, p.accent}, {tr("卷", "Volumes"), d.volumeTotal, p.link},
-		{tr("构建缓存", "Build cache"), d.buildCache, p.ok}, {tr("容器", "Containers"), d.containers, p.muted},
+		{tr("镜像", "Images"), d.images, p.accent}, {tr("卷", "Volumes"), d.volumeTotal, p.ok},
+		{tr("构建缓存", "Build cache"), d.buildCache, p.warn}, {tr("容器", "Containers"), d.containers, p.muted},
 	}
 	var total int64
 	for _, part := range parts {
 		total += part.size
 	}
-	ui.Row(c).FillWidth().Height(14).Gap(2).Radius(3).Clip().Background(p.raised).Children(func() {
+	ui.Row(c).FillWidth().Height(10).Gap(3).Children(func() {
 		for _, part := range parts {
 			if part.size > 0 {
-				ui.Box(c).Width(0).Grow(float32(part.size) / float32(max(1, total))).FillHeight().Background(part.ink)
+				ui.Box(c).Width(0).Grow(float32(part.size) / float32(max(1, total))).FillHeight().Radius(3).Background(part.ink)
 			}
 		}
 	})
 	for _, part := range parts {
 		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Box(c).Size(8, 8).Radius(2).Shrink(0).Background(part.ink)
-			ui.Text(c, part.name).FontSize(12).TextColor(p.text).Grow(1)
+			ui.Box(c).Size(10, 10).Radius(3).Shrink(0).Background(part.ink)
+			ui.Text(c, part.name).FontSize(12.5).TextColor(p.sub).Grow(1)
 			ui.Text(c, displaySize(part.size)).Font(mono).FontSize(11.5).FontFeatures("tnum").TextColor(p.text)
 		})
 	}
@@ -676,8 +698,8 @@ func (s *desktop) busiest(c *ui.Context, p palette) {
 	ui.Column(c).FillWidth().Children(func() {
 		for _, x := range live[:min(5, len(live))] {
 			u := s.usage[x.ID]
-			b := clickable(c.Key(x.ID)).Label(tr("打开 ", "Open ")+x.Name).FillWidth().Height(28).Gap(10).
-				AlignItems(ui.Center).Justify(ui.Start).BorderWidth(1, 0, 0, 0).BorderColor(p.line)
+			b := clickable(c.Key(x.ID)).Label(tr("打开 ", "Open ") + x.Name).FillWidth().Height(36).PaddingX(6).Gap(10).Radius(8).
+				AlignItems(ui.Center).Justify(ui.Start)
 			if b.Hovered() {
 				b.Background(p.hover)
 			}
@@ -717,7 +739,7 @@ func (s *desktop) recent(c *ui.Context, p palette) {
 			if action == "" {
 				action = ev.Action
 			}
-			ui.Row(c.Key(i)).FillWidth().Height(28).Gap(10).AlignItems(ui.Center).BorderWidth(1, 0, 0, 0).BorderColor(p.line).Children(func() {
+			ui.Row(c.Key(i)).FillWidth().Height(36).PaddingX(6).Gap(10).AlignItems(ui.Center).Children(func() {
 				dot(c, p, kind)
 				cell(c, 0, 1).Children(func() { label(c, ev.Name, p.text) })
 				label(c, action, stateColor(p, kind)).Shrink(0)

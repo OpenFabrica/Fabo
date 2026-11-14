@@ -1,7 +1,9 @@
 package main
 
 import (
+	"archive/tar"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +13,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -27,6 +31,63 @@ type fakeEngine struct {
 	changes []string
 	last    string
 	server  *httptest.Server
+	// shell makes an interactive exec run a real shell on this machine,
+	// for the preview engine of TestServeFakeEngine; proc is the latest.
+	shell bool
+	proc  *os.Process
+	// execCmd is the command of the exec created last.
+	execCmd []string
+}
+
+// fakeDirs and fakeFiles are the small filesystem the fake containers
+// share: each directory's entries ("/" ends a folder, "@" marks a link),
+// and each file's content.
+var (
+	fakeDirs = map[string][]string{
+		"/":                  {"app/", "bin/", "etc/"},
+		"/app/":              {"dist/", "node_modules/", "package.json", ".env", "@server.js"},
+		"/app/dist/":         {"server.js"},
+		"/app/node_modules/": {},
+		"/bin/":              {"sh", "@ls"},
+		"/etc/":              {"nginx/", "hostname", "os-release"},
+		"/etc/nginx/":        {"nginx.conf"},
+	}
+	fakeFiles = map[string]string{
+		"/app/package.json":     "{\n  \"name\": \"shop-api\",\n  \"version\": \"1.4.0\",\n  \"scripts\": { \"start\": \"node dist/server.js\" }\n}\n",
+		"/app/.env":             "NODE_ENV=development\nPORT=3000\n",
+		"/app/server.js":        "require('./dist/server.js')\n",
+		"/app/dist/server.js":   "const http = require('http')\nhttp.createServer((req, res) => res.end('ok')).listen(3000)\n",
+		"/bin/sh":               "\x7fELF\x02\x01\x01\x00binary",
+		"/bin/ls":               "\x7fELF\x02\x01\x01\x00binary",
+		"/etc/hostname":         "c-api\n",
+		"/etc/os-release":       "NAME=\"Alpine Linux\"\nVERSION_ID=3.21.0\n",
+		"/etc/nginx/nginx.conf": "worker_processes auto;\nerror_log /var/log/nginx/error.log warn;\nevents { worker_connections 1024; }\n",
+	}
+)
+
+// fakeExec answers an exec as a container would: the Files tab's listing
+// and preview scripts from fakeDirs and fakeFiles, anything else with the
+// root listing ls -1Ap prints.
+func fakeExec(cmd []string) string {
+	if len(cmd) == 5 && cmd[2] == listScript {
+		var out strings.Builder
+		for _, e := range fakeDirs[cmd[4]] {
+			name := strings.TrimPrefix(e, "@")
+			if name != e {
+				fmt.Fprintf(&out, "L|%s\n", name)
+			}
+			if strings.HasSuffix(name, "/") {
+				fmt.Fprintf(&out, "S|directory|4096|1794000000|%s\n", strings.TrimSuffix(name, "/"))
+			} else {
+				fmt.Fprintf(&out, "S|regular file|%d|1794000000|%s\n", len(fakeFiles[cmd[4]+name]), name)
+			}
+		}
+		return out.String()
+	}
+	if len(cmd) == 5 && cmd[2] == previewScript {
+		return fakeFiles[cmd[4]]
+	}
+	return "app/\nbin/\netc/\npackage.json\n"
 }
 
 // body is what the latest change sent.
@@ -49,10 +110,10 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 	now := time.Now().Unix()
 	containers := fmt.Sprintf(`[
 	 {"Id":"c-web","Names":["/shop-web-1"],"Image":"nginx:1.27-alpine","ImageID":"sha256:img-nginx","State":"running","Created":%[1]d,"KiriStartedAt":%[2]d,
-	  "Labels":{"com.docker.compose.project":"shop"},"Ports":[{"Type":"tcp","PrivatePort":80,"PublicPort":8080},{"IP":"::","Type":"tcp","PrivatePort":80,"PublicPort":8080}],
+	  "Labels":{"com.docker.compose.project":"shop","com.docker.compose.service":"web","com.docker.compose.project.working_dir":"SHOP_DIR","com.docker.compose.project.config_files":"SHOP_DIR/compose.yaml","com.docker.compose.version":"2.32.1"},"Ports":[{"Type":"tcp","PrivatePort":80,"PublicPort":8080},{"IP":"::","Type":"tcp","PrivatePort":80,"PublicPort":8080}],
 	  "NetworkSettings":{"Networks":{"shop_default":{"IPAddress":"172.18.0.2"}}}},
 	 {"Id":"c-api","Names":["/shop-api-1"],"Image":"shop/api:dev","ImageID":"sha256:img-api","State":"running","Created":%[1]d,"KiriStartedAt":%[2]d,
-	  "Labels":{"com.docker.compose.project":"shop"},"Ports":[{"Type":"tcp","PrivatePort":3000,"PublicPort":3000}],
+	  "Labels":{"com.docker.compose.project":"shop","com.docker.compose.service":"api","com.docker.compose.project.working_dir":"SHOP_DIR","com.docker.compose.project.config_files":"SHOP_DIR/compose.yaml","com.docker.compose.version":"2.32.1"},"Ports":[{"Type":"tcp","PrivatePort":3000,"PublicPort":3000}],
 	  "NetworkSettings":{"Networks":{"shop_default":{"IPAddress":"172.18.0.3"}}},"Mounts":[{"Type":"volume","Name":"shop_pgdata","Destination":"/data"}]},
 	 {"Id":"c-loki","Names":["/loki"],"Image":"grafana/loki:3.2","ImageID":"sha256:img-loki","State":"exited","Created":%[1]d,"KiriFinishedAt":%[3]d,"KiriExitCode":1,
 	  "Labels":{"com.docker.compose.project":"observability"}},
@@ -60,6 +121,15 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 	  "Ports":[{"Type":"tcp","PrivatePort":6379,"PublicPort":6379}],"NetworkSettings":{"Networks":{"bridge":{"IPAddress":"172.17.0.2"}}}},
 	 {"Id":"c-job","Names":["/db-migrate"],"Image":"shop/migrate:dev","ImageID":"sha256:img-migrate","State":"exited","Created":%[1]d,"KiriFinishedAt":%[1]d,"KiriExitCode":0}
 	]`, now-3*86400, now-240, now-360)
+	// The shop project's Compose file is real, so its Config tab has
+	// something to show and to save.
+	shop := t.TempDir()
+	compose := "name: shop\nservices:\n  api:\n    image: shop/api:dev\n    ports:\n      - \"3000:3000\"\n    volumes:\n      - pgdata:/data\n" +
+		"  web:\n    image: nginx:1.27-alpine\n    ports:\n      - \"8080:80\"\nvolumes:\n  pgdata:\n"
+	if err := os.WriteFile(filepath.Join(shop, "compose.yaml"), []byte(compose), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	containers = strings.ReplaceAll(containers, "SHOP_DIR", filepath.ToSlash(shop))
 	// Each stats read moves the counters on, so the second refresh has a
 	// delta to turn into a CPU share.
 	reads := map[string]uint64{}
@@ -76,16 +146,43 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 				fmt.Fprint(w, `{"Id":"c-new"}`)
 			}
 			if strings.HasSuffix(path, "/exec") {
+				var spec struct{ Cmd []string }
+				_ = json.Unmarshal(sent, &spec)
+				f.mu.Lock()
+				f.execCmd = spec.Cmd
+				f.mu.Unlock()
 				w.WriteHeader(http.StatusCreated)
 				fmt.Fprint(w, `{"Id":"exec-1"}`)
 			}
 			// An exec answers as the engine does: it upgrades the
 			// connection and writes one multiplexed frame.
+			f.mu.Lock()
+			shell := f.shell
+			f.mu.Unlock()
+			if path == "/exec/exec-1/start" && shell && strings.Contains(string(sent), `"Tty":true`) {
+				if conn, buf, err := w.(http.Hijacker).Hijack(); err == nil {
+					buf.WriteString("HTTP/1.1 101 UPGRADED\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
+					buf.Flush()
+					f.serveShell(conn, buf.Reader)
+				}
+				return
+			}
+			if path == "/kiri/exec/exec-1/stop" {
+				f.mu.Lock()
+				if f.proc != nil {
+					_ = f.proc.Kill()
+				}
+				f.mu.Unlock()
+			}
 			if path == "/exec/exec-1/start" {
 				if conn, buf, err := w.(http.Hijacker).Hijack(); err == nil {
-					out := "app/\nbin/\netc/\npackage.json\n"
+					f.mu.Lock()
+					out := fakeExec(f.execCmd)
+					f.mu.Unlock()
 					buf.WriteString("HTTP/1.1 101 UPGRADED\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
-					buf.Write([]byte{1, 0, 0, 0, 0, 0, 0, byte(len(out))})
+					header := []byte{1, 0, 0, 0, 0, 0, 0, 0}
+					binary.BigEndian.PutUint32(header[4:], uint32(len(out)))
+					buf.Write(header)
 					buf.WriteString(out)
 					buf.Flush()
 					conn.Close()
@@ -97,6 +194,19 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			t.Errorf("read could keep the VM awake: %s", r.URL)
 		}
 		switch {
+		case strings.HasSuffix(path, "/archive"):
+			// One file, as a tar, as the engine sends it.
+			name := r.URL.Query().Get("path")
+			content, ok := fakeFiles[name]
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				fmt.Fprint(w, `{"message":"no such file"}`)
+				return
+			}
+			archive := tar.NewWriter(w)
+			_ = archive.WriteHeader(&tar.Header{Name: filepath.Base(name), Mode: 0o644, Size: int64(len(content)), Typeflag: tar.TypeReg})
+			_, _ = archive.Write([]byte(content))
+			_ = archive.Close()
 		case path == "/exec/exec-1/json":
 			fmt.Fprint(w, `{"Running":false,"ExitCode":0}`)
 		case path == "/containers/kiri-k8s/json":
@@ -128,7 +238,9 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			fmt.Fprintf(w, `{"cpu_stats":{"cpu_usage":{"total_usage":%d},"system_cpu_usage":%d,"online_cpus":4},"memory_stats":{"usage":%d,"stats":{"inactive_file":1048576}}}`,
 				n*share, n*4_000_000_000, uint64(len(path))*9_000_000)
 		case strings.HasSuffix(path, "/logs"):
-			fmt.Fprint(w, "server listening on :3000\nconnected to postgres shop-db-1:5432\nGET /api/products 200 12ms\n")
+			fmt.Fprint(w, "server listening on :3000\nconnected to postgres shop-db-1:5432\nGET /api/products 200 12ms\n"+
+				"WARN slow query 412ms SELECT * FROM orders WHERE user_id = $1; consider an index on orders(user_id) so that checkout stays fast under load\n"+
+				"debug cache hit ratio 0.92\nERROR payment gateway timed out after 5000ms\nPOST /api/checkout 201 88ms\n")
 		case strings.HasPrefix(path, "/containers/") && strings.HasSuffix(path, "/json"):
 			fmt.Fprint(w, `{"Id":"c-api-full-id","Path":"node","Args":["dist/server.js"],"Config":{"Image":"shop/api:dev","Tty":true,"WorkingDir":"/app","Env":["NODE_ENV=development"]}}`)
 		case path == "/events":
@@ -180,7 +292,7 @@ func has(tt *ui.Tester, labels ...string) (missing string) {
 func TestContainersGroupUnderTheirComposeProject(t *testing.T) {
 	_, s := newFakeEngine(t)
 	tt := ui.NewTester(s.view, 1180, 760)
-	if m := has(tt, "shop", "compose · 2/2", "Details for shop-api-1", "Details for redis-cache", "Exited (1) · 6 min ago"); m != "" {
+	if m := has(tt, "shop", "Compose · 2/2 running", "Details for shop-api-1", "Details for redis-cache", "Exited (1) · 6 min ago"); m != "" {
 		t.Fatalf("missing %q in %q", m, tt.Texts())
 	}
 	if err := tt.Click("Fold shop"); err != nil {
@@ -191,6 +303,211 @@ func TestContainersGroupUnderTheirComposeProject(t *testing.T) {
 	}
 	if _, found := tt.Find("Details for redis-cache"); !found {
 		t.Fatal("folding hid a container outside the project")
+	}
+}
+
+// Ticking a project picks its members; the bar that replaces the filters
+// then stops or deletes them all, forcing the running ones on delete.
+func TestPickedContainersAreActedOnTogether(t *testing.T) {
+	f, s := newFakeEngine(t)
+	tt := ui.NewTester(s.view, 1180, 760)
+	if err := tt.Click("Select shop"); err != nil {
+		t.Fatal(err)
+	}
+	if !s.picked["c-api"] || !s.picked["c-web"] || len(s.picked) != 2 || !tt.HasText("2 selected") {
+		t.Fatalf("picked %v, texts %q", s.picked, tt.Texts())
+	}
+	if err := tt.Click("Stop"); err != nil {
+		t.Fatal(err)
+	}
+	changes := strings.Join(f.changed(), " ")
+	if !strings.Contains(changes, "/containers/c-api/stop") || !strings.Contains(changes, "/containers/c-web/stop") {
+		t.Fatalf("stop: %s", changes)
+	}
+	// Every shown container, from the header's box.
+	if err := tt.Click("Select all"); err != nil || len(s.picked) != len(s.containers) {
+		t.Fatalf("select all: %v %v", s.picked, err)
+	}
+	if err := tt.Click("Delete"); err != nil || s.pending == nil {
+		t.Fatalf("delete asked nothing: %v", err)
+	}
+	s.pending.run()
+	changes = strings.Join(f.changed(), " ")
+	if !strings.Contains(changes, "DELETE /containers/c-api?v=0&force=1") || !strings.Contains(changes, "DELETE /containers/c-job?v=0") {
+		t.Fatalf("delete: %s", changes)
+	}
+	if len(s.picked) != 0 {
+		t.Fatalf("deleted containers stayed picked: %v", s.picked)
+	}
+}
+
+// A project's heading opens its own panel, with what its members share.
+func TestComposeProjectOpensItsPanel(t *testing.T) {
+	_, s := newFakeEngine(t)
+	tt := ui.NewTester(s.view, 1180, 760)
+	if err := tt.Click("Details for shop"); err != nil || s.selected[containersPage] != projectKey("shop") {
+		t.Fatalf("selected %q: %v", s.selected[containersPage], err)
+	}
+	if m := has(tt, "Compose services", "api, web", "2.32.1", "2/2 running", "shop_default", "Stop all in shop"); m != "" {
+		t.Fatalf("missing %q in %q", m, tt.Texts())
+	}
+}
+
+// The Config tab reads a project's Compose file where it lives, and Save
+// writes the edit back, keeping the file's permissions.
+func TestComposeFileIsEditedInPlace(t *testing.T) {
+	_, s := newFakeEngine(t)
+	file := filepath.Join(t.TempDir(), "compose.yaml")
+	original := "services:\n  web:\n    image: nginx\n"
+	if err := os.WriteFile(file, []byte(original), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for i := range s.containers {
+		if s.containers[i].Project == "shop" {
+			s.containers[i].ConfigFiles = file
+		}
+	}
+	s.selectRow(projectKey("shop"))
+	s.tab[containersPage+"/project"] = 1
+	tt := ui.NewTester(s.view, 1180, 760)
+	tt.Frame()
+	if !s.compose.loaded || s.compose.text != original || !tt.HasText(file) {
+		t.Fatalf("loaded %v %q, texts %q", s.compose.loaded, s.compose.text, tt.Texts())
+	}
+	s.compose.text += "    restart: always\n"
+	tt.Frame()
+	if err := tt.Click("Save"); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(file)
+	info, _ := os.Stat(file)
+	if err != nil || string(data) != original+"    restart: always\n" || info.Mode().Perm() != 0o600 {
+		t.Fatalf("saved %q (%v), mode %v", data, err, info.Mode().Perm())
+	}
+}
+
+// A narrow window folds the sidebar without touching the saved choice;
+// Command-B then unfolds it only until the window widens again.
+func TestNarrowWindowFoldsTheSidebar(t *testing.T) {
+	_, s := newFakeEngine(t)
+	tt := ui.NewTester(s.view, 900, 700)
+	tt.Frame()
+	if side, found := tt.Find("Images"); !found || side.W > 40 || s.prefs.NavCollapsed {
+		t.Fatalf("narrow window: %v %v, saved %v", side, found, s.prefs.NavCollapsed)
+	}
+	// The table drops its optional columns; the names stay readable.
+	if _, found := tt.Find("Ports"); found || !tt.HasText("shop-api-1") {
+		t.Fatalf("narrow table: %q", tt.Texts())
+	}
+	tt.Key(ui.Cmd, ui.KeyB)
+	if side, _ := tt.Find("Images"); side.W < 150 || s.prefs.NavCollapsed {
+		t.Fatalf("peek: %v, saved %v", side, s.prefs.NavCollapsed)
+	}
+	tt.SetSize(1180, 760)
+	tt.Frame()
+	if side, _ := tt.Find("Images"); side.W < 150 {
+		t.Fatalf("wide window stayed folded: %v", side)
+	}
+}
+
+// At every window width, with the detail panel open or not, the container
+// table's cells stay clear of the row's buttons, the name keeps its room
+// and the toolbar's main action stays in view.
+func TestContainerTableFitsEveryWidth(t *testing.T) {
+	_, s := newFakeEngine(t)
+	for _, sel := range []string{"", "c-api"} {
+		s.selectRow(sel)
+		for w := 860; w <= 1500; w += 20 {
+			s.lists = map[string]*ui.ListState{}
+			tt := ui.NewTester(s.view, w, 760)
+			tt.Frame()
+			name, _ := tt.Find("shop-api-1")
+			restart, found := tt.Find("Restart shop-api-1")
+			if !found || name.W < 60 || name.X+name.W > restart.X {
+				t.Fatalf("width %v, panel %q: name %v, restart %v", w, sel, name, restart)
+			}
+			if cpu, shown := tt.Find("12.0%"); shown && cpu.X+cpu.W > restart.X {
+				t.Fatalf("width %v, panel %q: CPU %v runs into %v", w, sel, cpu, restart)
+			}
+			run, found := tt.Find("Run container")
+			card := float32(w)
+			if sel != "" {
+				card -= s.dockWidth()
+			}
+			if !found || run.X+run.W > card {
+				t.Fatalf("width %v, panel %q: Run container at %v", w, sel, run)
+			}
+		}
+	}
+}
+
+// A line's level is the first marking word in it: a warning that speaks
+// of a failure is a warning.
+func TestLogLinesAreToldApartByLevel(t *testing.T) {
+	for line, want := range map[string]int{
+		"1:M 13 Nov # WARNING Memory overcommit must be enabled! ... may fail under low memory": logWarn,
+		"level=error msg=\"dial tcp: refused\"":                                                 logError,
+		"panic: runtime error: index out of range":                                              logError,
+		"2026-11-14 INFO server started":                                                        logInfo,
+		"[debug] cache hit":                                                                     logDebug,
+		"GET /api/products 200 12ms":                                                            logAny,
+	} {
+		if got := logLevel(line); got != want {
+			t.Errorf("%q: level %d, want %d", line, got, want)
+		}
+	}
+}
+
+// Clearing a stream drops what was read and numbers what follows from one;
+// lines let go to bound the buffer keep the others' numbers.
+func TestClearedLogsNumberFromOne(t *testing.T) {
+	l := &liveLogs{}
+	l.append([]byte("a\nb\n"))
+	l.clear()
+	l.append([]byte("c\n"))
+	if got := l.snapshot(); len(got.lines) != 1 || got.lines[0] != "c" || got.first != 1 {
+		t.Fatalf("after clear: %+v", got)
+	}
+	l.append([]byte(strings.Repeat("x\n", maxLiveLogLines)))
+	if got := l.snapshot(); got.first != 2 || len(got.lines) != maxLiveLogLines {
+		t.Fatalf("bounded: first %d, %d lines", got.first, len(got.lines))
+	}
+}
+
+// The Files tab lists a folder with its folders first, opens folders by
+// their rows and the path's parts, previews a text file, says a binary
+// one cannot be shown, and saves a file to Downloads.
+func TestFilesTabBrowsesPreviewsAndSaves(t *testing.T) {
+	_, s := newFakeEngine(t)
+	t.Setenv("HOME", t.TempDir())
+	s.selectRow("c-api")
+	s.tab[containersPage] = 3
+	tt := ui.NewTester(s.view, 1180, 760)
+	tt.Frame()
+	click(t, tt, "Open app")
+	if m := has(tt, "dist", "node_modules", "package.json", ".env", "server.js", "↪"); m != "" {
+		t.Fatalf("missing %q in %q", m, tt.Texts())
+	}
+	if names := []string{s.detail.files[0].name, s.detail.files[1].name}; names[0] != "dist" || names[1] != "node_modules" {
+		t.Fatalf("folders first: %v", s.detail.files)
+	}
+	click(t, tt, "Open package.json")
+	tt.Frame()
+	if !tt.HasText(`  "name": "shop-api",`) {
+		t.Fatalf("preview: %q", tt.Texts())
+	}
+	click(t, tt, "Save to Downloads")
+	saved, err := os.ReadFile(filepath.Join(os.Getenv("HOME"), "Downloads", "package.json"))
+	if err != nil || string(saved) != fakeFiles["/app/package.json"] {
+		t.Fatalf("saved %q: %v", saved, err)
+	}
+	// The root part of the path goes back to the top.
+	click(t, tt, "Open /")
+	click(t, tt, "Open bin")
+	click(t, tt, "Open sh")
+	tt.Frame()
+	if !tt.HasText("This file is binary or larger than 256 KB; save it to Downloads to open it.") {
+		t.Fatalf("binary: %q", tt.Texts())
 	}
 }
 
@@ -280,6 +597,13 @@ func TestDockShowsTheSelectedContainer(t *testing.T) {
 	if !tt.HasText("server listening on :3000") {
 		t.Fatalf("logs missing: %q", tt.Texts())
 	}
+	// The level picker keeps one level.
+	s.logLevel = logError
+	tt.Frame()
+	if tt.HasText("server listening on :3000") || !tt.HasText("ERROR payment gateway timed out after 5000ms") {
+		t.Fatalf("errors only: %q", tt.Texts())
+	}
+	s.logLevel = logAny
 	if err := tt.Click("Info"); err != nil {
 		t.Fatal(err)
 	}
@@ -312,16 +636,17 @@ func TestSidebarFoldsToIcons(t *testing.T) {
 	_, s := newFakeEngine(t)
 	tt := ui.NewTester(s.view, 1180, 760)
 	side, _ := tt.Find("Images")
-	if m := has(tt, "Docker", "Engine running"); m != "" || side.W < 150 {
+	if m := has(tt, "Engine running"); m != "" || side.W < 150 {
 		t.Fatalf("open sidebar: missing %q, entry %v", m, side)
+	}
+	// The sidebar lists the pages without section titles.
+	if _, found := tt.Find("Docker"); found {
+		t.Fatal("the open sidebar shows a section title")
 	}
 	tt.Key(ui.Cmd, ui.KeyB)
 	side, found := tt.Find("Images")
 	if !found || side.W > 40 || !s.prefs.NavCollapsed {
 		t.Fatalf("folded entry: %v %v", side, found)
-	}
-	if _, found := tt.Find("Docker"); found {
-		t.Fatal("section title stayed in the folded sidebar")
 	}
 	if !tt.HasText("Engine running · 4 CPU") {
 		t.Fatalf("engine state left the window: %q", tt.Texts())
@@ -460,11 +785,13 @@ func TestAppearanceIsChosenInSettings(t *testing.T) {
 	if err := tt.Click("紫色"); err != nil || s.prefs.Accent != "purple" {
 		t.Fatalf("accent: %q %v", s.prefs.Accent, err)
 	}
-	if err := tt.Click("125%"); err != nil || s.prefs.Scale != 1.25 {
-		t.Fatalf("text size: %v %v", s.prefs.Scale, err)
-	}
+	// The log size comes first: at 125% the row below the fold is out of
+	// the window, and the tester does not scroll.
 	if err := tt.Click("大"); err != nil || s.prefs.LogSize != 15 {
 		t.Fatalf("log text: %v %v", s.prefs.LogSize, err)
+	}
+	if err := tt.Click("125%"); err != nil || s.prefs.Scale != 1.25 {
+		t.Fatalf("text size: %v %v", s.prefs.Scale, err)
 	}
 	if p := loadPrefs(s.prefsFile); p.Lang != "zh-Hans" || p.Theme != "dark" || p.Accent != "purple" || p.Scale != 1.25 || p.LogSize != 15 {
 		t.Fatalf("saved: %+v", p)
@@ -661,11 +988,11 @@ func TestUsageAdvance(t *testing.T) {
 
 func TestPrefsRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "desktop.json")
-	if p := loadPrefs(path); p.language("zh-Hans-CN") != "zh-Hans" || p.language("fr") != "fr" || p.Theme != "system" || p.DockHeight != 232 {
+	if p := loadPrefs(path); p.language("zh-Hans-CN") != "zh-Hans" || p.language("fr") != "fr" || p.Theme != "system" || p.DockWidth != 400 {
 		t.Fatalf("defaults: %+v", p)
 	}
-	prefs{Theme: "light", Lang: "en", Density: "cozy", NavCollapsed: true, DockHeight: 300}.save(path)
-	if p := loadPrefs(path); p.Theme != "light" || p.Lang != "en" || !p.NavCollapsed || p.DockHeight != 300 {
+	prefs{Theme: "light", Lang: "en", Density: "cozy", NavCollapsed: true, DockWidth: 500}.save(path)
+	if p := loadPrefs(path); p.Theme != "light" || p.Lang != "en" || !p.NavCollapsed || p.DockWidth != 500 {
 		t.Fatalf("saved: %+v", p)
 	}
 }
@@ -695,6 +1022,23 @@ func TestScreenshots(t *testing.T) {
 		s.launcher = (&fakeLauncher{state: nameState{On: true, HTTPS: true}}).run
 		s.selectRow("c-api")
 		shot("containers-"+theme, s)
+		// A project's panel, and the bar of picked containers.
+		s.selectRow(projectKey("shop"))
+		s.picked["c-api"], s.picked["c-redis"] = true, true
+		shot("containers-project-"+theme, s)
+		s.tab[containersPage+"/project"] = 1
+		shot("containers-project-config-"+theme, s)
+		s.tab[containersPage+"/project"] = 0
+		clear(s.picked)
+		s.selectRow("c-api")
+		// The detail panel's narrower tabs: inspect fields and the
+		// container's own settings.
+		s.filePath["c-api"] = "/app/"
+		for _, tab := range []int{0, 3, 4} {
+			s.tab[containersPage] = tab
+			shot(fmt.Sprintf("containers-tab%d-%s", tab, theme), s)
+		}
+		s.tab[containersPage] = 1
 		s.navigate(overviewPage)
 		s.refresh()
 		shot("overview-"+theme, s)
@@ -714,6 +1058,23 @@ func TestScreenshots(t *testing.T) {
 			shot("settings-"+tab.id+"-"+theme, s)
 		}
 		s.navigate(containersPage)
+		// A small window, with and without the detail panel.
+		for _, sel := range []string{"", "c-api"} {
+			s.selectRow(sel)
+			// A list's state belongs to one view; this tester is another.
+			s.lists = map[string]*ui.ListState{}
+			tt := ui.NewTester(s.view, 900, 700)
+			tt.Frame()
+			file, err := os.Create(filepath.Join(dir, fmt.Sprintf("small%s-%s.png", strings.TrimPrefix(sel, "c"), theme)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := png.Encode(file, tt.Image()); err != nil {
+				t.Fatal(err)
+			}
+			file.Close()
+		}
+		s.lists = map[string]*ui.ListState{}
 		s.prefs.NavCollapsed = true
 		s.selectRow("")
 		shot("collapsed-"+theme, s)
@@ -732,6 +1093,9 @@ func TestServeFakeEngine(t *testing.T) {
 		t.Skip("set KIRI_FAKE_SOCKET to a socket path to serve the fake engine")
 	}
 	f, _ := newFakeEngine(t)
+	f.mu.Lock()
+	f.shell = runtime.GOOS == "darwin"
+	f.mu.Unlock()
 	if err := os.MkdirAll(filepath.Dir(socket), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -742,6 +1106,28 @@ func TestServeFakeEngine(t *testing.T) {
 	}
 	t.Logf("fake engine on %s", socket)
 	_ = http.Serve(listener, f.server.Config.Handler)
+}
+
+// serveShell answers an interactive exec of the preview engine with a real
+// shell on this Mac, run by containerShell inside script(1)'s
+// pseudo-terminal, so that the Terminal tab can be tried by hand. A TTY
+// exec's stream is raw, with no frame headers; the connection closes when
+// the shell ends.
+func (f *fakeEngine) serveShell(conn net.Conn, in io.Reader) {
+	cmd := exec.Command("script", "-q", "/dev/null", "/bin/sh", "-c", containerShell)
+	cmd.Dir, cmd.Env = os.Getenv("HOME"), append(os.Environ(), "TERM=xterm-256color", "BASH_SILENCE_DEPRECATION_WARNING=1")
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = in, conn, conn
+	if err := cmd.Start(); err != nil {
+		conn.Close()
+		return
+	}
+	f.mu.Lock()
+	f.proc = cmd.Process
+	f.mu.Unlock()
+	go func() {
+		_ = cmd.Wait()
+		conn.Close()
+	}()
 }
 
 // Everything that acts on a click shows the pointing hand; a button that is

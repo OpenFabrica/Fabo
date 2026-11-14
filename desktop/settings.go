@@ -115,8 +115,8 @@ func (s *desktop) settingsView(c *ui.Context, p palette) {
 	s.settingsTab = min(max(s.settingsTab, 0), len(settingsTabs)-1)
 	tab := settingsTabs[s.settingsTab]
 	ui.Scroll(c.Key("settings")).Fill().Grow(1).MinHeight(0).Children(func() {
-		ui.Row(c).FillWidth().MaxWidth(860).Padding(14, 28, 28, 10).Gap(20).AlignItems(ui.Start).Children(func() {
-			ui.Column(c.Key("tabs")).Width(160).Shrink(0).Gap(2).Children(func() {
+		ui.Row(c).FillWidth().MaxWidth(940).Padding(4, 28, 32, 16).Gap(32).AlignItems(ui.Start).Children(func() {
+			ui.Column(c.Key("tabs")).Width(168).Shrink(0).Gap(2).Children(func() {
 				for i, t := range settingsTabs {
 					if s.settingsTabButton(c.Key(t.id), p, t.icon, tr(t.zh, t.en), i == s.settingsTab) {
 						s.settingsTab = i
@@ -150,18 +150,18 @@ func (s *desktop) settingsView(c *ui.Context, p palette) {
 
 // settingsTabButton is one section of the settings' left column.
 func (s *desktop) settingsTabButton(c *ui.Context, p palette, icon, label string, on bool) bool {
-	b := clickable(c).Label(label).FillWidth().Height(31).PaddingX(10).Gap(9).Radius(7).AlignItems(ui.Center).Justify(ui.Start)
-	ink, mark := p.muted, p.muted
+	b := clickable(c).Label(label).FillWidth().Height(34).PaddingX(10).Gap(10).Radius(8).AlignItems(ui.Center).Justify(ui.Start)
+	ink, mark, weight := p.sub, p.muted, 400
 	if on {
-		b.Background(p.raised)
-		ink, mark = p.text, p.accent
+		b.Background(p.soft)
+		ink, mark, weight = p.text, p.accent, 500
 	} else if b.Hovered() {
 		b.Background(p.hover)
 		ink = p.text
 	}
 	b.Children(func() {
-		ui.Icon(c, icons[icon]).Size(15, 15).TextColor(mark)
-		ui.Text(c, label).FontSize(13).FontWeight(500).TextColor(ink).SingleLine()
+		ui.Icon(c, icons[icon]).Size(16, 16).TextColor(mark)
+		ui.Text(c, label).FontSize(13).FontWeight(weight).TextColor(ink).SingleLine()
 	})
 	return b.Clicked()
 }
@@ -174,10 +174,10 @@ func heading(c *ui.Context, p palette, title string) {
 // pref is one setting as Fabo lays it out: a bold title over its muted
 // explanation, the control on the right, and a rule beneath.
 func pref(c *ui.Context, p palette, title, hint string, control func()) {
-	ui.Row(c).FillWidth().Padding(0, 0, 18).Gap(24).AlignItems(ui.Center).
+	ui.Row(c).FillWidth().Padding(0, 0, 16).Gap(24).AlignItems(ui.Center).
 		BorderWidth(0, 0, 1, 0).BorderColor(p.line).Children(func() {
 		ui.Column(c).Grow(1).Width(0).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, title).FontSize(13).FontWeight(600).TextColor(p.text)
+			ui.Text(c, title).FontSize(13).FontWeight(500).TextColor(p.text)
 			if hint != "" {
 				ui.Text(c, hint).FontSize(12).LineHeight(1.45).TextColor(p.muted)
 			}
@@ -198,38 +198,10 @@ func value(c *ui.Context, p palette, text string) {
 	ui.Text(c, text).Font(mono).FontSize(12).FontFeatures("tnum").TextColor(p.text).Selectable()
 }
 
-// choice is the segmented control of Settings, drawn as Fabo draws it: one
-// outlined box split by hairlines, the chosen segment filled with the
-// accent. It reports a new choice.
+// choice is a segmented control drawn like the list filters: a soft track
+// whose chosen segment is a raised chip. It reports a new choice.
 func choice(c *ui.Context, p palette, label string, selected *int, labels ...string) bool {
-	parts := ui.SegmentedBase(c, selected, len(labels))
-	track := parts.Track.Label(label).Height(30).Shrink(0).AlignItems(ui.Stretch).Radius(8).Background(p.panel).Border(1, p.line)
-	track.Children(func() {
-		for i, text := range labels {
-			seg := parts.Segment(i).PaddingX(13).Center().Cursor(ui.CursorPointer)
-			// The outer corners follow the box; the inner ones stay square
-			// so neighbours meet on the hairline between them.
-			switch i {
-			case 0:
-				seg.Radius(7, 0, 0, 7)
-			case len(labels) - 1:
-				seg.Radius(0, 7, 7, 0)
-			}
-			if i > 0 {
-				seg.BorderWidth(0, 0, 0, 1).BorderColor(p.line)
-			}
-			ink, weight := p.text, 500
-			switch {
-			case i == *selected:
-				seg.Background(p.accent).BorderColor(p.accent)
-				ink, weight = p.onAccent, 600
-			case seg.Hovered():
-				seg.Background(p.hover)
-			}
-			seg.Children(func() { ui.Text(c, text).FontSize(12.5).FontWeight(weight).TextColor(ink).SingleLine() })
-		}
-	})
-	return track.Changed()
+	return filters(c, p, label, selected, labels, nil)
 }
 
 // pick is a drop-down over options showing current; it returns the option

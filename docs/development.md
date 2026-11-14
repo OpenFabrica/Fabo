@@ -53,6 +53,16 @@ SOAK=600 DOCKER_CONTEXT=kiri-dev tests/e2e.sh  # every check, then 600 runs watc
 "target/dev/Fabo Dev.app/Contents/MacOS/fabo" setup --uninstall   # takes the setup back
 ```
 
+The desktop's containers page can be checked against a running engine,
+as a person would use it: listing, logs, files, terminal, a Compose
+project's panel, and, for the project named, Save and apply and a stop
+and start of all its containers. Without `FABO_LIVE_PROJECT` it only reads.
+
+```sh
+FABO_LIVE_SOCKET=~/.kiri-dev/run/docker.sock FABO_LIVE_PROJECT=demo \
+  KIRI_SHOTS=/tmp/shots go -C desktop test -run TestLiveEngine -v -timeout 10m .
+```
+
 Opening the app from Finder sets the Mac up the first time, as `fabo setup`
 does: a docker context for the installation, `fabo` and `docker` in its bin
 directory, a LaunchAgent that starts the engine at login, and a buildx

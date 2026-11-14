@@ -28,11 +28,15 @@ type attachment struct{ Network, IP string }
 // container is one row of the containers page, from /containers/json.
 type container struct {
 	ID, Name, Image, ImageID, State, Project, Command string
-	Created, Started, Finished                        int64
-	ExitCode                                          int
-	Ports                                             []portMap
-	Mounts                                            []mount
-	Networks                                          []attachment
+	// These come from Compose's labels: the service the container runs,
+	// where its project was brought up and from which files, and the
+	// version of Compose that did it.
+	Service, WorkDir, ConfigFiles, EnvFile, ComposeVersion string
+	Created, Started, Finished                             int64
+	ExitCode                                               int
+	Ports                                                  []portMap
+	Mounts                                                 []mount
+	Networks                                               []attachment
 }
 
 // bucket sorts a container into the filter it belongs to.
@@ -271,7 +275,10 @@ func (e engineClient) containers(ctx context.Context) ([]container, error) {
 	rows := make([]container, 0, len(items))
 	for _, item := range items {
 		c := container{ID: item.ID, Name: item.ID, Image: item.Image, ImageID: item.ImageID, State: item.State,
-			Command: item.Command, Created: item.Created, Project: item.Labels["com.docker.compose.project"], Mounts: item.Mounts}
+			Command: item.Command, Created: item.Created, Project: item.Labels["com.docker.compose.project"], Mounts: item.Mounts,
+			Service: item.Labels["com.docker.compose.service"], WorkDir: item.Labels["com.docker.compose.project.working_dir"],
+			ConfigFiles: item.Labels["com.docker.compose.project.config_files"], EnvFile: item.Labels["com.docker.compose.project.environment_file"],
+			ComposeVersion: item.Labels["com.docker.compose.version"]}
 		if len(item.Names) > 0 {
 			c.Name = strings.TrimPrefix(item.Names[0], "/")
 		}

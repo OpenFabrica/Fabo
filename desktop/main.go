@@ -94,9 +94,10 @@ type detail struct {
 	key      string
 	fields   []field
 	layers   []layer
-	files    []string
+	files    []fileEntry
 	filesFor string
 	filesErr string
+	preview  filePreview
 }
 
 type desktop struct {
@@ -136,16 +137,28 @@ type desktop struct {
 	now        int64
 
 	// What the window shows.
-	selected       map[string]string
-	tab            map[string]int
-	filter         map[string]int
-	collapsed      map[string]bool
-	lists          map[string]*ui.ListState
-	visible        []string
-	dockMax        bool
+	selected  map[string]string
+	tab       map[string]int
+	filter    map[string]int
+	collapsed map[string]bool
+	// picked holds the IDs of the containers ticked for a bulk action.
+	picked map[string]bool
+	// compose is the Compose file open in a project's Config tab.
+	compose composeEditor
+	// width is the window's width in layout units, as of the last frame;
+	// navPeek unfolds the sidebar while a narrow window folds it.
+	width   float32
+	navPeek bool
+	lists   map[string]*ui.ListState
+	visible []string
+	dockMax bool
+	// detailPanel builds the selected row's panel; the page registers it
+	// while it builds and the view places it beside the page.
+	detailPanel    func()
 	detail         detail
 	filePath       map[string]string
 	logFilter      string
+	logLevel       int
 	follow         bool
 	pending        *confirmation
 	form           form
@@ -190,7 +203,7 @@ func newDesktop(engine engineClient) *desktop {
 		prefs: defaultPrefs(), credentials: newRegistryStore(), terminals: map[string]*terminalSession{},
 		usage: map[string]*usage{}, scans: map[string]*scanResult{}, scanning: map[string]float64{},
 		selected: map[string]string{}, tab: map[string]int{containersPage: 1}, filter: map[string]int{},
-		collapsed: map[string]bool{}, lists: map[string]*ui.ListState{},
+		collapsed: map[string]bool{}, picked: map[string]bool{}, lists: map[string]*ui.ListState{},
 		filePath: map[string]string{}, working: map[string]bool{}, now: time.Now().Unix(),
 	}
 }
@@ -236,7 +249,7 @@ func main() {
 			Title: "Fabo", Width: 1180, Height: 760, MinWidth: 860, MinHeight: 520,
 			TitleBarStyle: mygo.TitleBarHidden, TitleBarHeight: stripHeight,
 			TrafficLightPosition: &mygo.Point{X: 14, Y: 13},
-			BackgroundColor:      "light-dark(#F3F4F6, #0D1014)", StateKey: "main",
+			BackgroundColor:      "light-dark(#F4F6F9, #0E1115)", StateKey: "main",
 			Content: ui.View(s.view),
 		})
 		s.installTray()

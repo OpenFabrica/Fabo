@@ -13,31 +13,54 @@ onboarding and Kubernetes forwards. Continuous terminals, live logs, container
 settings, registry logins and Kubernetes browsing are now provided by MyGo;
 see [Advanced desktop operations](desktop-advanced.md).
 
-The window is a title strip, a sidebar, the page, and a status line.
+The window is a light grey shell holding the title strip and the sidebar, with the page on a white rounded card beside them.
 
 - **Appearance.** Dark and light palettes share one layout. The window
   follows the system or the choice in Settings, which also picks the
-  language (the system's, one of 15 supported languages), one of five accents (blue `#0D6EFD` by default), the
+  language (the system's, one of 15 supported languages), one of five accents (indigo `#3B5BDB` by default), the
   interface and monospace fonts, the text size of the whole window, the log
   text size and the row density. These preferences live in `desktop.json` in
   the installation's state directory, so each flavor keeps its own.
 - **Sidebar.** Open, it names each page with its count and carries the
-  engine card: state, memory in use, CPU load, and the switch that starts
+  engine card: state, version, memory in use, and the switch that starts
   or stops the VM. Folded (Command/Ctrl+B, or the button beside the window
   buttons) it shows icons only, and the engine's state moves to the title
-  strip. Kubernetes opens Pods and Services. USB devices and Share still open
-  placeholder pages. Terminal opens independent host shell sessions.
-- **Lists.** Every page is a table over a dock. Command/Ctrl+K focuses the
-  search field of the title strip, which filters the page's table. Up and
+  strip. A window narrower than 1040 points folds it on its own; unfolding
+  it there lasts until the window widens, without changing the saved choice. Kubernetes is a group of its own: its heading shows the cluster's
+  state and opens its settings, and Pods and Services open their lists.
+  USB devices and Share are not built yet and stay out of the sidebar.
+- **Title strip.** On the right sit the search field of the page's table
+  (Command/Ctrl+K focuses it), then Terminal and Settings.
+- **Lists.** Every page is a table with a detail panel, under the page's
+  title on its card. The search field filters the page's table. Filters sit in a segmented row above the table. Up and
   Down move the selection and Escape closes the dock. Only visible rows are
   built. Removal always asks first.
-- **Dock.** Selecting a row opens its detail under the table. The top edge
-  drags to resize it, and it can take the whole page.
-- **Containers.** Compose members sit under their project's heading, which
-  folds and starts, restarts or stops all of them. Rows show state, the
-  first published port, CPU, memory and age. The dock has Info (from
-  inspect), Logs (a live subscription starting with the last 5,000 lines, with a filter
-  and a follow-scroll switch), Terminal, Files and Settings. The Settings tab edits
+- **Dock.** Selecting a row opens its detail panel to the right of the
+  table, at most half of the page. A table that is narrow, beside the panel
+  or in a small window, leaves out its secondary columns, and a very narrow
+  one its state columns as well. The left edge drags to
+  resize it, and it can take the whole page.
+- **Containers.** Each row leads with a tile showing the image's brand logo
+  (Kiri's Simple Icons table, generated into `desktop/brands.go` by
+  `scripts/desktop-brands.py`), the name and the image. Compose members hang
+  under their project's heading by a tree line; the heading folds, starts,
+  restarts or stops all of them, and opens the project's panel: state,
+  services, Compose version, directory, config and environment files,
+  networks, volumes and ports; a Config tab that edits the Compose file in
+  place (Save, or Save and apply, which runs Compose's `up -d` with
+  `DOCKER_HOST` set to the window's engine, through the Compose plugin
+  itself when it is found, so no docker context is needed); and the members. Checkboxes pick containers, a
+  project's box its members; while any are picked the filters give way to
+  start, stop and delete for all of them. Rows show state, the first
+  published port, CPU, memory and age. The dock has Info (from
+  inspect), Logs (a live subscription starting with the last 5,000 lines,
+  numbered on a dark ground, warnings, errors and debug lines in their own
+  colors; under the tabs a bar finds text, keeps one level, follows the end
+  and clears what was read), Terminal, Files and Settings. Files lists a
+  folder through the container (folders first, with size, age and link
+  marks), opens folders by their rows or the path's parts, previews text
+  files up to 256 KB and saves any file to Downloads through the archive
+  endpoint. The Settings tab edits
   the environment
   (with a confirmed restart) and live TCP/UDP port bindings while retaining
   the existing container and its data.
