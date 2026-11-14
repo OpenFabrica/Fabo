@@ -774,6 +774,9 @@ func (s *desktop) aboutPane(c *ui.Context, p palette) {
 	engine, vm := tr("未运行", "Not running"), ""
 	if s.connected {
 		engine = "Fabo " + s.version.Version + " · Docker API " + s.version.ApiVersion
+		if p := s.version.FaboGuestProtocol; p != "" {
+			engine += " · " + tr("协议", "protocol") + " " + p
+		}
 		switch s.engineState() {
 		case "running":
 			vm = tr("运行中", "Running")

@@ -15,8 +15,8 @@ func TestHelloMatchesRustWireLayout(t *testing.T) {
 	if err := WriteFrame(&buf, hello.Frame()); err != nil {
 		t.Fatal(err)
 	}
-	// The layout is the Rust guest's; the version field (bytes 6-7) is 5
-	// since Settled was added.
+	// The layout is the Rust guest's; the version field (bytes 6-7) holds
+	// protocol 0.5 (major in the high byte), 05 00 on the wire.
 	const want = "24000000010005000100000000000000020000000000000003000000000000000400000000000000"
 	if got := hex.EncodeToString(buf.Bytes()); got != want {
 		t.Fatalf("hello encoding %s, want %s", got, want)
@@ -62,15 +62,15 @@ func TestReadHelloRejectsOldVersion(t *testing.T) {
 	}
 }
 
-// A guest of protocol 4 knows no Settled event, which this host requires
+// A guest of protocol 0.4 knows no Settled event, which this host requires
 // before exec: it is refused at Hello instead of accepted and waited on.
-func TestHelloRefusesProtocol4(t *testing.T) {
+func TestHelloRefusesProtocol04(t *testing.T) {
 	var buf bytes.Buffer
 	if err := WriteFrame(&buf, Hello{Version: 4}.Frame()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ReadHello(&buf); err == nil || !strings.Contains(err.Error(), "guest protocol 4, expected 5") {
-		t.Fatalf("protocol 4 guest: %v", err)
+	if _, err := ReadHello(&buf); err == nil || !strings.Contains(err.Error(), "guest protocol 0.4, expected 0.5") {
+		t.Fatalf("protocol 0.4 guest: %v", err)
 	}
 	buf.Reset()
 	if err := WriteFrame(&buf, Hello{Version: Version}.Frame()); err != nil {
@@ -78,5 +78,14 @@ func TestHelloRefusesProtocol4(t *testing.T) {
 	}
 	if _, err := ReadHello(&buf); err != nil {
 		t.Fatalf("current guest refused: %v", err)
+	}
+}
+
+// Versions read as major.minor, the major in the high byte.
+func TestProtocolString(t *testing.T) {
+	for version, want := range map[uint16]string{4: "0.4", Version: "0.5", 1<<8 | 2: "1.2"} {
+		if got := ProtocolString(version); got != want {
+			t.Fatalf("ProtocolString(%d) = %q, want %q", version, got, want)
+		}
 	}
 }

@@ -12,14 +12,29 @@ import (
 )
 
 const (
-	Port = 1024
-	// Version 5 adds SettledMessage, which the host requires before exec
-	// into a container started early: a peer of another version is refused
-	// at Hello rather than left waiting for an event it never sends.
-	Version    = 5
+	Port       = 1024
 	MaxFrame   = 1 << 20
 	headerSize = 6
 )
+
+// The host-guest protocol version is major.minor, sent at Hello as one
+// 16-bit field: the major in the high byte, the minor in the low one. The
+// field is unchanged from the plain integers before, which read as 0.x:
+// 4 is 0.4. Peers must match exactly.
+//
+// 0.5 adds SettledMessage, which the host requires before exec into a
+// container started early: a peer of another version is refused at Hello
+// rather than left waiting for an event it never sends.
+const (
+	ProtocolMajor = 0
+	ProtocolMinor = 5
+	Version       = ProtocolMajor<<8 | ProtocolMinor
+)
+
+// ProtocolString spells a Hello version field as major.minor, as "0.5".
+func ProtocolString(version uint16) string {
+	return fmt.Sprintf("%d.%d", version>>8, version&0xff)
+}
 
 type Kind uint16
 
@@ -130,7 +145,7 @@ func ReadHello(r io.Reader) (Hello, error) {
 		len(b) == 35 && b[34]&1 != 0,
 	}
 	if h.Version != Version {
-		return Hello{}, fmt.Errorf("guest protocol %d, expected %d", h.Version, Version)
+		return Hello{}, fmt.Errorf("guest protocol %s, expected %s", ProtocolString(h.Version), ProtocolString(Version))
 	}
 	return h, nil
 }

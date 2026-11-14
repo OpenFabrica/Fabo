@@ -176,7 +176,9 @@ type nameState struct {
 	HTTPS  bool   `json:"https"`
 }
 
-type versionInfo struct{ Version, ApiVersion, Os, Arch, GoVersion string }
+// versionInfo is the engine's /version answer; FaboGuestProtocol is the
+// host-guest protocol it speaks, as "0.5".
+type versionInfo struct{ Version, ApiVersion, Os, Arch, GoVersion, FaboGuestProtocol string }
 
 // diskUsage sums /system/df; volumes holds each volume's size by name.
 type diskUsage struct {

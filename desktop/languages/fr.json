@@ -132,6 +132,7 @@
   "Driver": "Pilote",
   "Empty directory": "Dossier vide",
   "Engine": "Moteur",
+  "protocol": "protocole",
   "Engine asleep": "Moteur en veille",
   "Engine running": "Moteur en marche",
   "Engine started": "Moteur démarré",

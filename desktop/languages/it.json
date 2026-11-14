@@ -132,6 +132,7 @@
   "Driver": "Driver",
   "Empty directory": "Cartella vuota",
   "Engine": "Motore",
+  "protocol": "protocollo",
   "Engine asleep": "Motore in sospensione",
   "Engine running": "Motore in esecuzione",
   "Engine started": "Motore avviato",

@@ -132,6 +132,7 @@
   "Driver": "Sterownik",
   "Empty directory": "Pusty katalog",
   "Engine": "Silnik",
+  "protocol": "protokół",
   "Engine asleep": "Silnik uśpiony",
   "Engine running": "Silnik działa",
   "Engine started": "Silnik uruchomiony",

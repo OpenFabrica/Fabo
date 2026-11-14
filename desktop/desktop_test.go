@@ -270,7 +270,7 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 		case path == "/fabo/proxy":
 			fmt.Fprint(w, `{"settings":{"mode":"system","http":"","https":"","no_proxy":"","containers":false},"effective":{"http":"http://127.0.0.1:7890","https":"http://127.0.0.1:7890","no_proxy":["localhost","*.internal"],"pac":false}}`)
 		case path == "/version":
-			fmt.Fprint(w, `{"Version":"0.4.0","ApiVersion":"1.47","Os":"linux","Arch":"arm64","GoVersion":"go1.27.3"}`)
+			fmt.Fprint(w, `{"Version":"0.4.0","ApiVersion":"1.47","Os":"linux","Arch":"arm64","GoVersion":"go1.27.3","FaboGuestProtocol":"0.5"}`)
 		default:
 			fmt.Fprint(w, `{}`)
 		}

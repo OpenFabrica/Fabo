@@ -132,6 +132,7 @@
   "Driver": "Драйвер",
   "Empty directory": "Пустой каталог",
   "Engine": "Движок",
+  "protocol": "протокол",
   "Engine asleep": "Движок спит",
   "Engine running": "Движок работает",
   "Engine started": "Движок запущен",

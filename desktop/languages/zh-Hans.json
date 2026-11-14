@@ -132,6 +132,7 @@
   "Driver": "驱动",
   "Empty directory": "空目录",
   "Engine": "引擎",
+  "protocol": "协议",
   "Engine asleep": "引擎休眠中",
   "Engine running": "引擎运行中",
   "Engine started": "引擎已启动",

@@ -123,7 +123,7 @@ MyGo window ┘
   and nftables directly. No runc, no shim, no dockerd.
 - **Images**: pulled and pushed by the daemon, streamed into the guest once
   and unpacked there.
-- **Protocol**: Fabo's host ↔ guest protocol, version 5
+- **Protocol**: Fabo's host ↔ guest protocol, version 0.5
   (`engine/internal/guestwire`).
 
 ## Layout

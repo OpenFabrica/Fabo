@@ -132,6 +132,7 @@
   "Driver": "드라이버",
   "Empty directory": "빈 디렉터리",
   "Engine": "엔진",
+  "protocol": "프로토콜",
   "Engine asleep": "엔진 절전 중",
   "Engine running": "엔진 실행 중",
   "Engine started": "엔진 시작됨",

@@ -132,6 +132,7 @@
   "Driver": "Sürücü",
   "Empty directory": "Boş dizin",
   "Engine": "Motor",
+  "protocol": "protokol",
   "Engine asleep": "Motor uykuda",
   "Engine running": "Motor çalışıyor",
   "Engine started": "Motor başlatıldı",

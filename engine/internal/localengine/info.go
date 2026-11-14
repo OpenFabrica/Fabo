@@ -31,7 +31,7 @@ func (e *Engine) WriteInfo(w http.ResponseWriter, awake, stopped bool) {
 	}
 	e.mu.Unlock()
 	result := map[string]any{
-		"ID": "fabo", "Name": "fabo", "ServerVersion": e.version(), "FaboEngine": "go",
+		"ID": "fabo", "Name": "fabo", "ServerVersion": e.version(), "FaboEngine": "go", "FaboGuestProtocol": guestProtocol,
 		"Containers": total, "ContainersRunning": running, "ContainersPaused": paused, "ContainersStopped": total - running - paused, "Images": images,
 		"Driver": "overlayfs", "OperatingSystem": "Fabo", "OSType": "linux", "Architecture": runtime.GOARCH,
 		"CgroupDriver": "cgroupfs", "CgroupVersion": "2", "Warnings": []string{},

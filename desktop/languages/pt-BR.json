@@ -132,6 +132,7 @@
   "Driver": "Driver",
   "Empty directory": "Diretório vazio",
   "Engine": "Engine",
+  "protocol": "protocolo",
   "Engine asleep": "Mecanismo em repouso",
   "Engine running": "Engine rodando",
   "Engine started": "Mecanismo iniciado",

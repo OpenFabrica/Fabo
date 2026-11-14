@@ -132,6 +132,7 @@
   "Driver": "Treiber",
   "Empty directory": "Leeres Verzeichnis",
   "Engine": "Engine",
+  "protocol": "Protokoll",
   "Engine asleep": "Engine im Ruhezustand",
   "Engine running": "Engine läuft",
   "Engine started": "Engine gestartet",

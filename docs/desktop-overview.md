@@ -357,8 +357,13 @@ flowchart LR
 
 ## Go engine migration
 
-`engine/internal/guestwire` implements the version 5 framing and the
-Hello/Ping/Pong and resource-statistics exchanges. `fabo-guest-check` listens
+`engine/internal/guestwire` implements the version 0.5 framing and the
+Hello/Ping/Pong and resource-statistics exchanges. The version is
+major.minor, carried at Hello as one 16-bit field with the major in the high
+byte, so the earlier plain 4 reads as 0.4. Host and guest must match
+exactly; a mismatch is refused at Hello. The engine reports the protocol as
+`FaboGuestProtocol` in `/version` and `/info`, as the `fabo-init` component
+that `docker version` lists, and on the engine row of Settings → About. `fabo-guest-check` listens
 on a private test agent directory and reports the hello and stats as JSON.
 The daemon serves the Docker API and manages the Go guest. The guest
 executes containers and reports their state over this protocol.

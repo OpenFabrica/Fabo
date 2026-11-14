@@ -132,6 +132,7 @@
   "Driver": "ドライバ",
   "Empty directory": "空のディレクトリ",
   "Engine": "エンジン",
+  "protocol": "プロトコル",
   "Engine asleep": "エンジンはスリープ中",
   "Engine running": "エンジン実行中",
   "Engine started": "エンジンを起動しました",
