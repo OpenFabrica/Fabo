@@ -576,5 +576,11 @@
   "Everything is in %s.": "Semuanya sudah ada di %s.",
   " and ": " dan ",
   "Bring all my %s images to %s": "Pindahkan semua image %s saya ke %s",
-  "%d containers": "%d kontainer"
+  "%d containers": "%d kontainer",
+  "The engine still runs %s,": "Engine masih menjalankan %s,",
+  "not %s %s. Restarting it stops running containers; those with a restart policy start again.": "bukan %s %s. Memulai ulang akan menghentikan kontainer yang berjalan; yang memiliki kebijakan mulai ulang akan berjalan lagi.",
+  "Restart engine": "Mulai ulang engine",
+  "Later": "Nanti",
+  "Engine restarted": "Engine dimulai ulang",
+  "%s %s is installed; restart the engine to run it": "%s %s sudah terpasang; mulai ulang engine untuk menjalankannya"
 }

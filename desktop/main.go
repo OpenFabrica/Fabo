@@ -182,6 +182,9 @@ type desktop struct {
 	form        form
 	notices     []string
 	working     map[string]bool
+	// staleLater hides the strip asking to restart an engine of another
+	// version, until the window is opened again.
+	staleLater  bool
 	refreshing  bool
 	settingsTab int
 	settingsFor string
@@ -230,6 +233,11 @@ func newDesktop(engine engineClient) *desktop {
 		machineTabs: map[string][]string{}, machineActive: map[string]string{},
 	}
 }
+
+// release is this window's version, stamped from the git tag by
+// scripts/macos-app.sh like the launcher's and the engine's. A plain
+// `go build` or `go run` keeps the default, which compares with nothing.
+var release = "0.0.0-dev"
 
 func main() {
 	initial := flag.String("view", containersPage, "initial page")

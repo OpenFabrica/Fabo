@@ -576,5 +576,11 @@
   "Everything is in %s.": "Her şey %s içinde.",
   " and ": " ve ",
   "Bring all my %s images to %s": "Tüm %s görüntülerimi %s uygulamasına getir",
-  "%d containers": "%d kapsayıcı"
+  "%d containers": "%d kapsayıcı",
+  "The engine still runs %s,": "Motor hâlâ %s sürümünü çalıştırıyor,",
+  "not %s %s. Restarting it stops running containers; those with a restart policy start again.": "%s %s değil. Yeniden başlatmak çalışan kapsayıcıları durdurur; yeniden başlatma ilkesi olanlar tekrar başlar.",
+  "Restart engine": "Motoru yeniden başlat",
+  "Later": "Daha sonra",
+  "Engine restarted": "Motor yeniden başlatıldı",
+  "%s %s is installed; restart the engine to run it": "%s %s yüklü; kullanmak için motoru yeniden başlatın"
 }

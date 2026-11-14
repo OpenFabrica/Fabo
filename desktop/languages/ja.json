@@ -576,5 +576,11 @@
   "Everything is in %s.": "すべて %s にあります。",
   " and ": "と",
   "Bring all my %s images to %s": "%s のイメージをすべて %s に移す",
-  "%d containers": "%d 個のコンテナ"
+  "%d containers": "%d 個のコンテナ",
+  "The engine still runs %s,": "エンジンはまだ %s で動作しています。",
+  "not %s %s. Restarting it stops running containers; those with a restart policy start again.": "%s %s ではありません。再起動すると実行中のコンテナは停止し、再起動ポリシーのあるものは再び起動します。",
+  "Restart engine": "エンジンを再起動",
+  "Later": "後で",
+  "Engine restarted": "エンジンを再起動しました",
+  "%s %s is installed; restart the engine to run it": "%s %s がインストール済みです。エンジンを再起動すると反映されます"
 }

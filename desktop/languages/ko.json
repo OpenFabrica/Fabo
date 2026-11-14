@@ -576,5 +576,11 @@
   "Everything is in %s.": "모두 %s에 있습니다.",
   " and ": " 및 ",
   "Bring all my %s images to %s": "%s의 모든 이미지를 %s(으)로 가져오기",
-  "%d containers": "컨테이너 %d개"
+  "%d containers": "컨테이너 %d개",
+  "The engine still runs %s,": "엔진이 아직 %s(으)로 실행 중이며,",
+  "not %s %s. Restarting it stops running containers; those with a restart policy start again.": "%s %s이(가) 아닙니다. 다시 시작하면 실행 중인 컨테이너가 중지되고, 재시작 정책이 있는 컨테이너는 다시 시작됩니다.",
+  "Restart engine": "엔진 다시 시작",
+  "Later": "나중에",
+  "Engine restarted": "엔진 다시 시작됨",
+  "%s %s is installed; restart the engine to run it": "%s %s이(가) 설치되었습니다. 엔진을 다시 시작하면 적용됩니다"
 }

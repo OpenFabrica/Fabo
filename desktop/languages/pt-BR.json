@@ -576,5 +576,11 @@
   "Everything is in %s.": "Tudo já está no %s.",
   " and ": " e ",
   "Bring all my %s images to %s": "Trazer todas as minhas imagens do %s para o %s",
-  "%d containers": "%d contêineres"
+  "%d containers": "%d contêineres",
+  "The engine still runs %s,": "O engine ainda executa %s,",
+  "not %s %s. Restarting it stops running containers; those with a restart policy start again.": "não %s %s. Reiniciá-lo para os contêineres em execução; os que têm política de reinício voltam a iniciar.",
+  "Restart engine": "Reiniciar engine",
+  "Later": "Mais tarde",
+  "Engine restarted": "Engine reiniciado",
+  "%s %s is installed; restart the engine to run it": "%s %s está instalado; reinicie o engine para usá-lo"
 }

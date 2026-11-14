@@ -576,5 +576,11 @@
   "Everything is in %s.": "全部都已在 %s 中。",
   " and ": "和",
   "Bring all my %s images to %s": "把我在 %s 的全部镜像带到 %s",
-  "%d containers": "%d 个容器"
+  "%d containers": "%d 个容器",
+  "The engine still runs %s,": "引擎仍在运行 %s，",
+  "not %s %s. Restarting it stops running containers; those with a restart policy start again.": "不是 %s %s。重启后，运行中的容器会停止，配了重启策略的会自动拉起。",
+  "Restart engine": "重启引擎",
+  "Later": "稍后",
+  "Engine restarted": "引擎已重启",
+  "%s %s is installed; restart the engine to run it": "已安装 %s %s，重启引擎后生效"
 }

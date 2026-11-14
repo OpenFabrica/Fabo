@@ -33,6 +33,9 @@ func (i installation) runDocker(args []string) error {
 	}
 	client := socketClient(i.socket())
 	running := alive(client)
+	if running {
+		warnStaleEngine(client)
+	}
 	client.CloseIdleConnections()
 	if !running {
 		return errors.New("Fabo isn't running. Open Fabo, or start it with `fabo daemon`")

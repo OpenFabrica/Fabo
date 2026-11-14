@@ -42,7 +42,7 @@ mkdir -p "$macos" "$res/guest" "$res/bin/cli-plugins" "$cache"
 # DWARF, about a third of each binary; panics still name functions and lines.
 export GOOS=darwin GOARCH=$goarch
 CGO_ENABLED=0 go -C engine build -trimpath -ldflags "-s -w -X main.release=$version" -o "$root/$macos/fabo" ./cmd/fabo
-CGO_ENABLED=0 go -C desktop build -trimpath -ldflags "-s -w" -o "$root/$macos/fabo-desktop" .
+CGO_ENABLED=0 go -C desktop build -trimpath -ldflags "-s -w -X main.release=$version" -o "$root/$macos/fabo-desktop" .
 CGO_ENABLED=1 CC="clang -arch $arch" MACOSX_DEPLOYMENT_TARGET=14.0 \
   go -C engine build -trimpath -ldflags "-s -w -X main.engineRelease=$version" -o "$root/$macos/fabo-daemon" ./cmd/fabo-daemon
 unset GOOS GOARCH

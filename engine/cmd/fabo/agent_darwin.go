@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -102,4 +103,34 @@ func (s *setup) kickstart() error {
 // agentLoaded reports whether launchd has the agent, running or not.
 func (s *setup) agentLoaded() bool {
 	return exec.Command(launchctl, "print", domain()+"/"+s.in.names.agent).Run() == nil
+}
+
+// restartEngine restarts this installation's engine on the app installed
+// now, as Kiri's Restart engine does: the workloads stop gracefully first,
+// then launchd restarts the agent, and this waits for the new engine.
+// Running containers stop; those with a restart policy start again.
+func (i installation) restartEngine() error {
+	s := newSetup(i)
+	if !s.agentLoaded() || !s.agentRunsThis() {
+		return errors.New("this installation's engine isn't run by its LaunchAgent: quit what started it, then open Fabo again")
+	}
+	socket := i.socket()
+	client := socketClient(socket)
+	running := alive(client)
+	client.CloseIdleConnections()
+	if running {
+		if err := sleepEngine(socket); err != nil {
+			return fmt.Errorf("stop the workloads: %w", err)
+		}
+	}
+	if err := exec.Command(launchctl, "kickstart", "-k", domain()+"/"+i.names.agent).Run(); err != nil {
+		return fmt.Errorf("launchctl kickstart: %w", err)
+	}
+	// Let the old engine go first, so a development build, which cannot
+	// tell the two apart by version, does not take the old one for the new.
+	for deadline := time.Now().Add(20 * time.Second); running && time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		running = alive(client)
+		client.CloseIdleConnections()
+	}
+	return waitForRelease(socket, time.Minute)
 }

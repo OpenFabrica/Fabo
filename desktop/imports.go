@@ -682,6 +682,20 @@ func (s *desktop) importFoot(c *ui.Context, p palette, name string, busy bool) {
 	})
 }
 
+// stripBar is the thin bar under the lists: an icon, a bold lead and the
+// rest of a sentence, then the buttons build adds.
+func stripBar(c *ui.Context, p palette, key, icon string, ink, tint ui.Color, bold, rest string, build func()) {
+	ui.Row(c.Key(key)).FillWidth().Height(30).Shrink(0).Padding(0, 8, 0, 18).Gap(10).AlignItems(ui.Center).
+		BorderWidth(1, 0, 0, 0).BorderColor(p.line).Background(tint).Children(func() {
+		ui.Icon(c, icons[icon]).Size(14, 14).TextColor(ink).Shrink(0)
+		ui.Row(c).Grow(1).Width(0).MinWidth(0).Gap(4).AlignItems(ui.Center).Clip().Children(func() {
+			ui.Text(c, bold).FontSize(12).FontWeight(600).TextColor(p.text).SingleLine().Shrink(0)
+			ui.Text(c, rest).FontSize(12).TextColor(p.muted).SingleLine().MinWidth(0)
+		})
+		build()
+	})
+}
+
 // stripButton is the small button of the strip under the lists.
 func stripButton(c *ui.Context, p palette, title string) bool {
 	b := clickable(c).Label(title).Height(22).PaddingX(9).Radius(6).Shrink(0).AlignItems(ui.Center)
@@ -703,15 +717,7 @@ func (s *desktop) importStrip(c *ui.Context, p palette) {
 		return
 	}
 	bar := func(key, icon string, ink, tint ui.Color, bold, rest string, build func()) {
-		ui.Row(c.Key(key)).FillWidth().Height(30).Shrink(0).Padding(0, 8, 0, 18).Gap(10).AlignItems(ui.Center).
-			BorderWidth(1, 0, 0, 0).BorderColor(p.line).Background(tint).Children(func() {
-			ui.Icon(c, icons[icon]).Size(14, 14).TextColor(ink).Shrink(0)
-			ui.Row(c).Grow(1).Width(0).MinWidth(0).Gap(4).AlignItems(ui.Center).Clip().Children(func() {
-				ui.Text(c, bold).FontSize(12).FontWeight(600).TextColor(p.text).SingleLine().Shrink(0)
-				ui.Text(c, rest).FontSize(12).TextColor(p.muted).SingleLine().MinWidth(0)
-			})
-			build()
-		})
+		stripBar(c, p, key, icon, ink, tint, bold, rest, build)
 	}
 	if s.dockerElsewhere() && (s.page == containersPage || s.page == imagesPage) && time.Now().Unix() >= s.prefs.CtxSnooze {
 		engine := contextLabel(s.imp.ctx.Current)

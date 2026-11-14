@@ -15,6 +15,9 @@
 | `fabo usb fake serial\|mouse [OPTIONS]` | 无硬件 USB 端到端测试 | 与物理设备共用 USB/IP；支持 `--location`、`--stall-once`、`--unplug-after`、`--reports` |
 | `fabo bench [--runs N] [--image IMAGE] [--network none\|bridge] [--only fabo\|orbstack\|docker]` | 容器创建至删除的延迟 | 默认 50 次，另有 5 次预热；输出 p50、p99、均值，分别测 API 和 CLI |
 | `fabo raw pull IMAGE`、`images`、`rmi IMAGE...`、`run [OPTIONS] IMAGE [COMMAND...]` | 绕过 Docker API 使用独立 guest | 当前实例的 `raw/` 目录，独占锁；不连接 daemon、不恢复其容器 |
+| `fabo engine restart` | 让引擎换成当前安装的版本 | 替换 app 不会重启已在运行的引擎。macOS：先 `POST /fabo/sleep` 优雅停止工作负载，再 `launchctl kickstart -k` 本实例的 LaunchAgent，等新引擎以本版本号应答；配了重启策略的容器自动拉起。引擎不由本实例的 LaunchAgent 运行时报错。Linux 提示 `sudo systemctl restart fabo` |
+
+透传 docker 命令（`fabo ps` 等）前，启动器比较自己与引擎的版本，不一致时在 stderr 提示用 `fabo engine restart` 统一版本，不影响命令输出。开发版启动器（`0.0.0-dev`）不比较。
 
 `k8s`、`import` 和物理 USB attach 需要当前引擎在线。`FABO_SOCKET` 只覆盖 Docker API 的目标，不改变 flavor 的设置、kubeconfig 或 raw 状态目录。自动化验证应同时隔离 HOME、Docker 配置和 socket。
 

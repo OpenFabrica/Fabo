@@ -108,7 +108,10 @@ func (s *desktop) view(c *ui.Context) {
 						panel()
 					}
 				})
-				s.importStrip(c, p)
+				// One strip at a time: an engine to restart comes first.
+				if !s.engineStrip(c, p) {
+					s.importStrip(c, p)
+				}
 				s.switchCardView(c, p)
 			})
 		})
@@ -505,9 +508,17 @@ func (s *desktop) engineCard(c *ui.Context, p palette) {
 		// The engine's version. A development build's is long
 		// (0.5.0-3-g1a2b3c4-dirty): it is cut short, not the label.
 		versionRow := func() {
-			ui.Row(c.Key("engine-version")).FillWidth().Gap(10).Children(func() {
+			row := ui.Row(c.Key("engine-version")).FillWidth().Gap(10)
+			ink := p.text
+			// An engine of another version than the window waits for a
+			// restart: say so here too once its strip is put off.
+			if _, stale := s.staleEngine(); stale {
+				ink = p.warn
+				row.Tooltip(fmt.Sprintf(tr("已安装 %s %s，重启引擎后生效", "%s %s is installed; restart the engine to run it"), s.appName(), release))
+			}
+			row.Children(func() {
 				ui.Text(c, tr("版本", "Version")).FontSize(12).TextColor(p.muted).SingleLine().Shrink(0)
-				ui.Text(c, version).FontSize(12).FontFeatures("tnum").TextColor(p.text).SingleLine().Grow(1).MinWidth(0).TextAlign(ui.End)
+				ui.Text(c, version).FontSize(12).FontFeatures("tnum").TextColor(ink).SingleLine().Grow(1).MinWidth(0).TextAlign(ui.End)
 			})
 		}
 		// What the VM holds, while it is up: containers, CPU and memory.

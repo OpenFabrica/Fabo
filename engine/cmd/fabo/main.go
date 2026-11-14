@@ -24,6 +24,7 @@ const usage = `usage: fabo [ui [-view PAGE] [-start]]   open the desktop window
        fabo setup --uninstall            take all of that back; data stays
        fabo build-with [docker|fabo]     which builder plain docker build uses
        fabo domains [local|https on|off] container names at *.fabo.local, and HTTPS for them
+       fabo engine restart    restart the engine on the installed version; containers with a restart policy start again
        fabo machine create NAME [--distro D] [--systemd] | list | shell NAME [-- CMD...]
        fabo machine start|stop|restart|delete NAME
        fabo k8s start [--use] | stop | status | delete | set [--lan on|off] [--tls-san NAME,…] [--port N]
@@ -83,6 +84,8 @@ func main() {
 		err = rawCommand(args[1:])
 	case args[0] == "machine":
 		err = machineCommand(args[1:])
+	case args[0] == "engine":
+		err = engineCommand(args[1:])
 	case handlesDocker(args[0]):
 		var in installation
 		in, err = locate()
