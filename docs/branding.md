@@ -35,7 +35,7 @@ flowchart LR
 
 - 完整 Logo：`brand/logo/fabo-open-container.png`。
 - 不带文字的图形：`brand/logo/fabo-mark.png`，由内置图像工具按已选 Logo 生成。提示词要求保持青绿/深蓝开放容器 F 图形，移除文字，居中于透明正方形画布。
-- `sips` 仅负责生成 16–1024 px 的打包尺寸；`iconutil` 打包 ICNS。开发版沿用 `scripts/dev-icon.swift` 叠加 flavor 标记。
+- 应用图标由 `swift scripts/app-icon.swift brand/logo/fabo-app-mark.png brand/icon/png` 生成 16–1024 px 全部尺寸：透明图形放在白色圆角底板上，底板铺满 macOS 图标网格（1024 画布内 824×824，圆角 185），图形按实际绘制范围缩放到底板的 70% 并居中。透明底的图标在 macOS 26 上会被系统放进灰色底板，所以底板必须由图标自己画。`iconutil` 打包 ICNS。开发版沿用 `scripts/dev-icon.swift` 在同一网格上叠加 flavor 标记。
 - 桌面嵌入 `desktop/fabo-mark.png`；托盘使用 `desktop/tray.png` 的透明轮廓，由 macOS template 模式着色。
 
 ## 验证
