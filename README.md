@@ -28,7 +28,7 @@
 
 Fabo 是独立项目，源码只有 Go：引擎（`engine/`）和桌面（`desktop/`）。应用显示为 Fabo，命令入口为 `fabo`；状态目录、Docker context、环境变量、程序名和引擎协议也都使用 Fabo 的名字，详见[品牌与命令入口](docs/branding.md)。
 
-- 能用的：macOS 上的 Go 引擎和虚拟机、MyGo 主窗口和托盘、通过 `docker` CLI 使用的容器、镜像、网络、卷、Compose 和 Buildx、`fabo` Docker 命令透传、`fabo machine` Linux 开发环境、`k8s` / `import` / `usb` / `bench` / `raw` 命令，以及用 `fabo migrate` 从 Kiri 离线导入数据。
+- 能用的：macOS 上的 Go 引擎和虚拟机、MyGo 主窗口和托盘、通过 `docker` CLI 使用的容器、镜像、网络、卷、Compose 和 Buildx、`fabo` Docker 命令透传、`fabo machine` Linux 开发环境、`k8s` / `import` / `usb` / `bench` / `raw` 命令，从 OrbStack / Docker Desktop 迁入镜像、卷和容器（命令行和桌面都可以），以及用 `fabo migrate` 从 Kiri 离线导入数据。
 - 还没有的：原 WebView 窗口的高级功能、Windows 宿主、Linux 安装包、自动更新。完整清单和验证结果见[功能对齐基线](docs/compatibility-baseline.md)。
 
 ```sh
@@ -40,102 +40,60 @@ docker --context fabo-dev run --rm alpine echo hello
 
 新命令的使用、数据边界和验证结果见 [CLI 工具说明](docs/cli-tools.md)。
 
-## 上游 Kiri
+### 从 OrbStack 或 Docker Desktop 迁过来
 
-以下为上游 Kiri 的介绍和安装说明，是 Fabo 对齐的目标，其中的 `kiri` 子命令和安装包不等于本仓库现状。
+源引擎只会被读取，不会被改动；容器迁入后处于停止状态。
 
----
-
-Kiri is a lightweight replacement for Docker Desktop and OrbStack, written in
-Rust. It runs containers in one small Linux VM (or straight on the kernel on
-Linux) and speaks the Docker Engine API, so your tools just work.
-
-The name comes from the Igbo word *ntakịrị*, "small".
-
-## Why Kiri
-
-- **Fast**: a container starts and exits in about 2.5 ms through the Docker API. That's around 80 times faster than Docker Desktop.
-- **Light**: the VM sleeps after 60 s idle, the daemon stays at about 15 MB, and it wakes in about 0.15 s.
-- **Compatible**: `docker`, Compose, buildx, `docker login` and amd64 images through Rosetta.
-- **Local domains**: `http://<name>.kiri.local`, with HTTPS from Kiri's own certificate authority.
-- **More than containers**: a one-command Kubernetes cluster and Linux machines.
-- **A native window** for containers, images, volumes and networks, plus a menu bar item.
-
-## 上游 Kiri 安装包
-
-| Platform | Get it |
-|----------|--------|
-| macOS 14+ (Apple silicon or Intel) | `.dmg` from [runkiri.com/releases](https://runkiri.com/releases/) |
-| Windows 10 and 11 (x86-64 or Arm, through WSL 2) | `.msi` from [runkiri.com/releases](https://runkiri.com/releases/) |
-| Linux (Ubuntu, Fedora and others) | `.deb` or `.rpm` from [runkiri.com/releases](https://runkiri.com/releases/) |
-
-The first time you open Kiri, it sets up a `kiri` Docker context. Kiri updates itself, and checks each new release's signature first.
-
-## Quick start
+- **桌面**：设置 → 导入，选择来源，勾选要带过来的镜像、卷和容器，逐项导入并显示结果。源引擎里还有 Fabo 没有的东西时，列表底部会出现提示条，点「查看」即可挑选。
+- **切换 docker**：`docker` 仍指向 OrbStack 或 Docker Desktop 时，容器和镜像页会提示切换到 Fabo，可顺带把全部镜像带过来；之后随时可以切回。
+- **命令行**：
 
 ```sh
-docker --context kiri run --rm alpine echo hello
-docker --context kiri compose up -d
-kiri k8s start                      # single-node Kubernetes as the `kiri` kubectl context
-kiri machine create dev --distro ubuntu && kiri machine shell dev
-kiri import                         # bring images, volumes and containers over from OrbStack or Docker Desktop
+fabo import orbstack --list            # 看看源引擎有什么、哪些已在 Fabo 中
+fabo import orbstack                   # 带过来 Fabo 缺的全部镜像、具名卷和容器
+fabo import desktop-linux volume app-data   # 只带一项
+fabo context use fabo                  # 让 plain docker 使用 Fabo（macOS）
 ```
 
-Docker's commands also work as `kiri` commands (`kiri run`, `kiri ps`,
-`kiri compose up`, and so on), and always target Kiri.
-
-## Numbers
-
-`alpine` running `true` and removed, median of 30 runs, same `docker` CLI for all three:
-
-|                | Docker Engine API | `docker` CLI |
-|----------------|------------------:|-------------:|
-| **Kiri**       | **2.55 ms**       | **14.2 ms**  |
-| Docker Desktop | 213 ms            | 243 ms       |
-| OrbStack       | 380 ms            | 442 ms       |
-
-Method and every other figure are in [`bench/results.json`](bench/results.json). Rerun with `kiri bench`.
-
-## How it works
+## 工作原理
 
 ```
 docker CLI ─┐
-compose ────┼─ Docker Engine API ─► kiri daemon ── vsock ──► guest agent (PID 1)
-buildx ─────┤                         owns the VM           clone3 → container
-kiri UI ────┘
+compose ────┼─ Docker Engine API ─► fabo-daemon ── guest 协议 ──► fabo-init ─► clone3 → 容器
+buildx ─────┤   (unix socket)                    (macOS：vsock 进 VM；
+MyGo 桌面 ──┘                                     Linux / WSL：宿主进程)
 ```
 
-The VM uses a custom 10 MB kernel, and its PID 1 is a ~900 KB Rust agent.
-That agent starts containers with a single `clone3` into namespaces and a
-cgroup. There's no runc, no shim and no dockerd. More detail is in
-[docs/development.md](docs/development.md#architecture).
+`fabo-daemon` 提供 Docker Engine API 并保存全部状态；macOS 上它用
+Virtualization.framework 起一台小 Linux 虚拟机，`fabo-init` 在里面作为 PID 1，
+一次 `clone3` 把容器放进命名空间和 cgroup，没有 runc、shim 和 dockerd。网络直接用
+netlink / nftables。`fabo` 启动器负责算出本安装的路径、拉起引擎和桌面。详见
+[构建与开发](docs/development.md)。
 
-## Documentation
+## 文档
 
-- [Features](docs/features.md): everything supported today, release files and known issues
-- [Development](docs/development.md): building, running from source, architecture and repository layout
-- [Desktop overview](docs/desktop-overview.md): MyGo main window and the Go engine's behaviour
-- [功能对齐基线](docs/compatibility-baseline.md) — Go 引擎覆盖范围、回归结果与复验方式
-- [Release notes](docs/releases)
+- [功能对齐基线](docs/compatibility-baseline.md)：已对齐和待对齐的功能、回归结果与复验方式
+- [构建与开发](docs/development.md)：从源码构建、运行、架构和目录结构
+- [桌面与引擎说明](docs/desktop-overview.md)：MyGo 主窗口和 Go 引擎的行为规格
+- [CLI 工具说明](docs/cli-tools.md)：`fabo` 的 k8s、import、context、usb、bench、raw 等命令
+- [Linux 机器](docs/machines.md)、[调试 shell](docs/debug-shell.md)、[桌面多语言](docs/languages.md)
+- [品牌与命令入口](docs/branding.md)、[更新日志](CHANGELOG.md)
 
-## Roadmap
+## 与上游 Kiri 的关系
 
-Next is a built-in builder. Kiri will serve Docker's own build endpoints, so
-buildx uses its docker driver against Kiri as it does against Docker
-Desktop. This brings `host-gateway` support to BuildKit builds, and images
-load straight into Kiri.
+Fabo 起源于 [Kiri](https://github.com/libracoder/kiri)（Rust），用 Go 逐步对齐它的功能。
+[docs/features.md](docs/features.md) 保留了上游的功能清单作为对齐目标，
+[docs/releases](docs/releases) 是上游的历史发布说明。已装 Kiri 的机器可以并存使用 Fabo，
+也可以在 Fabo 首次启动前用 `fabo migrate` 导入 Kiri 的数据。
 
-## Contributing
+## 参与贡献
 
-Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
-and the [Code of Conduct](CODE_OF_CONDUCT.md). To report a vulnerability
-privately, see [SECURITY.md](SECURITY.md).
+欢迎提交 issue 和 pull request，参见 [CONTRIBUTING.md](CONTRIBUTING.md) 和
+[行为准则](CODE_OF_CONDUCT.md)。私下报告安全漏洞请见 [SECURITY.md](SECURITY.md)。
 
-## License
+## 许可证
 
-[Apache-2.0](LICENSE). Third-party licences are in [NOTICE](NOTICE). The guest
-kernel is Linux (GPL-2.0); its config, patches and the source offer are in
-[`guest/kernel`](guest/kernel).
+[Apache-2.0](LICENSE)。第三方许可见 [NOTICE](NOTICE)。guest 内核是 Linux（GPL-2.0），
+其配置、补丁和源码提供说明在 [`guest/kernel`](guest/kernel)。
 
-The name "Kiri" and the Kiri logo are not covered by the licence. Forks are
-welcome, under a different name and logo.
+"Kiri" 名称和标志不在许可范围内。
