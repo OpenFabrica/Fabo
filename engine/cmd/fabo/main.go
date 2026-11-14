@@ -12,7 +12,12 @@ import (
 	"syscall"
 )
 
+// release is this build's version, stamped from the git tag by the Makefile
+// and scripts/macos-app.sh (docs/release.md). Plain `go build` keeps the default.
+var release = "0.0.0-dev"
+
 const usage = `usage: fabo [ui [-view PAGE] [-start]]   open the desktop window
+       fabo --version                    this build's version
        fabo COMMAND                     docker commands on this engine: run, ps, exec, compose, ...
        fabo daemon                       run the engine in the foreground
        fabo setup [--use] [--no-agent]   docker context, commands on PATH, start at login, build builder
@@ -39,6 +44,9 @@ func main() {
 	switch {
 	case len(args) == 1 && (args[0] == "--help" || args[0] == "-h"):
 		fmt.Print(usage)
+		return
+	case len(args) == 1 && (args[0] == "--version" || args[0] == "-v"):
+		fmt.Println("fabo", release)
 		return
 	case len(args) == 0 || args[0] == "ui":
 		err = openDesktop(args)

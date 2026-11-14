@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 const apiVersion = "1.47"

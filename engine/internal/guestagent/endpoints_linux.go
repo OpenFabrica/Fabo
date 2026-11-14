@@ -17,7 +17,7 @@ import (
 	"github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 var loopbackResolver = netip.MustParseAddr("127.0.0.11")

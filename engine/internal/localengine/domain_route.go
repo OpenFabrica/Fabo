@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 var domainSuffixes = []string{"fabo.local", "fabo.localhost"}

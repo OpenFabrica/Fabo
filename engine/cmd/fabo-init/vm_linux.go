@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestagent"
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestagent"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )

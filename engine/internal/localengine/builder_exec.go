@@ -8,7 +8,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 // readyBuilder starts and probes the managed builder. When create is false,

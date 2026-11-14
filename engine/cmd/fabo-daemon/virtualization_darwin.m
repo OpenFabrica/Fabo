@@ -177,7 +177,7 @@ void *fabo_vm_start(const char *kernel, const char *initrd, const char *disk,
         host->agentPort = port;
         host->hostPort = hostPort;
         host->hostHandle = hostHandle;
-        host->queue = dispatch_queue_create("dev.fabo.go-vm", DISPATCH_QUEUE_SERIAL);
+        host->queue = dispatch_queue_create("com.openfabrica.fabo-vm", DISPATCH_QUEUE_SERIAL);
         dispatch_semaphore_t ready = dispatch_semaphore_create(0);
         __block NSError *startError = nil;
         dispatch_sync(host->queue, ^{

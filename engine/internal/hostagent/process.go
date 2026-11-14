@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 // Process owns the child and its private socket directory. Call Close to

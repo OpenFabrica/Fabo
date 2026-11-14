@@ -1,6 +1,6 @@
 # Features
 
-> This is upstream Fabo's feature list, kept as the target FabriBay aligns
+> This is upstream Kiri's feature list, kept as the target Fabo aligns
 > with. What this tree provides today is in
 > [compatibility-baseline.md](compatibility-baseline.md).
 

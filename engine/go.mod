@@ -1,4 +1,4 @@
-module github.com/OpenFabrica/FabriBay/engine
+module github.com/OpenFabrica/Fabo/engine
 
 go 1.27.3
 

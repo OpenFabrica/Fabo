@@ -41,7 +41,7 @@ func unsetEnv(t *testing.T, key string) {
 }
 
 func TestDockerEnvironment(t *testing.T) {
-	in := installation{home: t.TempDir(), names: namesFor("dev.fabo.app.dev")}
+	in := installation{home: t.TempDir(), names: namesFor("com.openfabrica.fabo.dev")}
 	t.Setenv("FABO_SOCKET", "/private/test engine.sock")
 	t.Setenv("DOCKER_HOST", "tcp://unrelated:2375")
 	t.Setenv("DOCKER_CONTEXT", "unrelated")

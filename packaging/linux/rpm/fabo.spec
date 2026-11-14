@@ -42,7 +42,7 @@ Source14:       fabo-app-icon-64.png
 Source15:       fabo-app-icon-128.png
 Source16:       fabo-app-icon-256.png
 Source17:       fabo-app-icon-512.png
-Source19:       dev.fabo.Fabo.metainfo.xml
+Source19:       com.openfabrica.Fabo.metainfo.xml
 Requires:       gtk3
 Requires:       webkit2gtk4.1
 # The window's setup checklist asks for the password through pkexec.
@@ -106,7 +106,7 @@ install -D -m 755 %{SOURCE9} %{buildroot}/usr/lib/fabo/fabo-window
 install -D -m 755 %{SOURCE20} %{buildroot}/usr/lib/fabo/fabo-desktop
 %endif
 install -D -m 644 %{SOURCE10} %{buildroot}%{_datadir}/applications/fabo.desktop
-install -D -m 644 %{SOURCE19} %{buildroot}%{_datadir}/metainfo/dev.fabo.Fabo.metainfo.xml
+install -D -m 644 %{SOURCE19} %{buildroot}%{_datadir}/metainfo/com.openfabrica.Fabo.metainfo.xml
 for s in 16 32 64 128 256 512; do
   install -D -m 644 %{_sourcedir}/fabo-app-icon-$s.png %{buildroot}%{_datadir}/icons/hicolor/${s}x${s}/apps/fabo.png
 done
@@ -273,7 +273,7 @@ exit 0
 %endif
 %{_datadir}/applications/fabo.desktop
 %{_datadir}/icons/hicolor/*/apps/fabo.*
-%{_datadir}/metainfo/dev.fabo.Fabo.metainfo.xml
+%{_datadir}/metainfo/com.openfabrica.Fabo.metainfo.xml
 %endif
 
 %changelog

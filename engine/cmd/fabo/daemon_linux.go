@@ -31,17 +31,6 @@ func (i installation) engine() (string, error) {
 	return engine, nil
 }
 
-// legacyStore is where the Rust engine kept its image metadata and blobs.
-func (i installation) legacyStore() string {
-	if dir := os.Getenv("FABO_DATA_DIR"); dir != "" {
-		return dir
-	}
-	if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
-		return filepath.Join(xdg, "fabo")
-	}
-	return filepath.Join(i.home, ".local", "share", "fabo")
-}
-
 // daemonCommand prepares the private directories and returns the engine with
 // its host-process agent and the cgroup mode of this host.
 func (i installation) daemonCommand() (string, []string, error) {
@@ -56,18 +45,13 @@ func (i installation) daemonCommand() (string, []string, error) {
 	if _, err := os.Stat("/sys/fs/cgroup/cgroup.controllers"); err != nil {
 		return "", nil, errors.New("the engine needs cgroup v2")
 	}
-	// FABO_ENGINE overrides the distro's recorded choice, as it always has.
-	env := os.Getenv("FABO_ENGINE")
-	explicit, wsl := env == "go", false
+	wsl := false
 	if choice, err := os.ReadFile(wslEngine); err == nil {
 		wsl = true
-		// A Fabo Linux distro records its engine here. "go" is an explicit
-		// choice, "auto" defers to the store check below, and "rust" names
-		// an engine this build cannot provide.
-		switch choice := strings.TrimSpace(string(choice)); {
-		case env != "" || choice == "auto":
-		case choice == "go":
-			explicit = true
+		// A Linux distro records its engine here. "go" and "auto" both run
+		// this engine; anything else names an engine this build lacks.
+		switch choice := strings.TrimSpace(string(choice)); choice {
+		case "go", "auto":
 		default:
 			return "", nil, fmt.Errorf("%s selects the %q engine, which this build does not include", wslEngine, choice)
 		}
@@ -76,11 +60,6 @@ func (i installation) daemonCommand() (string, []string, error) {
 	}
 	socket := i.socket()
 	state := filepath.Join(i.root(), "go-engine")
-	if !explicit {
-		if err := checkStore(state, i.legacyStore()); err != nil {
-			return "", nil, err
-		}
-	}
 	run := filepath.Dir(socket)
 	if err := privateDir(run); err != nil {
 		return "", nil, err

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
 	"golang.org/x/sys/unix"

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 var defaultSubnet = netip.MustParsePrefix("172.17.0.0/16")

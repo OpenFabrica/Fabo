@@ -27,12 +27,10 @@ func TestDaemonCommandUsesTheBundleAndPrivateDirectories(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("FABO_SOCKET", "")
-	t.Setenv("FABO_ENGINE", "")
-	t.Setenv("FABO_DATA_DIR", "")
 	t.Setenv("FABO_CPUS", "1")
 	t.Setenv("FABO_MEMORY_MIB", "3072")
 
-	in := installation{dir: macos, home: home, names: namesFor("dev.fabo.app.dev")}
+	in := installation{dir: macos, home: home, names: namesFor("com.openfabrica.fabo.dev")}
 	engine, args, err := in.daemonCommand()
 	if err != nil {
 		t.Fatal(err)

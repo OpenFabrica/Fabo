@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 // networkFiles keeps the guest's generated files available for the lifetime

@@ -5,7 +5,7 @@ containers, images, volumes and networks, controls container and VM
 lifecycle, and edits the VM's resources. The tray reopens the main window.
 CLI behavior is independent of the window.
 
-Upstream Fabo's WebView window, which this document calls **Advanced tools**,
+Upstream Kiri's WebView window, which this document calls **Advanced tools**,
 was hosted by the Rust binary and left the tree with it. The daemon still
 serves the `/fabo/*` endpoints that window used. The sections below describe
 them as the contract for the workflows the MyGo window has yet to take over:
@@ -143,16 +143,16 @@ The launcher (`engine/cmd/fabo`) handles first-launch setup, starts the
 engine when nothing answers on the socket and opens the MyGo window. Once
 its LaunchAgent is installed, launchd is the engine's one owner and the
 launcher asks it to start the engine rather than spawning a second one. It uses the `fabo` Docker context's
-`~/.fabo/run/docker.sock` path. A populated Kiri store is left alone:
-the launcher refuses to start beside one until an offline import publishes
-`~/.fabo/go-engine/kiri-import.json`, or `FABO_ENGINE=go` asks for an empty
-Go store. Stop any other daemon on the same socket first. On Linux, `fabo ui`
+`~/.fabo/run/docker.sock` path. A Kiri store on the same machine is left
+alone and does not stop Fabo from starting; to bring its data over, run
+`fabo migrate` before Fabo's first start, since the import needs Fabo's state
+directory to be absent. Stop any other daemon on the same socket first. On Linux, `fabo ui`
 opens the MyGo executable when the package includes it.
 
 To run beside an installed Fabo, build a flavored bundle with
 `FABO_SIGN_IDENTITY=- make app-dev`. The result is `target/dev/Fabo Dev.app`,
 and `FLAVOR=go` makes `Fabo Go.app` instead. The bundle identifier
-`dev.fabo.app.<flavor>` gives the bundle its own names: the daemon listens on
+`com.openfabrica.fabo.<flavor>` gives the bundle its own names: the daemon listens on
 `~/.fabo-dev/run/docker.sock`, keeps its state and VM disk in
 `~/.fabo-dev/go-engine`, mounts `~/Fabo Dev` in Finder, and leaves the default
 domain ports to the installed app. Existing Fabo containers, images and
@@ -301,11 +301,9 @@ launcher and daemon keep. Both Windows architectures use static Linux Go
 binaries for the daemon and guest agent, installed in `/usr/libexec/fabo`.
 
 New distros use `auto` in `/etc/fabo/wsl-engine`. The launcher starts the
-engine when both Go binaries are installed, cgroup v2 is available, and
-there is no initialized Kiri store. It refuses to start beside a nonempty
-Kiri store until that store is imported into the default Go state
-directory. An explicit `go` value skips that check and survives updates. An
-explicit `rust` value is an error, since this tree has no Rust engine.
+engine when both Go binaries are installed and cgroup v2 is available.
+`go` means the same and survives updates. Any other value is an error,
+since this tree has only the Go engine.
 Restart with `/usr/local/bin/fabo-start restart` on Fabo Linux or with
 `systemctl restart fabo` on a distro using systemd. From Windows,
 `docker --context fabo version` checks the connection. The raw
@@ -429,17 +427,7 @@ service's group.
 Linux packages built with the Go daemon and agent include both under
 `/usr/libexec/fabo`. The installed `fabo.service` uses the `fabo daemon`
 entry point, which needs cgroup v2. On a fresh installation it starts the
-engine. When the configured Kiri store is already initialized, it refuses
-to start until an offline import into the default Go state directory
-succeeds. To start with an empty Go store instead, set a service override
-with `sudo systemctl edit fabo`.
-
-```ini
-[Service]
-Environment=FABO_ENGINE=go
-```
-
-Apply the override with `sudo systemctl restart fabo`. The Go daemon
+engine. The Go daemon
 uses the package's usual `/run/fabo/docker.sock` and group. It keeps its
 state in `/var/lib/fabo-daemon/.fabo/go-engine`. The daemon and agent
 run in the unit's `fabo-host` leaf, and containers use the sibling
@@ -448,8 +436,7 @@ On SIGTERM it gives running containers their configured stop signals
 and a bounded shutdown window before closing the agent.
 
 The Go engine never writes to the Kiri store, which keeps its own
-directories. `FABO_ENGINE=rust` is an error. Imports from earlier builds
-that lack `kiri-import.json` continue to require `FABO_ENGINE=go`.
+directories, and an existing Kiri store does not stop it from starting.
 
 #### Import an offline Linux Kiri store
 

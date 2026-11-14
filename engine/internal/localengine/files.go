@@ -6,7 +6,7 @@ import (
 	"context"
 	"syscall"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 // FileContainers returns a snapshot of the running containers shown in Finder.

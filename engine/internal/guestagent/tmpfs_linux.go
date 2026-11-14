@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 // A detached tmpfs goes through the same ordered, descriptor-relative

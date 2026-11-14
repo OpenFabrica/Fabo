@@ -1,6 +1,6 @@
 {
   "name": "Fabo Desktop",
-  "identifier": "dev.fabo.desktop",
+  "identifier": "com.openfabrica.fabo-desktop",
   "version": "0.0.0",
   "out": "build",
   "icon": "../brand/icon/png/fabo-app-icon-1024.png"

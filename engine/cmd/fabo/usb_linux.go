@@ -3,9 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/OpenFabrica/FabriBay/engine/internal/usbhost"
 	"os"
 	"strings"
+
+	"github.com/OpenFabrica/Fabo/engine/internal/usbhost"
 )
 
 func usbList() error {

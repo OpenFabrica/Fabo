@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 func (r *Runtime) listening(id string) (guestwire.Frame, error) {

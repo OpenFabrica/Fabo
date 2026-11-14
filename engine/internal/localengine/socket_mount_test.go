@@ -5,7 +5,7 @@ package localengine
 import (
 	"testing"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 func TestVMEngineSocketUsesDedicatedGuestRelay(t *testing.T) {

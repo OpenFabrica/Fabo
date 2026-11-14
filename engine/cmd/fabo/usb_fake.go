@@ -12,7 +12,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/usbhost"
+	"github.com/OpenFabrica/Fabo/engine/internal/usbhost"
 )
 
 func usbFake(args []string) error {

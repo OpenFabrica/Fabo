@@ -16,7 +16,7 @@ pass=0; fail=0
 ok() { echo "  PASS $*"; pass=$((pass+1)); }
 no() { echo "  FAIL $*"; fail=$((fail+1)); }
 ours() { mount | grep -F "<$H/.fabo/files/nfs.sock>:/ on $H/Fabo " >/dev/null; }
-start() { HOME="$H" FABO_DATA_DIR="$H/data" "$BIN" daemon >"$H/out.log" 2>&1 & PID=$!
+start() { HOME="$H" "$BIN" daemon >"$H/out.log" 2>&1 & PID=$!
   for i in $(seq 1 60); do grep -qE "container files in Finder|Finder mount failed" "$H/out.log" "$H"/.fabo/*.log 2>/dev/null && return; sleep 0.25; done; echo "  (no Finder line in log)"; }
 stop() { kill ${1:-} $PID 2>/dev/null; wait $PID 2>/dev/null; sleep 0.5; }
 logline() { grep -hE "container files in Finder|Finder mount failed" "$H/out.log" "$H"/.fabo/*.log 2>/dev/null | tail -1; }

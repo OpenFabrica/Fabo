@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 	"golang.org/x/sys/unix"
 )
 

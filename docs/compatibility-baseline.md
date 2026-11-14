@@ -1,6 +1,6 @@
-# FabriBay 功能对齐基线
+# Fabo 功能对齐基线
 
-初始记录于 2026-11-11，待对齐清单更新于 2026-11-14（前次桌面实现提交 `6c93c03`，本地上游参考 `a649319`）。FabriBay 是独立项目，源码里只有 Go。上游 [libracoder/kiri](https://github.com/libracoder/kiri) 是功能对齐的参考，本仓库的起点是上游提交 `4418009e3f9f8cd234e37531348dd900f78e84e1`。
+初始记录于 2026-11-11，待对齐清单更新于 2026-11-14（前次桌面实现提交 `6c93c03`，本地上游参考 `a649319`）。Fabo 是独立项目，源码里只有 Go。上游 [libracoder/kiri](https://github.com/libracoder/kiri) 是功能对齐的参考，本仓库的起点是上游提交 `4418009e3f9f8cd234e37531348dd900f78e84e1`。
 
 目标是覆盖 Kiri 的 Docker API、现有客户端工作流和数据迁移能力，容器引擎与 guest agent 用 Go 实现，MyGo 承担主窗口和托盘。Docker CLI 的交互与流式能力属于引擎兼容范围。上游由 Rust 提供的其余功能按下面的「待对齐功能」逐步补回。架构和构建方式见[开发说明](development.md)和[桌面与引擎说明](desktop-overview.md)。
 
@@ -206,7 +206,7 @@ GOOS=linux GOARCH=arm64 go -C engine test -exec true ./...
 
 `make check` 跑的就是这一组。最后一条仅交叉编译 Linux 测试，Linux 行为需要在真实 Linux 环境执行。构建需要 Go 1.27.3 或更新版本。
 
-macOS 全量回归使用与日常实例隔离的 App、HOME、Docker 配置、Docker context、socket 和 VM 数据盘。历史记录使用 App 标识 `dev.fabo.app.parity`、Docker context `fabo-parity`、Buildx builder `fabo-parity-build` 和 `~/Fabo Parity`。先在被测 socket 的 `/version` 中确认 `"FaboEngine":"go"`。将 `DOCKER_CONFIG` 指向隔离 HOME 下的 `.docker`，确保 Registry 用例也能找到隔离的 context。运行域名端口用例时清除 `FABO_HTTP_PORT` 和 `FABO_HTTPS_PORT` 覆盖。
+macOS 全量回归使用与日常实例隔离的 App、HOME、Docker 配置、Docker context、socket 和 VM 数据盘。历史记录使用 App 标识 `com.openfabrica.fabo.parity`、Docker context `fabo-parity`、Buildx builder `fabo-parity-build` 和 `~/Fabo Parity`。先在被测 socket 的 `/version` 中确认 `"FaboEngine":"go"`。将 `DOCKER_CONFIG` 指向隔离 HOME 下的 `.docker`，确保 Registry 用例也能找到隔离的 context。运行域名端口用例时清除 `FABO_HTTP_PORT` 和 `FABO_HTTPS_PORT` 覆盖。
 
 ```sh
 DOCKER_CONTEXT=fabo-parity bash tests/e2e.sh

@@ -1,4 +1,4 @@
-# FabriBay 项目指令
+# Fabo 项目指令
 
 ## Kiri 功能对齐
 

@@ -1,4 +1,4 @@
-module github.com/OpenFabrica/FabriBay/desktop
+module github.com/OpenFabrica/Fabo/desktop
 
 go 1.27.3
 

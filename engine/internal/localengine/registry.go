@@ -17,7 +17,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
+	"github.com/OpenFabrica/Fabo/engine/internal/hostagent"
 )
 
 func (e *Engine) pull(ctx context.Context, ref name.Reference, auth authn.AuthConfig, platforms ...v1.Platform) (Image, error) {

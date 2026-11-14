@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 // A container can share another's PID namespace by name or short ID: the

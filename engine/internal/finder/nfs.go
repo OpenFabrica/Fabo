@@ -16,7 +16,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 const (

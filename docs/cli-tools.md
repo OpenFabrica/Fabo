@@ -132,7 +132,7 @@ raw 支持镜像 Entrypoint/Cmd、环境变量覆盖、用户、工作目录、s
 claude mcp add fabo -- /Applications/Fabo.app/Contents/MacOS/fabo mcp
 ```
 
-`FABO_SOCKET` 照常覆盖目标引擎，试迁移的实例可以这样接：`claude mcp add fabo-trial -e FABO_SOCKET=$HOME/.fabo-trial/run/docker.sock -- /path/to/fabo mcp`。
+`FABO_SOCKET` 照常覆盖目标引擎，其他实例可以这样接：`claude mcp add fabo-dev -e FABO_SOCKET=$HOME/.fabo-dev/run/docker.sock -- /path/to/fabo mcp`。
 
 ## 2026-11-13 验证
 

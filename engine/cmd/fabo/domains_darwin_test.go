@@ -50,7 +50,7 @@ func TestLocalNamesInstallAndRemoveTheResolverRule(t *testing.T) {
 // *.fabo.local is the installed app's: a flavored build neither writes nor
 // removes the rule, and a closed prompt changes nothing.
 func TestLocalNamesStayTheInstalledApps(t *testing.T) {
-	s := sandbox(t, "dev.fabo.app.dev")
+	s := sandbox(t, "com.openfabrica.fabo.dev")
 	s.admin = func(string, string) error { t.Fatal("a flavored app asked for the password"); return nil }
 	write(t, s.root+resolverPath, "nameserver 127.0.0.1\nport 53535\n")
 	for _, on := range []bool{true, false} {

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 	"github.com/google/go-containerregistry/pkg/authn"
 )
 

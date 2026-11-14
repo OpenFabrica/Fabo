@@ -1,6 +1,6 @@
 # Testing Fabo for Windows on Arm
 
-> Upstream Fabo's procedure, for its Rust Windows host. FabriBay has no
+> Upstream Kiri's procedure, for its Rust Windows host. Fabo has no
 > Windows host yet; see [compatibility-baseline.md](compatibility-baseline.md).
 
 Fabo for Windows on Arm is the same bundle and MSI as the x86-64 one, built

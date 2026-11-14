@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 // ensureVolumeMounts prepares volume roots before the container clones the

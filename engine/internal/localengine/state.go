@@ -14,9 +14,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
-	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
-	"github.com/OpenFabrica/FabriBay/engine/internal/imagescan"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/hostagent"
+	"github.com/OpenFabrica/Fabo/engine/internal/imagescan"
 )
 
 // State owns the exclusive lock for a private daemon state directory.

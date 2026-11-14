@@ -106,9 +106,7 @@ func (s *setup) run(args []string) error {
 	if flags["--uninstall"] {
 		return s.uninstall()
 	}
-	// An installation that cannot start is not set up either. This is what
-	// keeps a build from taking the LaunchAgent and the docker context away
-	// from a Kiri installation whose data has not been imported.
+	// An installation that cannot start is not set up either.
 	if _, _, err := s.in.daemonCommand(); err != nil {
 		return err
 	}

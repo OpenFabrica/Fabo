@@ -14,7 +14,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 func (refs forwardingRefs) forwardBridge(bridge netlink.Link, subnet netip.Prefix, routes []netlink.Route, internal, vm bool) (func(), error) {

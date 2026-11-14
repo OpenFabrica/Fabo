@@ -5,7 +5,7 @@ package localengine
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 type capabilityConfig struct{ Add, Drop []string }

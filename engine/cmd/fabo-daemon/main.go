@@ -19,8 +19,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
-	"github.com/OpenFabrica/FabriBay/engine/internal/localengine"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/localengine"
 )
 
 // The app build stamps its release version; standalone builds identify

@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
-	"github.com/OpenFabrica/FabriBay/engine/internal/localengine"
+	"github.com/OpenFabrica/Fabo/engine/internal/hostagent"
+	"github.com/OpenFabrica/Fabo/engine/internal/localengine"
 )
 
 type guestOptions struct {

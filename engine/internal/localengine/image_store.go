@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
+	"github.com/OpenFabrica/Fabo/engine/internal/hostagent"
 )
 
 // A nil override hides a reference supplied by the startup catalog.

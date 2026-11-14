@@ -4,7 +4,7 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 // An exec cannot fill the host queue past its credit, and a detached

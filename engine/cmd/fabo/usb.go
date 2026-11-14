@@ -5,7 +5,8 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/OpenFabrica/FabriBay/engine/internal/usbhost"
+
+	"github.com/OpenFabrica/Fabo/engine/internal/usbhost"
 )
 
 const usbUsage = "usage: fabo usb [list|ls] | attach DEVICE | detach DEVICE | helper remove"

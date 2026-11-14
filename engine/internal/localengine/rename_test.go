@@ -5,7 +5,7 @@ package localengine
 import (
 	"testing"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 // A record written before the rename takes today's bridge names and VM

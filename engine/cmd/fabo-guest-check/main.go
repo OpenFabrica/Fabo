@@ -16,8 +16,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
-	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/hostagent"
 )
 
 func main() {

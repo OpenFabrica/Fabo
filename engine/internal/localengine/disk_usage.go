@@ -17,8 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/diskusage"
-	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
+	"github.com/OpenFabrica/Fabo/engine/internal/diskusage"
+	"github.com/OpenFabrica/Fabo/engine/internal/hostagent"
 )
 
 type diskUsage struct {

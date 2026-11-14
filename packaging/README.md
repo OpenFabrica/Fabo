@@ -3,7 +3,7 @@
 How Fabo reaches people on each platform, and what each piece of this
 directory (and `installer/windows`) does.
 
-> This page describes upstream Fabo's packaging. In this tree only the macOS
+> This page describes upstream Kiri's packaging. In this tree only the macOS
 > app and its disk image build today (`make app`, `make dmg`). The Linux
 > packages, the Windows bundle and the MSI still expect the Rust `fabo`,
 > `fabo-init` and `fabo-win.exe`, and have to be adapted to the Go binaries

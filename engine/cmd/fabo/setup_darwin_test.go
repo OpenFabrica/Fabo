@@ -59,7 +59,7 @@ func read(t *testing.T, path string) string {
 }
 
 func TestContextIsWhatDockerContextCreateWrites(t *testing.T) {
-	s := sandbox(t, "dev.fabo.app")
+	s := sandbox(t, "com.openfabrica.fabo")
 	if err := s.writeContext(); err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestContextIsWhatDockerContextCreateWrites(t *testing.T) {
 }
 
 func TestCommandLinksAreAddedOnceAndTakenBackExactly(t *testing.T) {
-	s := sandbox(t, "dev.fabo.app")
+	s := sandbox(t, "com.openfabrica.fabo")
 	zshrc, config := filepath.Join(s.in.home, ".zshrc"), filepath.Join(s.docker, "config.json")
 	write(t, zshrc, "export EDITOR=vim")
 	write(t, config, `{"auths":{"ghcr.io":{"auth":"c2VjcmV0"}},"psFormat":"<b>&"}`)
@@ -138,7 +138,7 @@ func TestCommandLinksAreAddedOnceAndTakenBackExactly(t *testing.T) {
 }
 
 func TestSetupLeavesAnotherEnginesChoicesAlone(t *testing.T) {
-	s := sandbox(t, "dev.fabo.app")
+	s := sandbox(t, "com.openfabrica.fabo")
 	write(t, filepath.Join(s.root, "Applications/OrbStack.app/x"), "")
 	write(t, s.root+systemLink, "someone else's fabo")
 	if err := s.bundledCLI(s.contents()); err != nil {
@@ -156,7 +156,7 @@ func TestSetupLeavesAnotherEnginesChoicesAlone(t *testing.T) {
 }
 
 func TestAFlavoredAppKeepsToItsOwnFiles(t *testing.T) {
-	s := sandbox(t, "dev.fabo.app.dev")
+	s := sandbox(t, "com.openfabrica.fabo.dev")
 	if err := s.bundledCLI(s.contents()); err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestAFlavoredAppKeepsToItsOwnFiles(t *testing.T) {
 }
 
 func TestDockerSockOwner(t *testing.T) {
-	s := sandbox(t, "dev.fabo.app")
+	s := sandbox(t, "com.openfabrica.fabo")
 	link, ours := s.root+dockerSock, s.in.socket()
 	orb := filepath.Join(s.in.home, ".orbstack/run/docker.sock")
 	owner := func(engines ...string) sockOwner {
@@ -209,7 +209,7 @@ func TestDockerSockOwner(t *testing.T) {
 }
 
 func TestTestcontainersFileIsFabosOnlyWhenMarked(t *testing.T) {
-	s := sandbox(t, "dev.fabo.app")
+	s := sandbox(t, "com.openfabrica.fabo")
 	path, ours := filepath.Join(s.in.home, ".testcontainers.properties"), s.in.socket()
 	if on, err := testcontainers(path, ours, true); err != nil || !on {
 		t.Fatalf("write: %v %v", on, err)
@@ -234,12 +234,12 @@ func TestTestcontainersFileIsFabosOnlyWhenMarked(t *testing.T) {
 }
 
 func TestAgentPlistNamesThisLauncher(t *testing.T) {
-	s := sandbox(t, "dev.fabo.app.dev")
+	s := sandbox(t, "com.openfabrica.fabo.dev")
 	s.in.dir = filepath.Join(s.in.home, "A&B <apps>/Fabo Dev.app/Contents/MacOS")
 	plist := s.agentPlist()
 	for _, want := range []string{
-		"<key>Label</key><string>dev.fabo.daemon.dev</string>",
-		"<array><string>dev.fabo.app.dev</string></array>",
+		"<key>Label</key><string>com.openfabrica.fabo-daemon.dev</string>",
+		"<array><string>com.openfabrica.fabo.dev</string></array>",
 		"A&amp;B &lt;apps>/Fabo Dev.app/Contents/MacOS/fabo</string><string>daemon</string>",
 		filepath.Join(s.in.home, ".fabo-dev/daemon.log"),
 	} {
@@ -261,7 +261,7 @@ func TestAgentPlistNamesThisLauncher(t *testing.T) {
 }
 
 func TestBuildWithFaboIsTakenAndGivenBackExactly(t *testing.T) {
-	s := sandbox(t, "dev.fabo.app")
+	s := sandbox(t, "com.openfabrica.fabo")
 	p := s.places()
 	config := `{"aliases":{"builder":"mine"},"auths":{}}`
 	write(t, p.config(), config)
@@ -306,7 +306,7 @@ func TestBuildWithFaboIsTakenAndGivenBackExactly(t *testing.T) {
 
 func TestBuildsAreNotTakenUnaskedBesideAnotherEngine(t *testing.T) {
 	for name, other := range map[string]string{"another engine": "OrbStack", "a flavored app": ""} {
-		s := sandbox(t, "dev.fabo.app")
+		s := sandbox(t, "com.openfabrica.fabo")
 		p := s.places()
 		write(t, p.instance(p.builder), `{"Name":"fabo-build","Nodes":[{"Name":"fabo-build0"}]}`)
 		if err := p.apply(other, other != ""); err != nil {
@@ -325,7 +325,7 @@ func TestBuildsAreNotTakenUnaskedBesideAnotherEngine(t *testing.T) {
 }
 
 func TestSetupRefusesAnInstallationThatCannotStart(t *testing.T) {
-	s := sandbox(t, "dev.fabo.app")
+	s := sandbox(t, "com.openfabrica.fabo")
 	var out bytes.Buffer
 	s.out = &out
 	// No engine in this bundle: nothing may be written, and no agent loaded.
@@ -344,7 +344,7 @@ func TestSetupRefusesAnInstallationThatCannotStart(t *testing.T) {
 
 func TestUninstallLeavesAnotherCopysPluginDirectory(t *testing.T) {
 	installed := "/Applications/Fabo.app/Contents/Resources/bin/cli-plugins"
-	for _, id := range []string{"dev.fabo.app", "dev.fabo.app.dev"} {
+	for _, id := range []string{"com.openfabrica.fabo", "com.openfabrica.fabo.dev"} {
 		s := sandbox(t, id)
 		config := filepath.Join(s.docker, "config.json")
 		write(t, config, `{"cliPluginsExtraDirs":["`+installed+`"]}`)
@@ -369,7 +369,7 @@ func TestUninstallLeavesAnotherCopysPluginDirectory(t *testing.T) {
 // Upstream Kiri's own kiri command, in this installation's bin directory or
 // in /usr/local/bin, is not Fabo's: linking fabo leaves it alone.
 func TestFaboLinksLeaveAnExistingKiriCommand(t *testing.T) {
-	s := sandbox(t, "dev.fabo.app")
+	s := sandbox(t, "com.openfabrica.fabo")
 	legacy := filepath.Join(s.binDir(), "kiri")
 	write(t, legacy, "existing Kiri command")
 	write(t, s.root+"/usr/local/bin/kiri", "existing system Kiri command")
@@ -389,7 +389,7 @@ func TestFaboLinksLeaveAnExistingKiriCommand(t *testing.T) {
 }
 
 func TestBuildWithFaboKeepsPersistedBuilderChoice(t *testing.T) {
-	s := sandbox(t, "dev.fabo.app.dev")
+	s := sandbox(t, "com.openfabrica.fabo.dev")
 	p := s.places()
 	write(t, p.instance(p.builder), `{"Name":"fabo-dev-build","Nodes":[{"Name":"fabo-dev-build0"}]}`)
 	if err := s.buildWith([]string{"fabo"}); err != nil {

@@ -3,7 +3,7 @@ package guestagent
 import (
 	"sync"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 // Backpressure stays in this exec's output pumps. The control loop can

@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestagent"
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestagent"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 func startArchiveService(r *guestagent.Runtime, vm bool) (func(), error) {

@@ -91,7 +91,7 @@ stage_cli() { # root
 # The AppStream entry software centers list Fabo by, with this version.
 metainfo() { # destination
   mkdir -p "$(dirname "$1")"
-  sed -e "s/@VERSION@/$version/" -e "s/@DATE@/$(date -u +%Y-%m-%d)/" "$root/contrib/linux/dev.fabo.Fabo.metainfo.xml" > "$1"
+  sed -e "s/@VERSION@/$version/" -e "s/@DATE@/$(date -u +%Y-%m-%d)/" "$root/contrib/linux/com.openfabrica.Fabo.metainfo.xml" > "$1"
   chmod 644 "$1"
 }
 # The window, its launcher, the app icon and the AppStream entry.
@@ -100,7 +100,7 @@ stage_window() { # root
   install -m 755 "$window" "$1/usr/lib/fabo/fabo-window"
   if [ -n "$desktop" ]; then install -m 755 "$desktop" "$1/usr/lib/fabo/fabo-desktop"; fi
   install -m 644 "$root/contrib/linux/fabo.desktop" "$1/usr/share/applications/fabo.desktop"
-  metainfo "$1/usr/share/metainfo/dev.fabo.Fabo.metainfo.xml"
+  metainfo "$1/usr/share/metainfo/com.openfabrica.Fabo.metainfo.xml"
   for s in 16 32 64 128 256 512; do
     install -D -m 644 "$root/brand/icon/png/fabo-app-icon-$s.png" "$1/usr/share/icons/hicolor/${s}x${s}/apps/fabo.png"
   done
@@ -122,7 +122,7 @@ build_deb() { # name full(0|1)
   cat > "$pkg/usr/share/doc/$name/copyright" <<EOF
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: fabo
-Source: https://github.com/OpenFabrica/FabriBay
+Source: https://github.com/OpenFabrica/Fabo
 
 Files: *
 Copyright: 2026 Fabo
@@ -190,7 +190,7 @@ build_rpm() { # name full(0|1)
     if [ -n "$window" ]; then
       cp "$window" "$top/SOURCES/fabo-window"
       cp "$root/contrib/linux/fabo.desktop" "$top/SOURCES/"
-      metainfo "$top/SOURCES/dev.fabo.Fabo.metainfo.xml"
+      metainfo "$top/SOURCES/com.openfabrica.Fabo.metainfo.xml"
       for s in 16 32 64 128 256 512; do cp "$root/brand/icon/png/fabo-app-icon-$s.png" "$top/SOURCES/"; done
       with+=(--define "with_window 1")
       if [ -n "$desktop" ]; then

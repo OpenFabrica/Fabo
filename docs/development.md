@@ -1,6 +1,6 @@
 # Development
 
-Building FabriBay from source, running it, and how it fits together. The
+Building Fabo from source, running it, and how it fits together. The
 binaries, Docker context and state directories carry Fabo's names.
 
 ## Build
@@ -41,7 +41,7 @@ once, in `packaging/cli-pins.env`.
 ## Use
 
 `make app-dev` is the build to try changes with. Its bundle identifier,
-`dev.fabo.app.dev`, gives it `~/.fabo-dev` and `~/Fabo Dev` instead of the
+`com.openfabrica.fabo.dev`, gives it `~/.fabo-dev` and `~/Fabo Dev` instead of the
 installed app's `~/.fabo` and `~/Fabo`, and it leaves the default domain
 ports alone. `FLAVOR=name` builds `Fabo <Name>.app` with `~/.fabo-<name>`.
 
@@ -67,7 +67,7 @@ Opening the app from Finder sets the Mac up the first time, as `fabo setup`
 does: a docker context for the installation, `fabo` and `docker` in its bin
 directory, a LaunchAgent that starts the engine at login, and a buildx
 builder that loads what it builds into the engine. The installed app
-(`dev.fabo.app`) also puts `~/.fabo/bin` on PATH, links `/usr/local/bin/fabo`,
+(`com.openfabrica.fabo`) also puts `~/.fabo/bin` on PATH, links `/usr/local/bin/fabo`,
 adds its Compose and buildx to docker's plugin path, makes its context
 docker's default when there is no other engine, and points Testcontainers
 at the engine. A flavored app leaves all of those alone. `fabo setup
@@ -93,10 +93,9 @@ restart and delete, including `--systemd`; see [machines.md](machines.md).
 See [CLI tools](cli-tools.md) for command contracts, state ownership, platform
 boundaries and verification.
 
-The engine never writes to a Kiri store. When
-`~/Library/Application Support/Kiri` holds one that has not been imported,
-the launcher refuses to start. `FABO_ENGINE=go` starts with an empty Go store
-anyway.
+The engine never writes to a Kiri store, and a Kiri store on the machine does
+not stop Fabo from starting. Run `fabo migrate` before Fabo's first start to
+bring one over.
 
 To run the daemon without a bundle, with private directories of your own,
 follow "Go VM on macOS" in [desktop-overview.md](desktop-overview.md).

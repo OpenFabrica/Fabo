@@ -15,7 +15,7 @@ Fabo 使用已选的“开放容器”标志：青绿色 F 字形与深蓝盒体
 
 `fabo --help` / `fabo -h` 输出用法并正常退出。`fabo run`、`fabo ps` 等已实现子命令沿用原命令契约。`fabo build-with fabo` 使用本实例的构建器。
 
-应用包标识 `dev.fabo.app[.flavor]`、LaunchAgent 标识、`~/.fabo[-flavor]`、`~/Fabo` 挂载、Docker context / builder、`FABO_*` 环境变量、程序名（`fabo-daemon`、`fabo-init` 等）、`/fabo/*` API、`X-Fabo-*` 请求头、`dev.fabo.*` 标签和 `*.fabo.local*` 域名都使用 Fabo 的名字，Go module 路径为 `github.com/OpenFabrica/FabriBay/engine` 和 `.../desktop`。这些名字与上游 Kiri 的 `dev.kiri.app`、`~/.kiri`、`kiri` context 不再重叠，两者可以同时安装运行。
+应用包标识 `com.openfabrica.fabo[.flavor]`、LaunchAgent 标识、`~/.fabo[-flavor]`、`~/Fabo` 挂载、Docker context / builder、`FABO_*` 环境变量、程序名（`fabo-daemon`、`fabo-init` 等）、`/fabo/*` API、`X-Fabo-*` 请求头、`dev.fabo.*` 标签和 `*.fabo.local*` 域名都使用 Fabo 的名字，Go module 路径为 `github.com/OpenFabrica/Fabo/engine` 和 `.../desktop`。这些名字与上游 Kiri 的 `dev.kiri.app`、`~/.kiri`、`kiri` context 不再重叠，两者可以同时安装运行。
 
 改名前的 Fabo 沿用 Kiri 的名字，它留下的状态目录（`~/.kiri-dev` 等）、context 和标签不会自动迁到新名字；网络索引里旧的网桥名会在加载时改为新名字。
 

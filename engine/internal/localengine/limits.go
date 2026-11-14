@@ -8,7 +8,7 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 func parseLimits(host map[string]json.RawMessage) (guestwire.Limits, error) {

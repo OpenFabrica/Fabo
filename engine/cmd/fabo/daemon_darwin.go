@@ -21,14 +21,6 @@ func (i installation) engine() (string, error) {
 	return engine, nil
 }
 
-// legacyStore is where the Rust engine kept images and its VM disk.
-func (i installation) legacyStore() string {
-	if dir := os.Getenv("FABO_DATA_DIR"); dir != "" {
-		return dir
-	}
-	return filepath.Join(i.home, "Library", "Application Support", i.names.app)
-}
-
 // daemonCommand prepares the private directories and returns the engine with
 // the bundle's guest, this installation's paths and the VM's default size.
 func (i installation) daemonCommand() (string, []string, error) {
@@ -38,9 +30,6 @@ func (i installation) daemonCommand() (string, []string, error) {
 	}
 	root, socket := i.root(), i.socket()
 	state := filepath.Join(root, "go-engine")
-	if err := checkStore(state, i.legacyStore()); err != nil {
-		return "", nil, err
-	}
 	run := filepath.Dir(socket)
 	if err := privateDir(run); err != nil {
 		return "", nil, err

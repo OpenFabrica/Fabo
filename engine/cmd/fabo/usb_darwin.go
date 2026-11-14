@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/OpenFabrica/FabriBay/engine/internal/usbhost"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/OpenFabrica/Fabo/engine/internal/usbhost"
 )
 
 func (in installation) usbDevices() ([]usbhost.Device, error) {

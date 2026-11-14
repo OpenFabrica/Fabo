@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/OpenFabrica/FabriBay/engine/internal/usbhost"
+	"github.com/OpenFabrica/Fabo/engine/internal/usbhost"
 	"os"
 )
 

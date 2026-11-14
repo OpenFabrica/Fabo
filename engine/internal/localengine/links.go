@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 // containerLink retains the target ID across renames and restarts.

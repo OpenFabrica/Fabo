@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 func (e *Engine) pruneContainersHTTP(w http.ResponseWriter, r *http.Request) {

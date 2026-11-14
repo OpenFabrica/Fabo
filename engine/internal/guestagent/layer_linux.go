@@ -19,7 +19,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 	"golang.org/x/sys/unix"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 type LayerStore struct{ dir string }

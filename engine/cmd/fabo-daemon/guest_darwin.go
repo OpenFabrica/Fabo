@@ -25,8 +25,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
-	"github.com/OpenFabrica/FabriBay/engine/internal/localengine"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/localengine"
 )
 
 type guestOptions struct {

@@ -1,7 +1,7 @@
 package guestagent
 
 import (
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 	"testing"
 )
 

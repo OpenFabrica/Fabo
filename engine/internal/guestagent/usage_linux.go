@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/diskusage"
+	"github.com/OpenFabrica/Fabo/engine/internal/diskusage"
 )
 
 func measureUsage(ctx context.Context, layers *LayerStore, runtime *Runtime) []string {

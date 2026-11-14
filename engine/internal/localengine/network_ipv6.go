@@ -9,7 +9,7 @@ import (
 	"net/netip"
 	"slices"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 type ipv6Pool struct {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
 )
 
 func TestControlSamplesAndShutsDown(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/localengine"
+	"github.com/OpenFabrica/Fabo/engine/internal/localengine"
 )
 
 func migrateKiriCommand(ctx context.Context, args []string) error {

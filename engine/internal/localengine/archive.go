@@ -16,8 +16,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
-	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/hostagent"
 )
 
 func (e *Engine) archiveHTTP(w http.ResponseWriter, r *http.Request) {

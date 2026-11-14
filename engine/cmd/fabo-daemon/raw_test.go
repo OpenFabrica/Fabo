@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/OpenFabrica/FabriBay/engine/internal/guestwire"
-	"github.com/OpenFabrica/FabriBay/engine/internal/hostagent"
-	"github.com/OpenFabrica/FabriBay/engine/internal/localengine"
+	"github.com/OpenFabrica/Fabo/engine/internal/guestwire"
+	"github.com/OpenFabrica/Fabo/engine/internal/hostagent"
+	"github.com/OpenFabrica/Fabo/engine/internal/localengine"
 )
 
 func TestRawSpecOverridesAndLayerOrder(t *testing.T) {
