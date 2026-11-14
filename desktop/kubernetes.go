@@ -153,6 +153,7 @@ type kubernetesState struct {
 type kubernetesUI struct {
 	kubernetesState
 	loading                bool
+	refreshing             bool // Only a manual refresh changes the toolbar button.
 	retryAt                time.Time
 	tab                    int
 	logsKey, logsContainer string
@@ -217,7 +218,7 @@ func (s *desktop) refreshKubernetes() {
 	s.run(25*time.Second, func(ctx context.Context) func() {
 		result, err := s.engine.kubernetes(ctx)
 		return func() {
-			s.kube.loading = false
+			s.kube.loading, s.kube.refreshing = false, false
 			if err != nil {
 				result.problem = err.Error()
 				s.kube.retryAt = time.Now().Add(10 * time.Second)
@@ -252,7 +253,8 @@ func (s *desktop) kubernetesView(c *ui.Context, p palette) {
 		if busy {
 			label(c, tr("正在配置 Kubernetes…", "Configuring Kubernetes…"), p.muted)
 		}
-		if button(c.Key("refresh-k8s"), p, tr("刷新", "Refresh"), "", plainButton, s.kube.loading || busy) {
+		if button(c.Key("refresh-k8s"), p, tr("刷新", "Refresh"), "", plainButton, s.kube.refreshing || busy) {
+			s.kube.refreshing = true
 			s.kube.retryAt = time.Time{}
 			s.refreshKubernetes()
 		}

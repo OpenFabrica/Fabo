@@ -13,6 +13,52 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+// TestLiveKubernetesRefresh only reads the existing cluster. It never starts
+// or stops the node or changes workloads.
+func TestLiveKubernetesRefresh(t *testing.T) {
+	socket := os.Getenv("FABO_LIVE_SOCKET")
+	if socket == "" {
+		t.Skip("set FABO_LIVE_SOCKET to test Kubernetes against a live engine")
+	}
+	t.Setenv("FABO_SOCKET", socket)
+	s := newDesktop(newEngineClient(dialEngine))
+	t.Cleanup(s.closeInteractive)
+	s.prefs.Lang = "en"
+	s.navigate(kubernetesPage)
+	if s.kube.problem != "" || s.kube.state != "running" {
+		t.Fatalf("live cluster unavailable: state=%s problem=%s", s.kube.state, s.kube.problem)
+	}
+	tt := ui.NewTester(s.view, 1180, 760)
+	for _, tab := range []string{"Pods", "Services"} {
+		click(t, tt, tab)
+		for range 3 {
+			s.refresh()
+			tt.Frame()
+			button, found := tt.Access("Refresh")
+			if !found || button.Disabled || s.kube.problem != "" {
+				t.Fatalf("%s refresh did not settle: button=%+v problem=%s", tab, button, s.kube.problem)
+			}
+		}
+		click(t, tt, "Refresh")
+		if s.kube.loading || s.kube.refreshing || s.kube.problem != "" {
+			t.Fatalf("%s manual refresh did not settle: %+v", tab, s.kube)
+		}
+		t.Logf("%s refreshed successfully (%d cluster objects)", tab, len(s.kube.items))
+		if dir := os.Getenv("FABO_SHOTS"); dir != "" {
+			tt.Frame()
+			file, err := os.Create(filepath.Join(dir, "live-kubernetes-"+strings.ToLower(tab)+".png"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = png.Encode(file, tt.Image())
+			file.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+}
+
 // waitLive frames the window until condition holds, for a real engine's
 // pace: images start, logs arrive and shells answer within seconds.
 func waitLive(t *testing.T, tt *ui.Tester, what string, condition func() bool) {

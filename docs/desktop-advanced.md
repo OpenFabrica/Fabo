@@ -60,6 +60,7 @@ flowchart LR
 - 窗口不依赖宿主 `kubectl`，通过引擎 exec 在 `fabo-k8s` 中运行 kubectl，节点与数据卷完全沿用 `fabo k8s`。
 - 浏览先 inspect 节点，仅当节点运行时读取 `kubectl get pods,services -A -o json`。这些 POST exec 请求、流和 inspect 都带 `X-Fabo-Background: 1`，不会因刷新阻止 VM 空闲休眠。停止或不存在的节点不执行 kubectl。
 - 一次只允许一个列表查询。节点未就绪或查询失败显示原因，至少 10 秒后重试；手动刷新可立即重试。列表查询的 guest 命令限制为 20 秒，API 请求另有超时；持续日志使用独立会话，不受该命令时限影响。
+- 后台轮询静默更新 Pods / Services，不改变「刷新」按钮状态。手动刷新期间按钮禁用，请求成功或失败后恢复；若已有后台查询，则等待该查询完成，不重复发起请求。
 - Pod 状态按上游优先级显示删除、init 阶段和容器等待/退出原因，另显示就绪数量和重启次数。Service 显示类型、Cluster IP、端口和 LoadBalancer ingress。
 - Pod 日志可切换容器和上一次运行，初始读取最近 2,000 行，并持续追加当前运行的输出；上一次运行有限读取，刷新可重新订阅。关闭详情时回收对应 kubectl，见 [连续终端与日志](desktop-streams.md)。仅名称合法的 namespace、Pod 和容器参数会进入 kubectl。
 - 删除 Pod 须确认，并提示控制器可能重建；使用 `--wait=false`，随后由列表更新反映状态。集群删除另行确认，明确删除全部集群数据。
