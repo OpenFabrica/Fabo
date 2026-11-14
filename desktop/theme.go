@@ -313,10 +313,12 @@ func filters(c *ui.Context, p palette, label string, selected *int, labels []str
 
 // openLink is a link that opens url: its text in the link color with an
 // optional icon before it, underlined under the pointer. It reports a
-// click; the text is shown as given, the label names the url.
+// click; the text is shown as given, the label names the url. It hugs its
+// text at the start of its place: a button would stretch across a column
+// and center what it holds.
 func openLink(c *ui.Context, p palette, icon, text, url string) bool {
 	b := clickable(c).Label(fmt.Sprintf(tr("打开 %s", "Open %s"), url)).Tooltip(url).Gap(4).AlignItems(ui.Center).
-		MinWidth(0).Shrink(1)
+		Justify(ui.Start).AlignSelf(ui.Start).MinWidth(0).Shrink(1)
 	hover := b.Hovered()
 	b.Children(func() {
 		if icon != "" {
