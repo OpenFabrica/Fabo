@@ -311,6 +311,20 @@ func (c *container) networkMode() string {
 	return "bridge"
 }
 
+// pidMode is HostConfig.PidMode as Docker reports it.
+func (c *container) pidMode() string {
+	if target := c.pidTarget(); target != "" {
+		return containerNetworkPrefix + target
+	}
+	return ""
+}
+
+// pidTarget is the ID of the container whose PID namespace this one joins.
+func (c *container) pidTarget() string {
+	target, _ := guestwire.SplitPIDJoin(c.run.Options)
+	return target
+}
+
 func (c *container) networkTarget() string {
 	if target, join := strings.CutPrefix(c.networkName, containerNetworkPrefix); join {
 		return target

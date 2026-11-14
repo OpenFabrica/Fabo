@@ -179,6 +179,24 @@ func (e *Engine) createHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		delete(body.HostConfig, "Init")
 	}
+	if raw := body.HostConfig["PidMode"]; len(raw) != 0 {
+		var pid string
+		if err := json.Unmarshal(raw, &pid); err != nil {
+			writeError(w, fmt.Errorf("%w: invalid PID mode", errInvalid))
+			return
+		}
+		// Only another container's namespace is offered: the VM's own
+		// processes are Fabo's, not the user's.
+		if pid != "" {
+			target, ok := strings.CutPrefix(pid, containerNetworkPrefix)
+			if !ok || target == "" {
+				writeError(w, fmt.Errorf("%w: unsupported PID mode %q: expected container:<name|id>", errInvalid, pid))
+				return
+			}
+			body.Config.pidMode = target
+		}
+		delete(body.HostConfig, "PidMode")
+	}
 	var mode string
 	if raw := body.HostConfig["NetworkMode"]; len(raw) != 0 {
 		if err := json.Unmarshal(raw, &mode); err != nil {
@@ -455,7 +473,7 @@ func (e *Engine) inspectHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	hostConfig := map[string]any{
 		"LogConfig":  logging,
-		"AutoRemove": c.run.Flags&guestwire.RunAutoRemove != 0, "NetworkMode": c.networkMode(),
+		"AutoRemove": c.run.Flags&guestwire.RunAutoRemove != 0, "NetworkMode": c.networkMode(), "PidMode": c.pidMode(),
 		"Privileged":   c.run.Flags&guestwire.RunPrivileged != 0,
 		"PortBindings": dockerBindings(c.portBindings, nil), "RestartPolicy": c.restartPolicy.inspect(),
 		"Dns": c.run.DNS.Servers, "DnsSearch": c.run.DNS.Search, "DnsOptions": c.run.DNS.Options,

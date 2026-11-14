@@ -11,6 +11,25 @@ import (
 // NetworkJoinPrefix is the Rust Run option for sharing a container's network namespace.
 const NetworkJoinPrefix = "netns="
 
+// PIDJoinPrefix is the Run option that starts a container in another
+// container's PID namespace, as HostConfig.PidMode "container:<id>" asks:
+// it sees and can trace that container's processes, and reaches its files
+// through /proc/1/root.
+const PIDJoinPrefix = "fabo.pidns="
+
+// SplitPIDJoin separates the PID namespace option from the other Run
+// options; target is empty when the container gets its own namespace.
+func SplitPIDJoin(options []string) (target string, rest []string) {
+	for _, option := range options {
+		if id, ok := strings.CutPrefix(option, PIDJoinPrefix); ok {
+			target = id
+			continue
+		}
+		rest = append(rest, option)
+	}
+	return target, rest
+}
+
 const (
 	DeleteBridgeMessage Kind = 78
 	NetworkInternal          = "internal=1"

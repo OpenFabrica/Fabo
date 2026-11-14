@@ -578,6 +578,9 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 			if m.Item(tr("文件", "Files")).Chosen() {
 				show(3)
 			}
+			if s.launcherPath != "" && m.Item(tr("调试终端", "Debug Shell")).Disabled(x.bucket() != "running").Chosen() {
+				s.openDebugShell(x)
+			}
 			if s.launcher != nil && m.Item(tr("打包…", "Pack…")).Disabled(s.working["pack"]).Chosen() {
 				s.pack([]string{x.Name}, "", x.Name)
 			}

@@ -37,6 +37,14 @@ flowchart TD
     C -->|list / start / stop / restart / delete| I[调用 Docker API 并检查状态码]
 ```
 
+## 桌面端
+
+侧栏的"Linux 机器"页单独列出 machine，它们不再出现在容器列表里（调试会话、打包和导入时用的临时 helper 容器也不出现）。每行显示发行版图标、发行版、状态和创建时间；行上的按钮打开终端、启动或停止，"更多"菜单里有重启、复制终端命令和删除。详情面板显示镜像、用户、共享目录和终端命令。
+
+"新建机器"对话框选择名称、发行版和是否运行 systemd，交给 `fabo machine create`。终端按钮在窗口的终端页新开一个标签，运行 `fabo machine shell NAME`。删除前会确认，并说明共享目录下的文件留在宿主上。启动、停止和删除直接调用引擎，和 CLI 等价。
+
+daemon 需要共享 `/Users`（macOS）或 `/home`（Linux）才能创建 machine。`fabo` 启动 daemon 时传 `-standard-shares`；手动运行 `fabo-daemon` 做测试时也要带上它，否则创建会报 `VM bind mounts require a configured -share directory`。
+
 ## 验证
 
 ```sh

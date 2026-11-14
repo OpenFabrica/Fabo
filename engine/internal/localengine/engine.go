@@ -64,6 +64,8 @@ type Config struct {
 	logConfig                  logConfig
 	bridge                     bool
 	network                    string
+	// pidMode names the container whose PID namespace this one joins.
+	pidMode                    string
 	networkEndpoints           map[string]endpointConfig
 	networkMAC                 net.HardwareAddr
 	links                      []string
@@ -659,6 +661,16 @@ func (e *Engine) create(name string, cfg Config) (string, error) {
 		}
 		mode = containerNetworkPrefix + owner.id
 	}
+	if cfg.pidMode != "" {
+		owner, err := e.find(cfg.pidMode)
+		if errors.Is(err, errMissing) {
+			return "", fmt.Errorf("%w: No such container: %s", errMissing, cfg.pidMode)
+		}
+		if err != nil {
+			return "", err
+		}
+		run.Options = append(slices.Clone(run.Options), guestwire.PIDJoinPrefix+owner.id)
+	}
 	if mode == "" {
 		mode = "none"
 		if cfg.bridge {
@@ -870,6 +882,14 @@ func (e *Engine) startContainer(c *container, automatic bool) error {
 			joinErr = fmt.Errorf("%w: cannot join network of a non running container: %s", errConflict, target)
 		} else {
 			proxyNetwork = owner.attempt.proxyNetwork
+		}
+	}
+	if pid := c.pidTarget(); pid != "" && joinErr == nil {
+		owner := e.containers[pid]
+		if owner == nil {
+			joinErr = fmt.Errorf("%w: No such container: %s", errMissing, pid)
+		} else if owner.state != "running" || owner.attempt == nil || owner.removing {
+			joinErr = fmt.Errorf("%w: cannot join PID namespace of a non running container: %s", errConflict, pid)
 		}
 	}
 	previous, code, failure, oom := c.state, c.exit, c.failure, c.oomKilled

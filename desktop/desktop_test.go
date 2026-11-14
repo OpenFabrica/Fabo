@@ -120,7 +120,10 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 	  "Labels":{"com.docker.compose.project":"observability"}},
 	 {"Id":"c-redis","Names":["/redis-cache"],"Image":"redis:7.4-alpine","ImageID":"sha256:img-redis","State":"running","Created":%[1]d,"FaboStartedAt":%[1]d,
 	  "Ports":[{"Type":"tcp","PrivatePort":6379,"PublicPort":6379}],"NetworkSettings":{"Networks":{"bridge":{"IPAddress":"172.17.0.2"}}}},
-	 {"Id":"c-job","Names":["/db-migrate"],"Image":"shop/migrate:dev","ImageID":"sha256:img-migrate","State":"exited","Created":%[1]d,"FaboFinishedAt":%[1]d,"FaboExitCode":0}
+	 {"Id":"c-job","Names":["/db-migrate"],"Image":"shop/migrate:dev","ImageID":"sha256:img-migrate","State":"exited","Created":%[1]d,"FaboFinishedAt":%[1]d,"FaboExitCode":0},
+	 {"Id":"m-dev","Names":["/machine-dev"],"Image":"ubuntu:24.04","ImageID":"sha256:img-ubuntu","State":"running","Created":%[1]d,"FaboStartedAt":%[1]d,"Labels":{"dev.fabo.machine":"dev"}},
+	 {"Id":"m-old","Names":["/machine-old"],"Image":"alpine:3.22","ImageID":"sha256:img-alpine","State":"exited","Created":%[1]d,"FaboFinishedAt":%[1]d,"FaboExitCode":0,"Labels":{"dev.fabo.machine":"old"}},
+	 {"Id":"h-debug","Names":["/fabo-debug-c-web-1"],"Image":"fabo/debug-toolbox:1","ImageID":"sha256:img-toolbox","State":"running","Created":%[1]d,"Labels":{"dev.fabo.debug":"shop-web-1"}}
 	]`, now-3*86400, now-240, now-360)
 	// The shop project's Compose file is real, so its Config tab has
 	// something to show and to save.

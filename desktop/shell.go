@@ -174,7 +174,7 @@ func (s *desktop) toggleSidebar() {
 
 // searchable reports whether the page has a list the title bar's field filters.
 func searchable(page string) bool {
-	return page == containersPage || page == imagesPage || page == volumesPage || page == networksPage || page == kubernetesPage
+	return page == containersPage || page == imagesPage || page == volumesPage || page == networksPage || page == kubernetesPage || page == machinesPage
 }
 
 // strip is the window's title bar, on the shell's grey: the traffic lights,
@@ -237,6 +237,14 @@ func (s *desktop) pageSummary() string {
 	case containersPage:
 		running := 0
 		for _, x := range s.containers {
+			if x.State == "running" {
+				running++
+			}
+		}
+		return fmt.Sprintf(tr("%d 个运行中", "%d running"), running)
+	case machinesPage:
+		running := 0
+		for _, x := range s.machines {
 			if x.State == "running" {
 				running++
 			}
@@ -339,7 +347,7 @@ func (s *desktop) sidebar(c *ui.Context, p palette) {
 	if open {
 		width = sidebarOpenWidth
 	}
-	counts := map[string]int{containersPage: len(s.containers), imagesPage: len(s.images), volumesPage: len(s.volumes), networksPage: len(s.networks)}
+	counts := map[string]int{containersPage: len(s.containers), imagesPage: len(s.images), volumesPage: len(s.volumes), networksPage: len(s.networks), machinesPage: len(s.machines)}
 	side := ui.Column(c.Key("sidebar")).Width(width).Shrink(0).Padding(6, 12, 12).Gap(2).Justify(ui.Start)
 	if !open {
 		side.Padding(6, 10, 12).AlignItems(ui.Center)
@@ -574,6 +582,8 @@ func (s *desktop) pageBody(c *ui.Context, p palette) {
 		s.networksView(c, p)
 	case buildsPage:
 		s.buildsView(c, p)
+	case machinesPage:
+		s.machinesView(c, p)
 	case terminalPage:
 		s.hostTerminalView(c, p)
 	case kubernetesPage:
@@ -905,6 +915,10 @@ func (s *desktop) dialog(c *ui.Context, p palette) {
 				submitted = input(c, p, "port", tr("容器端口", "Container port"), "80", &f.port, false).Submitted() || submitted
 			})
 			submitted = input(c, p, "command", tr("命令", "Command"), tr("使用镜像默认值", "Image default"), &f.value, false).Submitted() || submitted
+		case "machine":
+			title, ok = tr("新建 Linux 机器", "New Linux machine"), tr("创建", "Create")
+			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
+			submitted = s.machineForm(c, p)
 		case "pull":
 			title, ok = tr("拉取镜像", "Pull an image"), tr("拉取", "Pull")
 			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
@@ -943,6 +957,8 @@ func (s *desktop) submit() bool {
 	f := &s.form
 	f.image, f.name = strings.TrimSpace(f.image), strings.TrimSpace(f.name)
 	switch f.kind {
+	case "machine":
+		return s.createMachine()
 	case "run":
 		spec := runSpec{Image: f.image, Name: f.name, Command: f.value}
 		if spec.Image == "" {

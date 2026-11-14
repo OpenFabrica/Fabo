@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/terminal"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -47,6 +48,7 @@ var navItems = []navItem{
 	{volumesPage, "cylinder", "卷", "Volumes", false},
 	{networksPage, "network", "网络", "Networks", false},
 	{buildsPage, "hammer", "构建", "Builds", false},
+	{machinesPage, "cpu", "Linux 机器", "Machines", false},
 	{kubernetesPage, "helm", "Kubernetes", "Kubernetes", false},
 	{"usb", "usb", "USB 设备", "USB devices", true},
 	{"share", "share", "共享", "Share", true},
@@ -86,6 +88,8 @@ type form struct {
 	// life: deciding it from the field's content would move the focus as
 	// soon as the first letter was typed.
 	named bool
+	// flag is the dialog's one switch, as New machine's systemd.
+	flag bool
 }
 
 // detail is what the dock shows for the selected row. key ties it to that
@@ -107,7 +111,14 @@ type desktop struct {
 	// machine-level changes the engine cannot. Nil when there is none.
 	launcher func(ctx context.Context, args ...string) ([]byte, error)
 	// chooser replaces the system's file dialogs in tests.
-	chooser     func(save bool, name string) string
+	chooser func(save bool, name string) string
+	// launcherPath is the fabo command launcher runs, for terminal tabs
+	// that run one of its commands; openTerminal replaces those tabs in
+	// tests.
+	launcherPath string
+	openTerminal func(terminal.Options)
+	// machines are the Linux machines, kept out of containers.
+	machines    []container
 	ctx         context.Context
 	prefs       prefs
 	prefsFile   string
@@ -224,6 +235,9 @@ func main() {
 	defer signal.Stop(signals)
 	s := newDesktop(newEngineClient(dialEngine))
 	s.ctx, s.launcher = ctx, findLauncher()
+	if s.launcher != nil {
+		s.launcherPath = launcherBesideExecutable()
+	}
 	for _, n := range navItems {
 		if strings.EqualFold(n.page, *initial) {
 			s.page = n.page
@@ -289,13 +303,9 @@ func main() {
 // FABO_LAUNCHER names, else the file beside this executable, as in the app
 // bundle. It returns nil when neither exists, as under `go run`.
 func findLauncher() func(ctx context.Context, args ...string) ([]byte, error) {
-	path := os.Getenv("FABO_LAUNCHER")
+	path := launcherBesideExecutable()
 	if path == "" {
-		exe, err := os.Executable()
-		if err != nil {
-			return nil
-		}
-		path = filepath.Join(filepath.Dir(exe), "fabo")
+		return nil
 	}
 	if info, err := os.Stat(path); err != nil || !info.Mode().IsRegular() {
 		return nil
@@ -469,7 +479,7 @@ func (s *desktop) refresh() {
 		return func() {
 			s.refreshing, s.connected, s.problem, s.info, s.now = false, true, "", info, now
 			if e1 == nil {
-				s.containers = containers
+				s.containers, s.machines = splitContainers(containers)
 				s.reconcileTerminals()
 			}
 			if e2 == nil {

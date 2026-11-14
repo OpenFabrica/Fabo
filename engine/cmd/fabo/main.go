@@ -23,6 +23,7 @@ const usage = `usage: fabo [ui [-view PAGE] [-start]]   open the desktop window
        fabo machine start|stop|restart|delete NAME
        fabo k8s start [--use] | stop | status | delete | set [--lan on|off] [--tls-san NAME,…] [--port N]
        fabo import [orbstack|desktop-linux] [--list | image|volume|container NAME]
+       fabo debug CONTAINER              a shell with debugging tools beside any running container
        fabo pack [-o FILE] [--project NAME] [CONTAINER...]   containers with their changes and volumes, in one file
        fabo unpack [--start] FILE        recreate packed containers here
        fabo usb [list] | attach DEVICE | detach DEVICE | helper remove
@@ -53,6 +54,8 @@ func main() {
 		err = migrate(args)
 	case args[0] == "mcp":
 		err = mcpCommand(args[1:])
+	case args[0] == "debug":
+		err = debugCommand(args[1:])
 	case args[0] == "pack":
 		err = packCommand(args[1:])
 	case args[0] == "unpack":

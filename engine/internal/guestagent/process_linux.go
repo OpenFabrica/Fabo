@@ -94,7 +94,11 @@ func (r *Runtime) Run(spec guestwire.RunSpec, emit func(guestwire.RunEvent) erro
 	if err := guestwire.ValidateCapabilities(spec.Caps); err != nil {
 		return err
 	}
-	proxyPorts, err := windowsProxyPorts(spec.Options, r.proxySocket)
+	pidTarget, runOptions := guestwire.SplitPIDJoin(spec.Options)
+	if pidTarget != "" && (!validContainerID(pidTarget) || pidTarget == spec.ID) {
+		return fmt.Errorf("invalid shared container PID namespace")
+	}
+	proxyPorts, err := windowsProxyPorts(runOptions, r.proxySocket)
 	if err != nil {
 		return err
 	}
@@ -213,10 +217,30 @@ func (r *Runtime) Run(spec guestwire.RunSpec, emit func(guestwire.RunEvent) erro
 	attributes := &syscall.SysProcAttr{
 		Cloneflags: unix.CLONE_NEWNS | unix.CLONE_NEWPID | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWCGROUP,
 	}
+	// A container sharing another's PID namespace starts inside it instead
+	// of a new one; the /proc it mounts then lists that container's
+	// processes, and /proc/1/root is that container's root.
+	var startIn func(*exec.Cmd) error
+	if pidTarget != "" {
+		owner := r.children[pidTarget]
+		if owner == nil || owner.isExec {
+			return fmt.Errorf("PID namespace container %s is not running", pidTarget)
+		}
+		pidNS, err := os.Open(fmt.Sprintf("/proc/%d/ns/pid", owner.Process.Pid))
+		if err != nil {
+			return fmt.Errorf("open target PID namespace: %w", err)
+		}
+		defer pidNS.Close()
+		if err := owner.Process.Signal(syscall.Signal(0)); err != nil {
+			return fmt.Errorf("check PID namespace container process: %w", err)
+		}
+		attributes.Cloneflags &^= unix.CLONE_NEWPID
+		startIn = func(cmd *exec.Cmd) error { return startInPIDNamespace(cmd, pidNS) }
+	}
 	if !hostNetwork && target == "" {
 		attributes.Cloneflags |= unix.CLONE_NEWNET
 	}
-	launch := processLaunch{mode: "__fabo-container", id: spec.ID, flags: spec.Flags, config: cfg, attributes: attributes, cgroup: cgroup, files: files}
+	launch := processLaunch{mode: "__fabo-container", id: spec.ID, flags: spec.Flags, config: cfg, attributes: attributes, cgroup: cgroup, files: files, start: startIn}
 	launch.prepare = func(pid int) error {
 		if hostNetwork || target != "" {
 			return nil

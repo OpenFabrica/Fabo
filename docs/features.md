@@ -67,7 +67,14 @@ Apple silicon and Intel Macs (macOS 14+), Windows 10 and 11 (x86-64 and Arm, thr
 - **Kubernetes**: `fabo k8s start` — a single-node k3s cluster in one
   container, ready in ~20 s, as the `fabo` kubectl context
 - **Linux machines**: `fabo machine create dev --distro ubuntu` and
-  `fabo machine shell dev` — your user, sudo, and `/Users` at the same path
+  `fabo machine shell dev` — your user, sudo, and `/Users` at the same path;
+  the window's Machines page lists, creates, starts, stops and deletes
+  them and opens their shells in its terminal
+- **Debug shell**: `fabo debug CONTAINER`, or Debug Shell in a container's
+  menu — fish, htop, curl, strace, vim and more beside any running
+  container, even a distroless or read-only one; `dctl install COMMAND`
+  adds tools without changing the container (see
+  [debug-shell.md](debug-shell.md))
 - **The app**: `cargo xtask app` builds `Fabo.app` with the `docker` CLI,
   Compose and buildx inside; opening it runs `fabo setup` (docker context,
   LaunchAgent, build builder) and the window; `fabo update` installs new
