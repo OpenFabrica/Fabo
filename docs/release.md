@@ -24,7 +24,7 @@ Fabo 是 Go 项目，版本号不存在源码里，只来自 git 标签 `vX.Y.Z`
 2. 提交 `chore(release): <版本>`。
 3. 打注释标签 `v<版本>`，推送分支和标签。**打标签和推送前先问用户。**
 4. 门禁：`make release-check TAG=v<版本>`（`scripts/release-check.sh`），不过就停。
-5. 从标签构建：`make guest kernel disk app dmg`。
+5. 从标签构建：`make guest kernel disk app dmg`。随包的 Go 二进制（`fabo`、`fabo-desktop`、`fabo-daemon`、guest 的 `fabo-init`，以及 `make linux`）都用 `-s -w` 去掉符号表和 DWARF，体积约少三分之一，panic 调用栈仍有函数名和行号。单独调试引擎的 `make daemon` 保留调试信息。
 6. 生成内核源码包 `scripts/ci/kernel-source.sh target/Fabo-<版本>-kernel-source.tar.xz`，和 DMG 一起附到 GitHub Release `v<版本>`。
    `guest/kernel/SOURCE_OFFER.md` 承诺了这个下载地址（GPL 要求），不能漏。公证时传 `FABO_NOTARY_PROFILE`。
 

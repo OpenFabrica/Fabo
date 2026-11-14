@@ -23,6 +23,11 @@ endif
 # tag yet builds as 0.0.0-dev.
 VERSION ?= $(or $(shell git describe --tags --dirty 2>/dev/null | sed 's/^v//'),0.0.0-dev)
 
+# Shipped binaries leave out the symbol table and DWARF (-s -w), about a
+# third of their size; panics still name functions and lines. `make daemon`,
+# built to debug the engine, keeps them.
+STRIP := -s -w
+
 # The Linux build's CPU: this machine's, unless LINUX_ARCH says otherwise.
 LINUX_ARCH ?= $(shell go env GOARCH)
 
@@ -54,7 +59,7 @@ check:
 
 guest:
 	mkdir -p $(GUEST_OUT)
-	GOOS=linux GOARCH=$(GOARCH) CGO_ENABLED=0 go -C engine build -trimpath -o $(CURDIR)/$(GUEST_OUT)/fabo-init ./cmd/fabo-init
+	GOOS=linux GOARCH=$(GOARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "$(STRIP)" -o $(CURDIR)/$(GUEST_OUT)/fabo-init ./cmd/fabo-init
 	go -C engine run ./cmd/fabo-mkinitramfs $(CURDIR)/$(GUEST_OUT)/fabo-init $(CURDIR)/$(GUEST_OUT)/initramfs-go.cpio
 
 # Both kernels build in their source tree, so each keeps its own cached tree
@@ -98,9 +103,9 @@ dmg:
 # Static binaries, so one build runs on every distribution.
 linux:
 	mkdir -p target/linux/release
-	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "-X main.release=$(VERSION)" -o $(CURDIR)/target/linux/release/fabo ./cmd/fabo
-	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "-X main.engineRelease=$(VERSION)" -o $(CURDIR)/target/linux/release/fabo-daemon ./cmd/fabo-daemon
-	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -o $(CURDIR)/target/linux/release/fabo-init ./cmd/fabo-init
+	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "$(STRIP) -X main.release=$(VERSION)" -o $(CURDIR)/target/linux/release/fabo ./cmd/fabo
+	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "$(STRIP) -X main.engineRelease=$(VERSION)" -o $(CURDIR)/target/linux/release/fabo-daemon ./cmd/fabo-daemon
+	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "$(STRIP)" -o $(CURDIR)/target/linux/release/fabo-init ./cmd/fabo-init
 
 # The release gate from docs/release.md; run it before building a release.
 release-check:
