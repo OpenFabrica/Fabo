@@ -26,7 +26,7 @@ VERSION ?= $(or $(shell git describe --tags --dirty 2>/dev/null | sed 's/^v//'),
 # The Linux build's CPU: this machine's, unless LINUX_ARCH says otherwise.
 LINUX_ARCH ?= $(shell go env GOARCH)
 
-.PHONY: help check guest kernel disk daemon app app-dev dmg linux clean
+.PHONY: help check guest kernel disk daemon app app-dev dev dmg linux clean
 
 help:
 	@echo "make check     vet and test engine and desktop; compile the Linux-only tests"
@@ -37,6 +37,7 @@ help:
 	@echo "make app       target/Fabo.app: engine, guest, desktop, docker CLI, Compose, buildx"
 	@echo "make app-dev   target/dev/Fabo Dev.app: a second installation with its own state"
 	@echo "               (FLAVOR=name builds Fabo <Name>.app instead)"
+	@echo "make dev       build and open the development app (also accepts FLAVOR=name)"
 	@echo "make dmg       target/Fabo-<version>-$(ARCH).dmg from the app, notarized when"
 	@echo "               KIRI_NOTARY_PROFILE names a notarytool profile"
 	@echo "make linux     target/linux/release: fabo, kiri-go-daemon, kiri-go-init"
@@ -84,6 +85,11 @@ app: guest
 
 app-dev: guest
 	scripts/macos-app.sh $(ARCH) $(VERSION) $(or $(FLAVOR),dev)
+
+dev: app-dev
+	@flavor="$(or $(FLAVOR),dev)"; \
+	name="$$(printf '%s' "$$flavor" | cut -c1 | tr a-z A-Z)$$(printf '%s' "$$flavor" | cut -c2-)"; \
+	open "$(CURDIR)/$(if $(filter x86_64,$(ARCH)),target/intel,target)/dev/Fabo $$name.app"
 
 dmg:
 	scripts/macos-dmg.sh $(ARCH) $(VERSION)

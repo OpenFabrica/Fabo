@@ -16,6 +16,7 @@ make kernel    # guest/out/Image
 make disk      # guest/out/data.img (sparse 64 GiB ext4 template)
 make app       # target/Fabo.app
 make app-dev   # target/dev/Fabo Dev.app, a second installation with its own state
+make dev       # build and open the development app; accepts FLAVOR=name
 make dmg       # target/Fabo-<version>-arm64.dmg from the app
 make linux     # target/linux/release: fabo, kiri-go-daemon, kiri-go-init
 ```

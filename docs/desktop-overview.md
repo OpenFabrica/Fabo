@@ -9,7 +9,7 @@ Upstream Kiri's WebView window, which this document calls **Advanced tools**,
 was hosted by the Rust binary and left the tree with it. The daemon still
 serves the `/kiri/*` endpoints that window used. The sections below describe
 them as the contract for the workflows the MyGo window has yet to take over:
-onboarding, continuous terminal sessions and Kubernetes forwards. Container
+onboarding and Kubernetes forwards. Continuous terminals, live logs, container
 settings, registry logins and Kubernetes browsing are now provided by MyGo;
 see [Advanced desktop operations](desktop-advanced.md).
 
@@ -17,7 +17,7 @@ The window is a title strip, a sidebar, the page, and a status line.
 
 - **Appearance.** Dark and light palettes share one layout. The window
   follows the system or the choice in Settings, which also picks the
-  language (the system's, Chinese or English), one of five accents (blue `#0D6EFD` by default), the
+  language (the system's, one of 15 supported languages), one of five accents (blue `#0D6EFD` by default), the
   interface and monospace fonts, the text size of the whole window, the log
   text size and the row density. These preferences live in `desktop.json` in
   the installation's state directory, so each flavor keeps its own.
@@ -26,7 +26,7 @@ The window is a title strip, a sidebar, the page, and a status line.
   or stops the VM. Folded (Command/Ctrl+B, or the button beside the window
   buttons) it shows icons only, and the engine's state moves to the title
   strip. Kubernetes opens Pods and Services. USB devices and Share still open
-  placeholder pages.
+  placeholder pages. Terminal opens independent host shell sessions.
 - **Lists.** Every page is a table over a dock. Command/Ctrl+K focuses the
   search field of the title strip, which filters the page's table. Up and
   Down move the selection and Escape closes the dock. Only visible rows are
@@ -36,13 +36,14 @@ The window is a title strip, a sidebar, the page, and a status line.
 - **Containers.** Compose members sit under their project's heading, which
   folds and starts, restarts or stops all of them. Rows show state, the
   first published port, CPU, memory and age. The dock has Info (from
-  inspect), Logs (the last 400 lines, refreshed while shown, with a filter
-  and a follow switch), Terminal, Files and Settings. The Settings tab edits
+  inspect), Logs (a live subscription starting with the last 5,000 lines, with a filter
+  and a follow-scroll switch), Terminal, Files and Settings. The Settings tab edits
   the environment
   (with a confirmed restart) and live TCP/UDP port bindings while retaining
   the existing container and its data.
-  - Terminal runs one command at a time through `sh -c` and keeps what each
-    printed. It is not an interactive terminal.
+  - Terminal opens a persistent `/bin/sh` TTY with native terminal emulation,
+    continuous input and resize. Navigation preserves the shell; Close terminal
+    ends only its exec. See [Continuous terminals and logs](desktop-streams.md).
   - Files lists one directory at a time by running `ls -1Ap` in the
     container, so it needs the container running and an `ls` in the image.
 - **Images.** The dock shows layers (`/kiri/images/layers`), the stored
@@ -53,8 +54,8 @@ The window is a title strip, a sidebar, the page, and a status line.
   the container. A volume in use, a network in use and the three built-in
   networks cannot be removed.
 - **Kubernetes.** Pods and Services are read through kubectl in the existing
-  k3s node. The dock shows details and the last 400 Pod log lines, with a
-  container and previous-run choice. Pod deletion asks for confirmation.
+  k3s node. The dock shows details and live Pod logs, starting with 2,000
+  lines, with a container and previous-run choice. Pod deletion asks for confirmation.
   Browsing never starts the cluster, and passive execs use background headers.
 - **Builds.** The engine keeps no record of past builds. The page shows the
   BuildKit builder from `/kiri/builder`, sets its cache limit, and clears
@@ -75,7 +76,8 @@ The window is a title strip, a sidebar, the page, and a status line.
   cluster and its network settings through `fabo k8s`. About lists
   the versions. Import, Diagnostics and the Build with choice are not there yet.
 
-The window reads the engine every two seconds while it is visible. Those
+The window refreshes resource lists every two seconds while it is visible.
+Container and Pod logs use cancellable streams rather than repeated tail reads. Those
 reads are background reads and never keep an idle VM awake. Usage comes from
 one `stats` sample per running container, taken only while the VM is awake.
 Disk use comes from `/system/df`, which would boot a sleeping VM, so the
@@ -1836,3 +1838,5 @@ flowchart LR
     Mount --> Policy[Apply syscall and identity policy]
     Policy --> Workload[Workload and later execs]
 ```
+
+Language selection, system matching and translation maintenance are described in [Desktop languages](languages.md).

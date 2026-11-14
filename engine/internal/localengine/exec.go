@@ -362,3 +362,49 @@ func (e *Engine) finishExec(x *execProcess, code int32) {
 		delete(e.execs, x.spec.ID)
 	}
 }
+
+// stopExecHTTP terminates a desktop-owned exec without stopping its container.
+// Closing a Docker TTY stream intentionally detaches; it cannot release a shell
+// or a following kubectl process. Keep Docker's detach semantics unchanged.
+func (e *Engine) stopExecHTTP(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	e.mu.Lock()
+	x := e.execs[id]
+	if x == nil || x.private() {
+		e.mu.Unlock()
+		writeError(w, fmt.Errorf("%w: no such exec instance", errMissing))
+		return
+	}
+	c := x.container
+	e.mu.Unlock()
+	// Serialize with start so a cancelled open cannot start after its stop.
+	c.operation.Lock()
+	defer c.operation.Unlock()
+	e.mu.Lock()
+	if e.execs[id] != x {
+		e.mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	running, attempt := x.running, x.attempt
+	if attempt == nil {
+		delete(e.execs, id)
+	}
+	e.mu.Unlock()
+	if !running {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	if err := e.session.Signal(ctx, id, sigKill); err != nil {
+		writeError(w, err)
+		return
+	}
+	select {
+	case <-attempt.done:
+		w.WriteHeader(http.StatusNoContent)
+	case <-ctx.Done():
+		writeError(w, ctx.Err())
+	}
+}

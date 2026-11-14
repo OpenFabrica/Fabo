@@ -1,6 +1,6 @@
 # FabriBay 功能对齐基线
 
-记录于 2026-11-11。FabriBay 是独立项目，源码里只有 Go。上游 [libracoder/kiri](https://github.com/libracoder/kiri) 是功能对齐的参考，本仓库的起点是上游提交 `4418009e3f9f8cd234e37531348dd900f78e84e1`。
+初始记录于 2026-11-11，待对齐清单更新于 2026-11-14（前次桌面实现提交 `6c93c03`，本地上游参考 `a649319`）。FabriBay 是独立项目，源码里只有 Go。上游 [libracoder/kiri](https://github.com/libracoder/kiri) 是功能对齐的参考，本仓库的起点是上游提交 `4418009e3f9f8cd234e37531348dd900f78e84e1`。
 
 目标是保留 Kiri 的 Docker API、现有客户端工作流和数据迁移能力，容器引擎与 guest agent 用 Go 实现，MyGo 承担主窗口和托盘。Docker CLI 的交互与流式能力属于引擎兼容范围。上游由 Rust 提供的其余功能按下面的「待对齐功能」逐步补回。架构和构建方式见[开发说明](development.md)和[桌面与引擎说明](desktop-overview.md)。
 
@@ -87,24 +87,70 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 
 原生窗口截图及逐项结果保留在 `target/desktop-advanced-check/`。专用 VM、临时 HOME / Docker 配置 / kubeconfig、测试容器和数据卷均已清理，日常 Dev 引擎未重启。`target/dev/Fabo Advanced.app` 已构建并通过 ad hoc 签名检查，未安装或发布。
 
-剩余边界：Pod 日志为尾部 400 行的手动刷新；交互终端仍逐条执行；Linux 引导、多语言、Kubernetes forwards、Import / Diagnostics / Build with、USB / Share 界面尚未补齐。仓库 token 与私有镜像鉴权头由接口测试覆盖，未使用真实私人仓库账号；Linux / Windows 的真实桌面和全量 `tests/e2e.sh` 未在本轮验证。
+该批实现当时的终端与日志限制已由下节增量补齐。剩余边界：Linux 引导、其余 13 种语言、Kubernetes forwards、Import / Diagnostics / Build with、USB / Share 界面，以及文件预览 / 下载和扫描历史 / SBOM 导出尚未补齐。仓库 token 与私有镜像鉴权头由接口测试覆盖，未使用真实私人仓库账号；Linux / Windows 的真实桌面和全量 `tests/e2e.sh` 未在本轮验证。
+
+### 连续终端与日志（2026-11-14 增量）
+
+对照上游 `ui/term.rs` / `termwire.rs`、`detail.rs`、`k8s.rs`，新增宿主多会话 PTY、容器交互式 TTY，以及容器 / Pod 持续日志。终端复用 MyGo 的 Ghostty 组件；容器会话支持连续输入、resize、Ctrl+C、导航时保留状态和实际退出码。关闭会话结束对应 exec，正常退出窗口 / 应用或 SIGTERM 时回收相关进程。
+
+容器日志初始读取 5,000 行，Pod 日志初始读取 2,000 行；之后持续追加，切换目标或关闭详情取消旧订阅并回收 kubectl。被动请求携带后台标记；日志保留最多 5,000 行 / 1 MiB，支持跨帧和无末尾换行的输出。专用 `/kiri/exec/{id}/stop` 和 `KiriExecStop` 能力标记用于显式回收，不改变普通 Docker detach 的语义。完整规则见 [连续终端与日志](desktop-streams.md)。
+
+`make check` 和显式开启真实 PTY 的 desktop race 检查通过；macOS app 的运行库打包及 ad hoc 签名通过；Linux ARM64 / Windows AMD64 桌面仅交叉编译。隔离 macOS Go VM 中的原生窗口 17 项专项验收通过，覆盖真实 shell / 容器 TTY、状态保留、resize、Ctrl+C、静默保持、非零退出码、进程回收、持续日志及 SIGTERM 退出。记录位于 `target/desktop-streams-check/`；测试 VM、临时配置和进程已清理，日常 Dev 实例未重启。底部终端面板、分屏和完整搜索入口仍未逐项复刻，其他待验证边界不变。
+
+### 多语言（2026-11-14 增量）
+
+新增繁体中文、德语、西班牙语、法语、巴西葡萄牙语、意大利语、波兰语、俄语、土耳其语、日语、韩语、越南语和印度尼西亚语，连同原有简体中文和英文共 15 种。设置支持立即切换、保存与跟随系统；按上游规则匹配地区和旧语言标签，兼容旧 `zh` 设置，缺词回退英文。14 份译表各含 407 条桌面消息，覆盖导航、设置、资源操作、终端及日志入口；参数和覆盖检查纳入 desktop tests。desktop race 与 `make check` 通过；原生窗口 17 项专项覆盖各语言切换、保存、重启恢复、系统选项及旧设置兼容，app 签名检查与 Linux ARM64 / Windows AMD64 交叉编译通过（两者未实机运行）。记录位于 `target/language-check/`。详情见 [桌面多语言](languages.md)。首次语言选择引导仍待对齐；CLI、引擎输出和真实 Linux / Windows 桌面不在本轮验收范围。
 
 ### 待对齐功能
 
-下面列出尚未补齐的范围。上游对应实现在 `crates/` 下。
+下面只列当前仍有实现差异的范围；已实现但缺少实机覆盖的内容另列于「待补验证」。容器环境与端口设置、仓库登录及认证拉取、Kubernetes 基本管理已随 `6c93c03` 完成，连续终端与日志由上述增量补齐，不再作为整组缺失功能；范围和限制见 [桌面高级操作](desktop-advanced.md)。
 
-| 模块 | 缺什么 | 上游位置 |
+#### 桌面剩余差异
+
+| 模块 | 当前实现与待补内容 | 上游参考 |
 | --- | --- | --- |
-| 需要管理员密码的设置 | `kiri setup --docker-socket`（把 `/var/run/docker.sock` 链到本引擎，并装开机恢复它的 LaunchDaemon），卸载时也不会清理它。`*.kiri.local` 和 HTTPS 证书信任已对齐（`kiri domains`、`kiri setup --domains`、设置 → 域名），但开启本地域名时不像上游那样用同一次密码顺带链接 `/var/run/docker.sock`；密码框由 `osascript` 和 `security` 弹出，标题不是 Kiri | `crates/kiri/src/setup.rs` 的 `docker_socket` |
-| 桌面高级功能 | Linux 首次引导、连续交互式内嵌终端、Pod 连续日志与 Kubernetes forwards、14 种语言、Import / Diagnostics / Build with 桌面入口，以及 USB / Share 页面仍待补齐。文件浏览、镜像分层与扫描、代理与域名、容器环境与端口设置、仓库登录、Kubernetes 管理已有 MyGo 实现；具体验证见下文及 [桌面高级操作](desktop-advanced.md) | `crates/kiri/src/ui/` |
-| 自动更新与诊断 | 更新源检查与安装、崩溃报告和日志脱敏 | `crates/kiri/src/update.rs`、`diag/` |
-| Windows | `kiri-win` 宿主（named pipe、托盘、设置、更新）、WSL 里的 `kiri bridge`、MSI。`installer/windows`、`contrib/windows`、`contrib/wsl`、`scripts/kiri-linux.sh` 仍按 Rust 二进制编写 | `crates/kiri-win/`、`crates/kiri/src/bridge.rs` |
-| Linux 包 | `packaging/linux`、`scripts/ci/linux-build.sh`、`scripts/ci/linux-packages.sh`、`contrib/linux` 仍要求 Rust 的 `kiri`、`kiri-init` 和 GTK 窗口；`kiri host-access` 没有 Go 版本 | `packaging/linux`、`crates/kiri/src/hostaccess.rs` |
-| 发版 | 更新源 JSON、发版 tarball、Kiri Lite；`NOTICE` 要按 Go 依赖重新生成 | 上游 `xtask/src/main.rs` 的 `release` |
-| 测试 | `tests/e2e.sh` 全量复验（machine、Kubernetes CLI 与 USB 已通过独立专项）、`tests/finder-mount.sh`、`tests/wsl.sh`、`tests/linux-host.sh` 的环境。协议交叉校验（Rust 编解码器对 Go）已随 Rust 删除，现在只有 Go 对 Go | `tests/` |
-| CI | 没有跑 Go 测试的工作流，只剩 CodeQL | `.github/workflows` |
+| 终端工作区扩展 | 宿主多会话和容器交互式 TTY 已实现；待复刻上游底部面板、横向 / 纵向分屏及完整终端搜索入口 | `ui/index.html` 的内嵌终端面板 |
+| 文件浏览增强 | 当前依赖运行中容器的 `ls`，仅列目录和文件名；待补文件信息、预览、下载及从桌面打开 Finder 文件位置等操作。Finder 只读浏览与容器 archive API 已有实现 | `ui/detail.rs`、`ui/index.html` |
+| 扫描历史与导出 | 镜像分层、最新扫描和重新扫描已有界面；待接扫描历史选择和 CycloneDX SBOM 导出。引擎已有 `/kiri/images/scans`、`/kiri/images/sbom` | `ui/index.html` 的扫描历史 / `savesbom`，`ui/mod.rs` |
+| Kubernetes 转发 | Pods / Services、持续日志、Pod 删除、集群启停和网络设置已有界面；待补 Pod / ClusterIP 的本地端口转发入口及生命周期管理。引擎已有 `/kiri/k8s/forward` 接口 | `ui/k8s.rs`、`ui/index.html` |
+| 首次引导 | macOS launcher 的首次设置已实现；桌面尚无首次语言选择及 Linux 设置检查、修复、跳过和恢复流程 | `ui/lang.rs`、`ui/linux.rs` 的 `onboarding`、`ui/index.html` |
+| Import / Build with | `fabo import`、`fabo build-with` 已实现；桌面尚无迁入来源与资源选择、导入进度及构建引擎选择入口 | `ui/mod.rs`、`ui/index.html`、`buildwith.rs` |
+| USB / Share | 两个侧栏页面仍为占位；USB CLI、helper 与 USB/IP 已实现，待接设备界面；Share 的创建、查看和停止等界面流程尚未移植 | `ui/sharing.rs`、`ui/index.html` |
+| 更新与诊断入口 | 桌面未接入更新检查 / 下载 / 安装、诊断日志 / 报告及崩溃报告设置；其 Go 实现也未补齐，见下表 | `ui/mod.rs`、`ui/index.html`、`update.rs`、`diag/` |
 
-下面各节是删除 Rust 之前的引擎回归记录。引擎代码此后只改过两处注释。
+上表的 `ui/` 等相对路径均位于上游 `crates/kiri/src/`。表中列为「引擎已有」的接口不代表桌面流程已完成。
+
+#### CLI、平台与交付剩余差异
+
+| 模块 | 待补内容 | 对照位置或相关说明 |
+| --- | --- | --- |
+| 需要管理员密码的设置 | `fabo setup --docker-socket`：创建 `/var/run/docker.sock` 链接、安装开机恢复用的 LaunchDaemon，并在卸载时清理。域名解析和 HTTPS 信任已实现，但尚未像上游那样合并域名与 socket 设置的授权；系统密码框标题仍来自 `osascript` / `security` | 上游 `crates/kiri/src/setup.rs` 的 `docker_socket` |
+| CLI / 引擎版本提示 | Docker 命令透传已实现；执行前的 CLI / 引擎版本差异提醒未对齐 | 上游 `crates/kiri/src/docker.rs`；见前文「Docker 命令透传」 |
+| Kubernetes 后台同步 | kubeconfig 目前在 `start` / `status` 时同步；待接 daemon 启动时的后台同步，覆盖迁移或重启后的刷新 | 上游 `crates/kiri/src/kubeconfig.rs`；见 [CLI 工具说明](cli-tools.md) |
+| Share 命令 | `fabo share` 及端口简写尚未移植；需补齐共享命令、状态管理及桌面 Share 页的配套实现 | 上游 `crates/kiri/src/main.rs` 的 `share` 分发与 `share` 模块、`ui/sharing.rs` |
+| raw 兼容差异 | Go raw 使用独立存储，不共享 daemon / Rust 镜像索引；`images` 未复刻 Rust 的显示格式与拉取时间列。后续需决定保留差异还是进一步对齐 | 上游 `crates/kiri/src/main.rs` 的 `raw` 分发；见 [CLI 工具说明](cli-tools.md) |
+| 自动更新与诊断 | 更新源检查、下载与安装、崩溃报告、诊断报告和日志脱敏尚无对应 Go 实现 | 上游 `crates/kiri/src/update.rs`、`diag/` |
+| Windows 宿主与安装 | `kiri-win` 宿主的 named pipe、托盘、设置、更新与 Windows 系统凭据存储，WSL 连接用的 `fabo bridge`，以及 MSI 构建仍待移植。WSL 引擎启动脚本已支持 Go，但安装 / 打包链仍携带旧 `kiri-init` 等产物要求；不能把整个 WSL 引擎侧列为未实现 | 上游 `crates/kiri-win/`、`bridge.rs`；本仓库 `installer/windows`、`contrib/windows`、`contrib/wsl`、`scripts/kiri-linux.sh` |
+| Linux 包与 host-access | Linux 构建 / 打包链仍要求 Cargo / Rust 窗口或旧 `kiri-init`，需改为 Go launcher、daemon、guest 与 MyGo；`fabo host-access` 尚无 Go 版本 | 本仓库 `packaging/linux`、`scripts/ci/linux-build.sh`、`scripts/ci/linux-packages.sh`、`contrib/linux`；上游 `hostaccess.rs` |
+| 发版与 Lite | 更新源 JSON、发版 tarball、Kiri Lite 与首次 Docker CLI 下载回退待补；`NOTICE` 需按 Go 依赖重新生成。macOS app 和 DMG 构建脚本已有实现，发布验证另见下表 | 上游 `xtask/src/main.rs` 的 `release`；本仓库 [发版说明](release.md) |
+| CI | 尚无执行 Go vet / 测试 / 构建的工作流；当前仅保留 CodeQL | `.github/workflows/` |
+
+#### 待补验证
+
+以下是已实现能力的验收缺口，不表示相应功能尚未开发。这些用例未在本轮重新执行；连续终端与日志的专项验证见上文。
+
+| 范围 | 待完成的验证 |
+| --- | --- |
+| 全量回归 | 重跑 `tests/e2e.sh`，复核下文保留的历史失败与跳过项；machine、Kubernetes、USB 和桌面专项不能替代全量结果 |
+| 宿主与文件系统 | 在适用环境复跑 `tests/finder-mount.sh`、`tests/kernel-features.sh`；修正并复跑 `tests/linux-host.sh` 的网桥冲突和 cgroup 委派环境 |
+| Windows / Linux 桌面 | 本轮桌面仅交叉编译通过；真实 Linux / Windows 的窗口、输入、凭据 helper 与引擎连接仍需验证。WSL 启动脚本已有局部验证，`tests/wsl.sh` 和完整 Windows 宿主 / MSI 链路仍需回归 |
+| 私人仓库 | 本地 Registry 鉴权、credential helper、macOS Keychain 和认证头已有专项；真实私人仓库账号、token 与私有镜像拉取仍需实测 |
+| USB 硬件 | 物理设备捕获、root helper 安装 / 移除、解绑与断连恢复仍需设备验证；软件 USB 专项已通过 |
+| 迁移与 machine | 真实 OrbStack / Docker Desktop 数据迁入、更多 machine 发行版和 Linux 宿主仍需实测；隔离 Go 引擎之间的迁入及 Alpine / Ubuntu machine 已有专项 |
+| 协议交叉校验 | 原 Rust / Go 编解码器交叉用例已随 Rust 删除，当前只有 Go 对 Go；需恢复跨实现或固定协议样本的兼容性验证 |
+| 安装与发布 | 正式安装特有的 profile / 默认 context / 全局链接行为、DMG、Developer ID 签名与公证仍需验证；开发 app 的 ad hoc 构建与签名已通过 |
+
+下面是历史引擎回归快照。失败项保留当时的判定与已记录的专项修复；本次未重跑，不能据此断言当前版本仍以同样方式失败。
 
 ## 验证快照
 
@@ -129,7 +175,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | 网络 | IPv4/IPv6 桥接和 IPAM、静态 IP/MAC、端口发布、动态网络连接、共享和 host 网络、别名 DNS、`--domainname`、`--link`、Mac 宿主服务访问。端口发布支持 TCP/UDP |
 | 存储 | 命名和匿名卷、嵌套 bind 下的镜像内容初始化、tmpfs、双向 `docker cp`、`diff`、`export`、`commit`。旧 Go 记录缺少匿名卷归属时保留卷数据 |
 | 镜像与构建 | 拉取、标签、归档导入导出、历史、清理、仓库登录和推送、Compose、BuildKit/Buildx、Apple Silicon 上的 Rosetta |
-| macOS 与桌面 | Go VM 启停、空闲休眠、资源设置，Finder 只读浏览，MyGo 主窗口（深浅主题、中英文、可折叠侧栏；概览、容器、镜像、卷、网络、构建器、设置；详情坞含日志、逐条执行的终端、文件浏览、环境变量与端口设置、镜像分层与安全扫描；仓库登录与凭据拉取；Kubernetes Pods / Services、Pod 日志与集群管理）、托盘 |
+| macOS 与桌面 | Go VM 启停、空闲休眠、资源设置，Finder 只读浏览，MyGo 主窗口（深浅主题、15 种语言、可折叠侧栏；概览、容器、镜像、卷、网络、构建器、设置；详情坞含持续日志、交互式容器终端、文件浏览、环境变量与端口设置、镜像分层与安全扫描；仓库登录与凭据拉取；Kubernetes Pods / Services、持续 Pod 日志与集群管理；原生宿主多会话终端）、托盘 |
 | 安装与数据 | macOS 和 Linux 已验证 Rust 离线导入。Windows WSL 的引擎一侧已实现，平台验证范围见上表 |
 
 ## 最近一次全量回归的失败项

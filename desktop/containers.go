@@ -300,8 +300,15 @@ func (s *desktop) containerDock(c *ui.Context, p palette, x container) {
 			if follow.Clicked() {
 				s.follow = !s.follow
 			}
-			if iconButton(c.Key("copy-logs"), p, "copy", tr("复制日志", "Copy logs"), len(s.detail.logs) == 0).Clicked() {
-				c.WriteClipboard(strings.Join(s.detail.logs, "\n"))
+			if iconButton(c.Key("reconnect-logs"), p, "refresh", tr("重新连接日志", "Reconnect logs"), false).Clicked() {
+				if s.containerLogs != nil {
+					s.retireLogs(s.containerLogs)
+					s.containerLogs = nil
+				}
+			}
+			if iconButton(c.Key("copy-logs"), p, "copy", tr("复制日志", "Copy logs"), false).Clicked() {
+				lines := s.visibleContainerLogs().lines
+				c.WriteClipboard(strings.Join(lines, "\n"))
 				s.notices = append(s.notices, tr("已复制", "Copied"))
 			}
 		}
@@ -321,7 +328,7 @@ func (s *desktop) containerDock(c *ui.Context, p palette, x container) {
 		case 1:
 			s.logsTab(c, p)
 		case 2:
-			s.terminalTab(c, p, x)
+			s.interactiveTerminalTab(c, p, x)
 		case 3:
 			s.filesTab(c, p, x)
 		case 4:
@@ -346,10 +353,14 @@ func (s *desktop) lines(c *ui.Context, p palette, name string, lines []string, f
 
 // logsTab shows the tail of the container's output, narrowed by the filter.
 func (s *desktop) logsTab(c *ui.Context, p palette) {
-	shown := s.detail.logs
+	source := s.visibleContainerLogs()
+	if source.problem != "" {
+		remark(c, p, source.problem)
+	}
+	shown := source.lines
 	if q := strings.ToLower(strings.TrimSpace(s.logFilter)); q != "" {
 		shown = nil
-		for _, line := range s.detail.logs {
+		for _, line := range source.lines {
 			if strings.Contains(strings.ToLower(line), q) {
 				shown = append(shown, line)
 			}
@@ -357,69 +368,13 @@ func (s *desktop) logsTab(c *ui.Context, p palette) {
 	}
 	if len(shown) == 0 {
 		text := tr("暂无日志", "No logs yet")
-		if len(s.detail.logs) > 0 {
+		if len(source.lines) > 0 {
 			text = tr("没有匹配的日志", "No matching lines")
 		}
 		note(c, p, text)
 		return
 	}
 	s.lines(c, p, "logs", shown, s.follow)
-}
-
-// terminalTab runs one command at a time in the container and keeps what
-// each printed. It is a command line, not an interactive terminal.
-func (s *desktop) terminalTab(c *ui.Context, p palette, x container) {
-	if x.State != "running" {
-		if empty(c, p, "terminal", tr("容器未运行", "The container is not running"), tr("启动", "Start")) {
-			s.startContainer(x)
-		}
-		return
-	}
-	if history := s.term[x.ID]; len(history) > 0 {
-		s.lines(c, p, "term", history, true)
-	} else {
-		ui.Box(c).Grow(1)
-	}
-	ui.Row(c.Key("prompt")).FillWidth().Height(32).Shrink(0).Padding(0, 10, 0, 14).Gap(8).AlignItems(ui.Center).
-		BorderWidth(1, 0, 0, 0).BorderColor(p.line).Children(func() {
-		ui.Text(c, "$").Font(mono).FontSize(12).TextColor(p.accent)
-		field := ui.TextInput(c.Key("command"), &s.termInput).Label(tr("命令", "Command")).Placeholder("ls -la /").
-			Grow(1).Width(0).Height(24).Font(mono).FontSize(12).Disabled(s.working["exec"])
-		if field.Submitted() && strings.TrimSpace(s.termInput) != "" {
-			s.execute(x.ID, strings.TrimSpace(s.termInput))
-			s.termInput = ""
-		}
-	})
-}
-
-// execute runs a shell command in the container and appends its output to
-// the container's history.
-func (s *desktop) execute(id, command string) {
-	if command == "clear" {
-		delete(s.term, id)
-		return
-	}
-	s.term[id] = append(s.term[id], "$ "+command)
-	s.working["exec"] = true
-	s.run(30*time.Second, func(ctx context.Context) func() {
-		out, err := s.engine.exec(ctx, id, []string{"sh", "-c", command})
-		return func() {
-			delete(s.working, "exec")
-			if err != nil {
-				out = err.Error()
-			}
-			if out = strings.TrimRight(out, "\n"); out != "" {
-				s.term[id] = append(s.term[id], strings.Split(out, "\n")...)
-			}
-			// Keep the history bounded; the oldest lines go first.
-			if n := len(s.term[id]); n > 500 {
-				s.term[id] = s.term[id][n-500:]
-			}
-		}
-	})
-	if s.engine.http == nil {
-		delete(s.working, "exec")
-	}
 }
 
 // filesTab browses the container's filesystem by listing one directory at a

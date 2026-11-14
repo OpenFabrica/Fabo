@@ -35,8 +35,8 @@ func (e *Engine) WriteInfo(w http.ResponseWriter, awake, stopped bool) {
 		"Containers": total, "ContainersRunning": running, "ContainersPaused": paused, "ContainersStopped": total - running - paused, "Images": images,
 		"Driver": "overlayfs", "OperatingSystem": "Kiri", "OSType": "linux", "Architecture": runtime.GOARCH,
 		"CgroupDriver": "cgroupfs", "CgroupVersion": "2", "Warnings": []string{},
-		"KiriVMControls": e.remoteGuest,
-		"KiriRosetta":    e.rosetta,
+		"KiriVMControls": e.remoteGuest, "KiriExecStop": true,
+		"KiriRosetta": e.rosetta,
 	}
 	if e.remoteGuest {
 		result["KiriVmAwake"], result["KiriStopped"] = awake, stopped

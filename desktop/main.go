@@ -10,8 +10,10 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -48,6 +50,7 @@ var navItems = []navItem{
 	{kubernetesPage, "helm", "Kubernetes", "Kubernetes", false},
 	{"usb", "usb", "USB 设备", "USB devices", true},
 	{"share", "share", "共享", "Share", true},
+	{terminalPage, "terminal", "终端", "Terminal", false},
 	{settingsPage, "sliders", "设置", "Settings", false},
 }
 
@@ -90,7 +93,6 @@ type form struct {
 type detail struct {
 	key      string
 	fields   []field
-	logs     []string
 	layers   []layer
 	files    []string
 	filesFor string
@@ -142,8 +144,6 @@ type desktop struct {
 	visible        []string
 	dockMax        bool
 	detail         detail
-	term           map[string][]string
-	termInput      string
 	filePath       map[string]string
 	logFilter      string
 	follow         bool
@@ -173,16 +173,24 @@ type desktop struct {
 	containerDraft containerSettings
 	fonts          []string
 	monoFonts      []string
+
+	terminals              map[string]*terminalSession
+	hostSessions           []string
+	hostActive, hostShell  string
+	hostSequence           int
+	containerLogs, podLogs *liveLogs
+	closingTerminals       []*terminalSession
+	closingLogs            []*liveLogs
 }
 
 // newDesktop makes the window's state with every map ready to use.
 func newDesktop(engine engineClient) *desktop {
 	return &desktop{
 		engine: engine, ctx: context.Background(), page: containersPage, follow: true,
-		prefs: defaultPrefs(), credentials: newRegistryStore(),
+		prefs: defaultPrefs(), credentials: newRegistryStore(), terminals: map[string]*terminalSession{},
 		usage: map[string]*usage{}, scans: map[string]*scanResult{}, scanning: map[string]float64{},
 		selected: map[string]string{}, tab: map[string]int{containersPage: 1}, filter: map[string]int{},
-		collapsed: map[string]bool{}, lists: map[string]*ui.ListState{}, term: map[string][]string{},
+		collapsed: map[string]bool{}, lists: map[string]*ui.ListState{},
 		filePath: map[string]string{}, working: map[string]bool{}, now: time.Now().Unix(),
 	}
 }
@@ -193,6 +201,9 @@ func main() {
 	flag.Parse()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(signals)
 	s := newDesktop(newEngineClient(dialEngine))
 	s.ctx, s.launcher = ctx, findLauncher()
 	for _, n := range navItems {
@@ -206,9 +217,20 @@ func main() {
 	if socket := os.Getenv("KIRI_SOCKET"); socket != "" {
 		s.contextName = strings.TrimPrefix(filepath.Base(filepath.Dir(filepath.Dir(socket))), ".")
 	}
+	tags := make([]string, 0, len(languages))
+	for _, language := range languages {
+		tags = append(tags, language.tag)
+	}
+	mygo.App.SetLanguages(tags...)
 	mygo.App.WhenReady(func() {
 		s.prefsFile = prefsPath()
-		s.prefs, s.locale = loadPrefs(s.prefsFile), mygo.App.Locale()
+		s.prefs = loadPrefs(s.prefsFile)
+		s.locale = systemLanguage(mygo.App.PreferredLanguages())
+		s.applyLanguage()
+		mygo.App.OnLocaleChanged(func(string) {
+			s.locale = systemLanguage(mygo.App.PreferredLanguages())
+			s.invalidate()
+		})
 		s.applyTheme()
 		s.window = mygo.NewWindow(mygo.WindowOptions{
 			Title: "Fabo", Width: 1180, Height: 760, MinWidth: 860, MinHeight: 520,
@@ -218,7 +240,15 @@ func main() {
 			Content: ui.View(s.view),
 		})
 		s.installTray()
-		s.window.OnClosed(func() { cancel(); mygo.App.Quit() })
+		s.window.OnClosed(func() { mygo.App.Quit() })
+		mygo.App.OnQuit(func() { cancel(); s.closeInteractive() })
+		go func() {
+			select {
+			case <-signals:
+				mygo.App.Quit()
+			case <-ctx.Done():
+			}
+		}()
 		if *wake {
 			s.do("engine", engineAction{http.MethodPost, "/kiri/wake", nil}, "")
 		} else {
@@ -286,11 +316,14 @@ func (s *desktop) savePrefs() {
 }
 
 func (s *desktop) installTray() {
-	menu := mygo.NewMenu([]*mygo.MenuItem{
-		{Label: "Open Fabo", Click: func(*mygo.MenuItem, *mygo.Window) {
-			s.window.Show()
-			s.refresh()
-		}},
+	openItem := &mygo.MenuItem{Label: "Open Fabo", Click: func(*mygo.MenuItem, *mygo.Window) {
+		s.window.Show()
+		s.refresh()
+	}}
+	update := func(string) { openItem.SetLabel(textFor(s.prefs.language(s.locale), "打开 Fabo", "Open Fabo")) }
+	update("")
+	mygo.App.OnLocaleChanged(update)
+	menu := mygo.NewMenu([]*mygo.MenuItem{openItem,
 		mygo.Separator(),
 		{Role: mygo.RoleQuit},
 	})
@@ -373,10 +406,7 @@ func (s *desktop) refresh() {
 	if s.page == kubernetesPage || s.page == settingsPage {
 		s.refreshKubernetes()
 	}
-	page, logsOf := s.page, ""
-	if page == containersPage && s.tab[page] == 1 {
-		logsOf = s.selected[page]
-	}
+	page := s.page
 	wantDisk := page == overviewPage && s.disk == nil
 	s.run(8*time.Second, func(ctx context.Context) func() {
 		e := s.engine
@@ -416,15 +446,11 @@ func (s *desktop) refresh() {
 		case buildsPage:
 			builderErr = e.get(ctx, "/kiri/builder", &builder)
 		}
-		var logs []string
-		var logsErr error
-		if logsOf != "" {
-			logs, logsErr = e.logs(ctx, logsOf)
-		}
 		return func() {
 			s.refreshing, s.connected, s.problem, s.info, s.now = false, true, "", info, now
 			if e1 == nil {
 				s.containers = containers
+				s.reconcileTerminals()
 			}
 			if e2 == nil {
 				s.images = images
@@ -447,9 +473,7 @@ func (s *desktop) refresh() {
 			if builderErr == nil && page == buildsPage {
 				s.builder = builder
 			}
-			if logsOf != "" && logsErr == nil && s.detail.key == containersPage+"/"+logsOf {
-				s.detail.logs = logs
-			}
+
 			if samples != nil {
 				s.fold(samples)
 			}
@@ -602,10 +626,9 @@ func (s *desktop) loadDetail(key string) {
 		}
 		s.run(8*time.Second, func(ctx context.Context) func() {
 			fields, _ := s.engine.containerFields(ctx, c, now)
-			logs, _ := s.engine.logs(ctx, id)
 			return func() {
 				if s.detail.key == key {
-					s.detail.fields, s.detail.logs = fields, logs
+					s.detail.fields = fields
 				}
 			}
 		})

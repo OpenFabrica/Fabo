@@ -666,24 +666,6 @@ func (e engineClient) exec(ctx context.Context, id string, cmd []string) (string
 	return text, nil
 }
 
-// logs returns the tail of a container's output as lines.
-func (e engineClient) logs(ctx context.Context, id string) ([]string, error) {
-	path := "/containers/" + url.PathEscape(id)
-	var details struct{ Config struct{ Tty bool } }
-	if err := e.get(ctx, path+"/json", &details); err != nil {
-		return nil, err
-	}
-	var raw []byte
-	if err := e.get(ctx, path+"/logs?stdout=1&stderr=1&tail=400", &raw); err != nil {
-		return nil, err
-	}
-	text := strings.TrimRight(logText(raw, details.Config.Tty), "\n")
-	if text == "" {
-		return nil, nil
-	}
-	return strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n"), nil
-}
-
 // field is one line of an info tab.
 type field struct{ label, value string }
 

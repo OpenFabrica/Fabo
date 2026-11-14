@@ -2,7 +2,7 @@
 
 MyGo 主窗口接管原 Kiri WebView 的容器设置、仓库登录和 Kubernetes 管理。保持当前引擎、Docker CLI 和 `fabo k8s` 的行为；窗口通过既有接口工作，不另建容器或集群状态。
 
-参考源码为本地 Kiri checkout `a649319`：`ui/mod.rs` 的 `set_env` / `set_ports`、`ui/logins.rs`、`ui/k8s.rs`、`ui/k8s_items.rs` 及 `ui/index.html`。代理、域名、文件浏览和镜像扫描的现有实现见 [桌面与引擎说明](desktop-overview.md)。
+参考源码为本地 Kiri checkout `a649319`：`ui/mod.rs` 的 `set_env` / `set_ports`、`ui/logins.rs`、`ui/k8s.rs`、`ui/k8s_items.rs` 及 `ui/index.html`。后续连续终端和日志订阅见 [连续终端与日志](desktop-streams.md)。代理、域名、文件浏览和镜像扫描的现有实现见 [桌面与引擎说明](desktop-overview.md)。
 
 ## 容器设置
 
@@ -59,13 +59,13 @@ flowchart LR
 
 - 窗口不依赖宿主 `kubectl`，通过引擎 exec 在 `kiri-k8s` 中运行 kubectl，节点与数据卷完全沿用 `fabo k8s`。
 - 浏览先 inspect 节点，仅当节点运行时读取 `kubectl get pods,services -A -o json`。这些 POST exec 请求、流和 inspect 都带 `X-Kiri-Background: 1`，不会因刷新阻止 VM 空闲休眠。停止或不存在的节点不执行 kubectl。
-- 一次只允许一个列表查询。节点未就绪或查询失败显示原因，至少 10 秒后重试；手动刷新可立即重试。guest 内的 `timeout` 限制命令为 20 秒，API 请求另有超时，避免窗口退出后遗留长期 kubectl。
+- 一次只允许一个列表查询。节点未就绪或查询失败显示原因，至少 10 秒后重试；手动刷新可立即重试。列表查询的 guest 命令限制为 20 秒，API 请求另有超时；持续日志使用独立会话，不受该命令时限影响。
 - Pod 状态按上游优先级显示删除、init 阶段和容器等待/退出原因，另显示就绪数量和重启次数。Service 显示类型、Cluster IP、端口和 LoadBalancer ingress。
-- Pod 日志可切换容器和上一次运行，读取最近 400 行并可刷新；当前是有限读取，与上游连续日志流仍有差异。仅名称合法的 namespace、Pod 和容器参数会进入 kubectl。
+- Pod 日志可切换容器和上一次运行，初始读取最近 2,000 行，并持续追加当前运行的输出；上一次运行有限读取，刷新可重新订阅。关闭详情时回收对应 kubectl，见 [连续终端与日志](desktop-streams.md)。仅名称合法的 namespace、Pod 和容器参数会进入 kubectl。
 - 删除 Pod 须确认，并提示控制器可能重建；使用 `--wait=false`，随后由列表更新反映状态。集群删除另行确认，明确删除全部集群数据。
 - 集群启停和网络保存调用同安装的 launcher：`fabo k8s start/stop/set/delete`。一次只运行一个操作，期间显示进行中；命令失败显示原因。未找到 launcher 时可浏览，但禁用集群管理并说明从应用打开。
 - 网络草稿读取同安装根目录的 `k8s.json`，默认 API 端口为 6443；实际 API 地址使用节点真正绑定的端口。`set` 由 CLI 校验 SAN、保存并重建节点，沿用原数据卷。
-- 命令输出的流结束后还检查 exec 的退出码；非零退出，或命令仍在运行时流已结束，不能当作成功。该规则也用于容器的逐条执行终端和文件目录读取。
+- 命令输出的流结束后还检查 exec 的退出码；非零退出，或命令仍在运行时流已结束，不能当作成功。该规则用于有限命令和文件目录读取；交互终端另在会话退出时读取实际退出码。
 
 ```mermaid
 flowchart LR

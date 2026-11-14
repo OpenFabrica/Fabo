@@ -151,16 +151,12 @@ type kubernetesState struct {
 }
 
 type kubernetesUI struct {
-	logsGeneration uint64
 	kubernetesState
 	loading                bool
 	retryAt                time.Time
 	tab                    int
 	logsKey, logsContainer string
 	logsPrevious           bool
-	logs                   []string
-	logsBusy               bool
-	logsProblem            string
 	configLoaded           bool
 	configProblem          string
 	lan                    bool
@@ -383,62 +379,41 @@ func (s *desktop) podLogsTab(c *ui.Context, p palette, o kubeObject) {
 		note(c, p, tr("没有容器", "No containers"))
 		return
 	}
-	if s.kube.logsKey != o.key() {
-		s.kube.logsKey = o.key()
+	if s.kube.logsKey != o.key()+"/"+o.Metadata.UID {
+		s.kube.logsKey = o.key() + "/" + o.Metadata.UID
 		s.kube.logsContainer = names[0]
 		s.kube.logsPrevious = false
-		s.kube.logs = nil
-		s.loadPodLogs(o)
 	}
 	toolbar(c, func() {
 		if v, ok := pick(c.Key("container"), tr("容器", "Container"), s.kube.logsContainer, names); ok {
 			s.kube.logsContainer = v
-			s.loadPodLogs(o)
+			if s.podLogs != nil {
+				s.retireLogs(s.podLogs)
+				s.podLogs = nil
+			}
 		}
 		previous := s.kube.logsPrevious
 		ui.Checkbox(c.Key("previous"), &s.kube.logsPrevious, tr("上一次运行", "Previous run"))
 		if previous != s.kube.logsPrevious {
-			s.loadPodLogs(o)
+			if s.podLogs != nil {
+				s.retireLogs(s.podLogs)
+				s.podLogs = nil
+			}
 		}
-		if button(c.Key("refresh-logs"), p, tr("刷新日志", "Refresh logs"), "", plainButton, s.kube.logsBusy) {
-			s.loadPodLogs(o)
+		if button(c.Key("refresh-logs"), p, tr("刷新日志", "Refresh logs"), "", plainButton, false) {
+			if s.podLogs != nil {
+				s.retireLogs(s.podLogs)
+				s.podLogs = nil
+			}
 		}
 	})
-	if s.kube.logsProblem != "" {
-		remark(c, p, s.kube.logsProblem)
-	}
-	s.lines(c, p, "pod-logs", s.kube.logs, true)
-}
-
-func (s *desktop) loadPodLogs(o kubeObject) {
-	ns, name, container, previous := o.Metadata.Namespace, o.Metadata.Name, s.kube.logsContainer, s.kube.logsPrevious
-	if !validKubeName(ns) || !validKubeName(name) || !validKubeName(container) {
-		return
-	}
-	key := o.key()
-	s.kube.logsGeneration++
-	generation := s.kube.logsGeneration
-	s.kube.logsBusy = true
-	s.kube.logsProblem = ""
-	s.kube.logs = nil
-	s.run(25*time.Second, func(ctx context.Context) func() {
-		args := []string{"logs", "-n", ns, name, "-c", container, "--tail=400", "--timestamps=true", "--request-timeout=15s"}
-		if previous {
-			args = append(args, "--previous")
+	if s.podLogs != nil && s.podLogs.key == podLogKey(o, s.kube.logsContainer, s.kube.logsPrevious) {
+		source := s.podLogs.snapshot()
+		if source.problem != "" {
+			remark(c, p, source.problem)
 		}
-		out, err := s.engine.kubectl(ctx, true, args...)
-		return func() {
-			if s.kube.logsKey != key || s.kube.logsContainer != container || s.kube.logsPrevious != previous || s.kube.logsGeneration != generation {
-				return
-			}
-			s.kube.logsBusy = false
-			if err != nil {
-				s.kube.logsProblem = err.Error()
-				return
-			}
-			s.kube.logs = strings.Split(strings.TrimRight(out, "\n"), "\n")
-		}
-	})
+		s.lines(c, p, "pod-logs", source.lines, true)
+	}
 }
 
 func (s *desktop) loadKubernetesConfig() {

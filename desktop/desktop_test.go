@@ -103,7 +103,7 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprint(w, `{"message":"No such container"}`)
 		case path == "/info":
-			fmt.Fprint(w, `{"Name":"kiri","ServerVersion":"0.4.0","KiriVmAwake":true,"KiriVMControls":true,"NCPU":4,"MemTotal":8589934592,"Containers":5,"ContainersRunning":3,"Images":3}`)
+			fmt.Fprint(w, `{"Name":"kiri","KiriExecStop":true,"ServerVersion":"0.4.0","KiriVmAwake":true,"KiriVMControls":true,"NCPU":4,"MemTotal":8589934592,"Containers":5,"ContainersRunning":3,"Images":3}`)
 		case path == "/containers/json":
 			fmt.Fprint(w, containers)
 		case path == "/images/json":
@@ -162,6 +162,7 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 	s.prefs.Theme, s.prefs.Lang, s.contextName = "dark", "en", "kiri-dev"
 	s.refresh()
 	s.refresh()
+	t.Cleanup(s.closeInteractive)
 	return f, s
 }
 
@@ -275,6 +276,7 @@ func TestDockShowsTheSelectedContainer(t *testing.T) {
 	if err := tt.Click("Details for shop-api-1"); err != nil {
 		t.Fatal(err)
 	}
+	waitDesktop(t, tt, func() bool { return tt.HasText("server listening on :3000") })
 	if !tt.HasText("server listening on :3000") {
 		t.Fatalf("logs missing: %q", tt.Texts())
 	}
@@ -446,7 +448,7 @@ func TestAppearanceIsChosenInSettings(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if m := has(tt, "外观", "容器", "引擎运行中"); m != "" || s.prefs.Lang != "zh" {
+	if m := has(tt, "外观", "容器", "引擎运行中"); m != "" || s.prefs.Lang != "zh-Hans" {
 		t.Fatalf("missing %q after switching to Chinese", m)
 	}
 	if err := tt.Click("浅色"); err != nil || s.prefs.Theme != "light" || s.dark {
@@ -464,7 +466,7 @@ func TestAppearanceIsChosenInSettings(t *testing.T) {
 	if err := tt.Click("大"); err != nil || s.prefs.LogSize != 15 {
 		t.Fatalf("log text: %v %v", s.prefs.LogSize, err)
 	}
-	if p := loadPrefs(s.prefsFile); p.Lang != "zh" || p.Theme != "dark" || p.Accent != "purple" || p.Scale != 1.25 || p.LogSize != 15 {
+	if p := loadPrefs(s.prefsFile); p.Lang != "zh-Hans" || p.Theme != "dark" || p.Accent != "purple" || p.Scale != 1.25 || p.LogSize != 15 {
 		t.Fatalf("saved: %+v", p)
 	}
 }
@@ -659,7 +661,7 @@ func TestUsageAdvance(t *testing.T) {
 
 func TestPrefsRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "desktop.json")
-	if p := loadPrefs(path); p.language("zh-Hans-CN") != "zh" || p.language("fr") != "en" || p.Theme != "system" || p.DockHeight != 232 {
+	if p := loadPrefs(path); p.language("zh-Hans-CN") != "zh-Hans" || p.language("fr") != "fr" || p.Theme != "system" || p.DockHeight != 232 {
 		t.Fatalf("defaults: %+v", p)
 	}
 	prefs{Theme: "light", Lang: "en", Density: "cozy", NavCollapsed: true, DockHeight: 300}.save(path)

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -222,7 +223,7 @@ func installKube(t *testing.T, f *fakeEngine) *kubeEngine {
 			k.last = spec.Cmd
 			id := fmt.Sprintf("kube-%d", len(k.commands))
 			out := kubeFixture
-			if len(spec.Cmd) > 5 && spec.Cmd[5] == "logs" {
+			if (len(spec.Cmd) > 1 && spec.Cmd[1] == "logs") || (len(spec.Cmd) > 5 && spec.Cmd[5] == "logs") {
 				out = "pod log\n"
 			}
 			if len(spec.Cmd) > 5 && spec.Cmd[5] == "delete" {
@@ -276,10 +277,16 @@ func TestKubernetesBrowsingAndPodLogs(t *testing.T) {
 	click(t, tt, "Details for web-1")
 	click(t, tt, "Logs")
 	tt.Frame()
+	waitDesktop(t, tt, func() bool { return tt.HasText("pod log") })
 	if !tt.HasText("pod log") {
 		t.Fatalf("logs: %v", tt.Texts())
 	}
 	click(t, tt, "Previous run")
+	waitDesktop(t, tt, func() bool {
+		k.mu.Lock()
+		defer k.mu.Unlock()
+		return strings.Contains(strings.Join(k.last, " "), "--previous")
+	})
 	tt.Frame()
 	k.mu.Lock()
 	last := append([]string{}, k.last...)
@@ -647,5 +654,17 @@ func TestAdvancedControlsFitTheMinimumWindow(t *testing.T) {
 		if !ok || rect.X < 0 || rect.X+rect.W > 860 {
 			t.Errorf("%s lies outside the minimum window: %+v present=%v", name, rect, ok)
 		}
+	}
+}
+
+func waitDesktop(t *testing.T, tt *ui.Tester, condition func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for !condition() {
+		if time.Now().After(deadline) {
+			t.Fatal("desktop condition timed out")
+		}
+		time.Sleep(time.Millisecond)
+		tt.Frame()
 	}
 }

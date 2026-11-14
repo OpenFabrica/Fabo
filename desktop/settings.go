@@ -245,21 +245,28 @@ func pick(c *ui.Context, label, current string, options []string) (string, bool)
 func (s *desktop) appearancePane(c *ui.Context, p palette) {
 	heading(c, p, tr("外观", "Appearance"))
 
-	system, names := tr("跟随系统", "Follow system"), map[string]string{"zh": "简体中文", "en": "English"}
-	now := names[prefs{}.language(s.locale)]
+	system := tr("跟随系统", "Follow system")
+	options := []string{system}
+	for _, language := range languages {
+		options = append(options, language.name)
+	}
+	now := languageName(prefs{}.language(s.locale))
 	current := system
-	if name, fixed := names[s.prefs.Lang]; fixed {
-		current = name
+	if s.prefs.Lang != "" && s.prefs.Lang != "system" {
+		current = languageName(s.prefs.language(s.locale))
 	}
 	pref(c, p, tr("语言", "Language"), fmt.Sprintf(tr("跟随 %s（当前为%s），或始终使用一种语言。", "Follow %s (now %s), or always use one language."), osName(), now), func() {
-		if chosen, ok := pick(c.Key("lang"), tr("语言", "Language"), current, []string{system, "简体中文", "English"}); ok {
+		if chosen, ok := pick(c.Key("lang"), tr("语言", "Language"), current, options); ok {
 			s.prefs.Lang = "system"
-			for id, name := range names {
-				if name == chosen {
-					s.prefs.Lang = id
+			for _, language := range languages {
+				if language.name == chosen {
+					s.prefs.Lang = language.tag
 				}
 			}
 			s.savePrefs()
+			if s.window != nil {
+				s.applyLanguage()
+			}
 		}
 	})
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -63,22 +62,10 @@ func colors(dark bool, accent string) palette {
 	}
 }
 
-// lang is the language tr answers in. The view sets it from the preferences
-// before building, so every string of a frame agrees.
-var lang = "en"
-
-// tr picks the Chinese or the English wording of a string.
-func tr(zh, en string) string {
-	if lang == "zh" {
-		return zh
-	}
-	return en
-}
-
 // prefs are the window's own settings, kept beside the engine's state.
 type prefs struct {
 	Theme        string  `json:"theme"`   // system, light, dark
-	Lang         string  `json:"lang"`    // system, zh, en
+	Lang         string  `json:"lang"`    // system or a supported BCP 47 tag; legacy zh is accepted
 	Density      string  `json:"density"` // compact, cozy
 	Accent       string  `json:"accent"`  // one of accents
 	Font         string  `json:"font"`    // interface font family; empty for the system's
@@ -106,18 +93,6 @@ func prefsPath() string {
 // defaultPrefs are the settings of a first launch.
 func defaultPrefs() prefs {
 	return prefs{Theme: "system", Lang: "system", Density: "compact", Accent: "blue", Scale: 1, LogSize: 11, DockHeight: 232}
-}
-
-// language resolves the language setting against the system's locale: the
-// window speaks Chinese on a Chinese system and English elsewhere.
-func (p prefs) language(locale string) string {
-	switch {
-	case p.Lang == "zh" || p.Lang == "en":
-		return p.Lang
-	case strings.HasPrefix(strings.ToLower(locale), "zh"):
-		return "zh"
-	}
-	return "en"
 }
 
 // loadPrefs reads the saved settings, filling anything missing with defaults.

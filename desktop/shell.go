@@ -59,6 +59,8 @@ func (s *desktop) view(c *ui.Context) {
 	theme.Text, theme.TextMuted = p.text, p.muted
 	c.SetTheme(&theme)
 
+	s.reapClosedSessions()
+	s.syncLogStreams()
 	s.visible = s.visible[:0]
 	ui.Column(c).Fill().Background(p.bg).Children(func() {
 		s.strip(c, p)
@@ -75,6 +77,7 @@ func (s *desktop) view(c *ui.Context) {
 	}
 	s.notices = nil
 	s.keys(c)
+	s.syncLogStreams()
 }
 
 // keys handles the window's shortcuts: ⌘K to search, ⌘B to fold the sidebar,
@@ -82,7 +85,7 @@ func (s *desktop) view(c *ui.Context) {
 func (s *desktop) keys(c *ui.Context) {
 	c.OnWindowShortcut(ui.Cmd, ui.KeyK, func() { s.searchBox.Focus() })
 	c.OnWindowShortcut(ui.Cmd, ui.KeyB, s.toggleSidebar)
-	if s.pending != nil || s.form.kind != "" || c.FocusTakesText() {
+	if s.pending != nil || s.form.kind != "" || c.FocusTakesText() || s.page == terminalPage || (s.page == containersPage && s.tab[containersPage] == 2 && s.selected[containersPage] != "") {
 		return
 	}
 	if c.Shortcut(0, ui.KeyEscape) {
@@ -359,7 +362,7 @@ func (s *desktop) pageBody(c *ui.Context, p palette) {
 			return
 		}
 	}
-	if s.page != settingsPage {
+	if s.page != settingsPage && s.page != terminalPage {
 		switch s.engineState() {
 		case "offline":
 			title := tr("连接不到引擎", "The engine is not answering")
@@ -391,6 +394,8 @@ func (s *desktop) pageBody(c *ui.Context, p palette) {
 		s.networksView(c, p)
 	case buildsPage:
 		s.buildsView(c, p)
+	case terminalPage:
+		s.hostTerminalView(c, p)
 	case kubernetesPage:
 		s.kubernetesView(c, p)
 	case settingsPage:

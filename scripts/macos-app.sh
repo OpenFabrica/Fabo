@@ -68,10 +68,13 @@ fetch() {
   [ "$(shasum -a 256 "$file" | cut -d' ' -f1)" = "$sum" ] || { rm -f "$file"; echo "$2 does not match its pinned SHA-256" >&2; exit 1; }
 }
 version_of() { local pin=${pin}$1; read -r v _ <<<"${!pin}"; printf %s "$v"; }
-dv=$(version_of DOCKER_CLI) cv=$(version_of COMPOSE) bv=$(version_of BUILDX)
+dv=$(version_of DOCKER_CLI) cv=$(version_of COMPOSE) bv=$(version_of BUILDX) gv=$(version_of GHOSTTY_VT)
 fetch DOCKER_CLI "docker-$dv.tgz" "https://download.docker.com/mac/static/stable/$docker_arch/docker-$dv.tgz"
 fetch COMPOSE "docker-compose-darwin-$docker_arch-$cv" "https://github.com/docker/compose/releases/download/$cv/docker-compose-darwin-$docker_arch"
 fetch BUILDX "buildx-$bv.darwin-$goarch" "https://github.com/docker/buildx/releases/download/$bv/buildx-$bv.darwin-$goarch"
+fetch GHOSTTY_VT "libghostty-vt-$goarch-$gv.dylib" "https://github.com/egoist/mygo/releases/download/libghostty-vt-$gv/libghostty-vt-darwin-$goarch.dylib"
+install -m 755 "$cache/libghostty-vt-$goarch-$gv.dylib" "$res/libghostty-vt.dylib"
+cp packaging/macos/Ghostty.LICENSE "$res/Ghostty.LICENSE"
 tar -xzf "$cache/docker-$dv.tgz" -C "$cache" docker/docker
 install -m 755 "$cache/docker/docker" "$res/bin/docker"
 install -m 755 "$cache/docker-compose-darwin-$docker_arch-$cv" "$res/bin/cli-plugins/docker-compose"
@@ -111,6 +114,14 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>fabo</string>
   <key>CFBundleIconFile</key><string>Fabo</string>
   <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>en</string><string>zh-Hans</string><string>zh-Hant</string>
+    <string>de</string><string>es</string><string>fr</string><string>pt-BR</string>
+    <string>it</string><string>pl</string><string>ru</string><string>tr</string>
+    <string>ja</string><string>ko</string><string>vi</string><string>id</string>
+  </array>
   <key>CFBundleShortVersionString</key><string>$plain</string>
   <key>CFBundleVersion</key><string>$plain</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
@@ -139,7 +150,7 @@ if [ "$identity" != - ] && [ -z "$flavor" ]; then
 fi
 # Inside out: the helpers first, then the engine with the entitlement
 # Virtualization.framework requires, then the bundle and its launcher.
-for f in bin/docker bin/cli-plugins/docker-compose bin/cli-plugins/docker-buildx; do
+for f in libghostty-vt.dylib bin/docker bin/cli-plugins/docker-compose bin/cli-plugins/docker-buildx; do
   "${sign[@]}" "$res/$f"
 done
 "${sign[@]}" "$macos/kiri-desktop"

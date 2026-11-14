@@ -123,6 +123,7 @@ func (e *Engine) Handler() http.Handler {
 	mux.HandleFunc("POST /exec/{id}/start", e.startExecHTTP)
 	mux.HandleFunc("GET /exec/{id}/json", e.inspectExecHTTP)
 	mux.HandleFunc("POST /exec/{id}/resize", e.resizeExecHTTP)
+	mux.HandleFunc("POST /kiri/exec/{id}/stop", e.stopExecHTTP)
 	mux.HandleFunc("GET /containers/json", e.listHTTP)
 	mux.HandleFunc("GET /containers/{id}/json", e.inspectHTTP)
 	mux.HandleFunc("GET /containers/{id}/logs", e.logsHTTP)
