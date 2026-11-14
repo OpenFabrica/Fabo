@@ -35,6 +35,37 @@ const containerActionsWidth = 92
 // guide that hangs a member under its group.
 const treeWidth = 22
 
+// localURL is the address a running container with published ports
+// answers at through the engine's domain router, as Kiri builds it: the
+// first name of its dev.fabo.domain label, else its Compose service.project,
+// else its name; under fabo.local once the machine's names are on, else
+// fabo.localhost, which needs no setup; https once the certificate is
+// trusted; and the router's port when it is not the scheme's default.
+func (s *desktop) localURL(x container) string {
+	if x.State != "running" || len(x.Ports) == 0 {
+		return ""
+	}
+	name := x.Name
+	if x.Project != "" && x.Service != "" {
+		name = x.Service + "." + x.Project
+	}
+	if chosen := strings.TrimSpace(strings.Split(x.Domain, ",")[0]); chosen != "" {
+		name = strings.TrimSuffix(strings.TrimSuffix(chosen, ".fabo.localhost"), ".fabo.local")
+	}
+	suffix, scheme, port, standard := "fabo.localhost", "http", s.domains.HTTP.Port, 80
+	if s.namesOK && s.names.On && s.names.Suffix != "" {
+		suffix = s.names.Suffix
+	}
+	if s.namesOK && s.names.HTTPS {
+		scheme, port, standard = "https", s.domains.HTTPS.Port, 443
+	}
+	addr := scheme + "://" + name + "." + suffix
+	if s.domainsOK && port != 0 && port != standard {
+		addr += fmt.Sprintf(":%d", port)
+	}
+	return addr
+}
+
 // projectKey is the selection key of a Compose project's row.
 func projectKey(name string) string { return "project:" + name }
 
@@ -122,6 +153,10 @@ func (s *desktop) containersView(c *ui.Context, p palette) {
 		if (filter == "" || x.bucket() == filter) && strings.Contains(strings.ToLower(x.Name+" "+x.Image+" "+x.Project), query) {
 			shown = append(shown, x)
 		}
+	}
+	if s.connected && !s.domainsRead {
+		s.domainsRead = true
+		s.loadSettings()
 	}
 	// A container that went away cannot stay picked.
 	for id := range s.picked {
@@ -453,7 +488,16 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 			})
 			ui.Column(c).Grow(1).Width(0).MinWidth(0).Gap(2).Children(func() {
 				ui.Text(c, x.Name).FontSize(13).FontWeight(500).TextColor(p.text).SingleLine()
-				label(c, x.Image, p.muted)
+				// A container that answers at a local address shows it
+				// where the image is, as Kiri does.
+				if addr := s.localURL(x); addr != "" {
+					ui.Row(c).Gap(4).AlignItems(ui.Center).MinWidth(0).Children(func() {
+						ui.Icon(c, icons["globe"]).Size(11, 11).Shrink(0).TextColor(p.accent)
+						label(c, strings.TrimPrefix(strings.TrimPrefix(addr, "https://"), "http://"), p.accent)
+					})
+				} else {
+					label(c, x.Image, p.muted)
+				}
 			})
 		})
 		if tight {
@@ -502,6 +546,9 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 				s.selectRow(x.ID)
 				s.tab[containersPage] = tab
 			}
+			if addr := s.localURL(x); addr != "" && m.Item(fmt.Sprintf(tr("打开 %s", "Open %s"), addr)).Chosen() {
+				c.OpenURL(addr)
+			}
 			if m.Item(tr("日志", "Logs")).Chosen() {
 				show(1)
 			}
@@ -534,6 +581,17 @@ func (s *desktop) containerDock(c *ui.Context, p palette, x container) {
 	tabs := []string{tr("信息", "Info"), tr("日志", "Logs"), tr("终端", "Terminal"), tr("文件", "Files"), tr("设置", "Container settings")}
 	s.dock(c, p, x.Name, func() {
 		label(c, x.status(s.now), stateColor(p, x.bucket())).Shrink(0)
+		if addr := s.localURL(x); addr != "" {
+			link := clickable(c.Key("address")).Label(fmt.Sprintf(tr("打开 %s", "Open %s"), addr)).Tooltip(addr).Height(22).PaddingX(7).Gap(4).
+				Radius(6).AlignItems(ui.Center).MinWidth(0).Shrink(1).Background(p.accent.Alpha(0.1))
+			link.Children(func() {
+				ui.Icon(c, icons["globe"]).Size(11, 11).Shrink(0).TextColor(p.accent)
+				label(c, strings.TrimPrefix(strings.TrimPrefix(addr, "https://"), "http://"), p.accent)
+			})
+			if link.Clicked() {
+				c.OpenURL(addr)
+			}
+		}
 	}, tabs, func() {
 		if s.tab[containersPage] == 1 {
 			if iconButton(c.Key("reconnect-logs"), p, "refresh", tr("重新连接日志", "Reconnect logs"), false).Clicked() {
@@ -550,7 +608,12 @@ func (s *desktop) containerDock(c *ui.Context, p palette, x container) {
 		}
 		if len(x.Ports) > 0 && x.State == "running" {
 			if iconButton(c.Key("browse"), p, "out", tr("在浏览器打开", "Open in browser"), false).Clicked() {
-				c.OpenURL(fmt.Sprintf("http://localhost:%d", x.Ports[0].Public))
+				// The local address when there is one, else the published port.
+				addr := s.localURL(x)
+				if addr == "" {
+					addr = fmt.Sprintf("http://localhost:%d", x.Ports[0].Public)
+				}
+				c.OpenURL(addr)
 			}
 		}
 		s.containerActions(c, p, x)
@@ -564,7 +627,11 @@ func (s *desktop) containerDock(c *ui.Context, p palette, x container) {
 		switch tab {
 		case 0:
 			s.usageCards(c, p, x)
-			keyValues(c, p, s.detail.fields)
+			fields := s.detail.fields
+			if addr := s.localURL(x); addr != "" {
+				fields = append([]field{{tr("本地地址", "Local address"), addr}}, fields...)
+			}
+			keyValues(c, p, fields)
 		case 1:
 			s.logsTab(c, p)
 		case 2:

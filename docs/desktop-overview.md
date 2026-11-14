@@ -52,7 +52,14 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   itself when it is found, so no docker context is needed); and the members. Checkboxes pick containers, a
   project's box its members; while any are picked the filters give way to
   start, stop and delete for all of them. Rows show state, the first
-  published port, CPU, memory and age. The dock has Info (from
+  published port, CPU, memory and age. A running container with
+  published ports shows its local address where the image would be, as
+  Kiri does: the first name of `dev.fabo.domain`, else its Compose
+  `service.project`, else its name, under `fabo.local` once the machine's
+  names are on and `fabo.localhost` otherwise (which macOS resolves with no
+  setup), over https once the certificate is trusted, with the router's
+  port when it is not the scheme's default. The ⋯ menu opens it first, and
+  the detail panel shows it beside the state and in Info. The dock has Info (from
   inspect), Logs (a live subscription starting with the last 5,000 lines,
   numbered on a dark ground, warnings, errors and debug lines in their own
   colors; under the tabs a bar finds text, keeps one level, follows the end

@@ -511,6 +511,41 @@ func TestFilesTabBrowsesPreviewsAndSaves(t *testing.T) {
 	}
 }
 
+// A running container with published ports answers at a local address,
+// named as Kiri names it; the machine's names, the trusted certificate and
+// a router on another port change the address as they do in Kiri.
+func TestContainersShowTheirLocalAddress(t *testing.T) {
+	_, s := newFakeEngine(t)
+	web, _ := s.container("c-web")
+	if got := s.localURL(web); got != "http://web.shop.fabo.localhost" {
+		t.Fatalf("compose service: %q", got)
+	}
+	redis, _ := s.container("c-redis")
+	if got := s.localURL(redis); got != "http://redis-cache.fabo.localhost" {
+		t.Fatalf("plain container: %q", got)
+	}
+	redis.Domain = "cache.fabo.local, other"
+	if got := s.localURL(redis); got != "http://cache.fabo.localhost" {
+		t.Fatalf("dev.fabo.domain: %q", got)
+	}
+	job, _ := s.container("c-job")
+	if got := s.localURL(job); got != "" {
+		t.Fatalf("stopped container: %q", got)
+	}
+	s.names, s.namesOK = nameState{On: true, Suffix: "fabo.local", HTTPS: true}, true
+	s.domains, s.domainsOK = domainInfo{HTTP: domainPort{Port: 80}, HTTPS: domainPort{Port: 8443}}, true
+	if got := s.localURL(web); got != "https://web.shop.fabo.local:8443" {
+		t.Fatalf("names on, https on another port: %q", got)
+	}
+	// The page reads the settings itself once; they were set above.
+	s.domainsRead = true
+	tt := ui.NewTester(s.view, 1180, 760)
+	tt.Frame()
+	if !tt.HasText("web.shop.fabo.local:8443") {
+		t.Fatalf("the row does not show the address: %q", tt.Texts())
+	}
+}
+
 // A port published on IPv4 and IPv6 arrives twice and is shown once.
 func TestContainerPortsAreListedOnce(t *testing.T) {
 	_, s := newFakeEngine(t)

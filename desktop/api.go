@@ -32,11 +32,14 @@ type container struct {
 	// where its project was brought up and from which files, and the
 	// version of Compose that did it.
 	Service, WorkDir, ConfigFiles, EnvFile, ComposeVersion string
-	Created, Started, Finished                             int64
-	ExitCode                                               int
-	Ports                                                  []portMap
-	Mounts                                                 []mount
-	Networks                                               []attachment
+	// Domain is the dev.fabo.domain label: the names the container asks to
+	// answer at, comma-separated.
+	Domain                     string
+	Created, Started, Finished int64
+	ExitCode                   int
+	Ports                      []portMap
+	Mounts                     []mount
+	Networks                   []attachment
 }
 
 // bucket sorts a container into the filter it belongs to.
@@ -278,7 +281,7 @@ func (e engineClient) containers(ctx context.Context) ([]container, error) {
 			Command: item.Command, Created: item.Created, Project: item.Labels["com.docker.compose.project"], Mounts: item.Mounts,
 			Service: item.Labels["com.docker.compose.service"], WorkDir: item.Labels["com.docker.compose.project.working_dir"],
 			ConfigFiles: item.Labels["com.docker.compose.project.config_files"], EnvFile: item.Labels["com.docker.compose.project.environment_file"],
-			ComposeVersion: item.Labels["com.docker.compose.version"]}
+			ComposeVersion: item.Labels["com.docker.compose.version"], Domain: item.Labels["dev.fabo.domain"]}
 		if len(item.Names) > 0 {
 			c.Name = strings.TrimPrefix(item.Names[0], "/")
 		}

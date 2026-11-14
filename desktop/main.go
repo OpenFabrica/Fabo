@@ -154,27 +154,30 @@ type desktop struct {
 	dockMax bool
 	// detailPanel builds the selected row's panel; the page registers it
 	// while it builds and the view places it beside the page.
-	detailPanel    func()
-	detail         detail
-	filePath       map[string]string
-	logFilter      string
-	logLevel       int
-	follow         bool
-	pending        *confirmation
-	form           form
-	notices        []string
-	working        map[string]bool
-	refreshing     bool
-	settingsTab    int
-	settingsFor    string
-	cpus           float64
-	memory         float64
-	cacheGB        string
-	resOK          bool
-	proxy          proxyInfo
-	proxyDraft     proxySettings
-	proxyOK        bool
-	domainsOK      bool
+	detailPanel func()
+	detail      detail
+	filePath    map[string]string
+	logFilter   string
+	logLevel    int
+	follow      bool
+	pending     *confirmation
+	form        form
+	notices     []string
+	working     map[string]bool
+	refreshing  bool
+	settingsTab int
+	settingsFor string
+	cpus        float64
+	memory      float64
+	cacheGB     string
+	resOK       bool
+	proxy       proxyInfo
+	proxyDraft  proxySettings
+	proxyOK     bool
+	domainsOK   bool
+	// domainsRead marks that the containers page asked for the domain
+	// settings once, so its rows can show their local addresses.
+	domainsRead    bool
 	names          nameState
 	namesOK        bool
 	builderOK      bool
