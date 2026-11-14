@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -544,6 +545,20 @@ func TestContainersShowTheirLocalAddress(t *testing.T) {
 	if !tt.HasText("web.shop.fabo.local:8443") {
 		t.Fatalf("the row does not show the address: %q", tt.Texts())
 	}
+	// The address and the port are links of their own: each opens, and
+	// neither chooses the row.
+	if err := tt.Click("Open https://web.shop.fabo.local:8443"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("Open http://localhost:8080"); err != nil {
+		t.Fatal(err)
+	}
+	if opened := tt.OpenedURLs(); !slices.Equal(opened, []string{"https://web.shop.fabo.local:8443", "http://localhost:8080"}) {
+		t.Fatalf("opened %v", opened)
+	}
+	if s.selected[containersPage] != "" {
+		t.Fatalf("a link chose the row %q", s.selected[containersPage])
+	}
 }
 
 // A port published on IPv4 and IPv6 arrives twice and is shown once.
@@ -625,8 +640,9 @@ func TestSearchCombinesWithTheStateFilter(t *testing.T) {
 func TestDockShowsTheSelectedContainer(t *testing.T) {
 	_, s := newFakeEngine(t)
 	tt := ui.NewTester(s.view, 1180, 760)
-	if err := tt.Click("Details for shop-api-1"); err != nil {
-		t.Fatal(err)
+	// The row's middle is its port, a link of its own; its name chooses it.
+	if err := tt.Click("shop-api-1"); err != nil || s.selected[containersPage] != "c-api" {
+		t.Fatalf("selected %q: %v", s.selected[containersPage], err)
 	}
 	waitDesktop(t, tt, func() bool { return tt.HasText("server listening on :3000") })
 	if !tt.HasText("server listening on :3000") {

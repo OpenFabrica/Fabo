@@ -491,10 +491,11 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 				// A container that answers at a local address shows it
 				// where the image is, as Kiri does.
 				if addr := s.localURL(x); addr != "" {
-					ui.Row(c).Gap(4).AlignItems(ui.Center).MinWidth(0).Children(func() {
-						ui.Icon(c, icons["globe"]).Size(11, 11).Shrink(0).TextColor(p.accent)
-						label(c, strings.TrimPrefix(strings.TrimPrefix(addr, "https://"), "http://"), p.accent)
-					})
+					// The address opens itself; a button inside the row's
+					// takes its own clicks, so the row is not chosen.
+					if openLink(c.Key("address"), p, "globe", strings.TrimPrefix(strings.TrimPrefix(addr, "https://"), "http://"), addr) {
+						c.OpenURL(addr)
+					}
 				} else {
 					label(c, x.Image, p.muted)
 				}
@@ -509,11 +510,14 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 				if len(x.Ports) == 0 {
 					return
 				}
-				text := fmt.Sprintf("%d→%d", x.Ports[0].Public, x.Ports[0].Private)
-				if len(x.Ports) > 1 {
-					text += fmt.Sprintf(" +%d", len(x.Ports)-1)
+				// The first published port opens on localhost, as Kiri's does.
+				local := fmt.Sprintf("http://localhost:%d", x.Ports[0].Public)
+				if openLink(c.Key("port"), p, "", fmt.Sprintf("%d→%d", x.Ports[0].Public, x.Ports[0].Private), local) {
+					c.OpenURL(local)
 				}
-				label(c, text, p.link)
+				if len(x.Ports) > 1 {
+					label(c, fmt.Sprintf(" +%d", len(x.Ports)-1), p.muted).Shrink(0)
+				}
 			})
 		}
 		cell(c, cols[3].width, 0).Children(func() {

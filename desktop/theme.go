@@ -311,6 +311,25 @@ func filters(c *ui.Context, p palette, label string, selected *int, labels []str
 	return track.Changed()
 }
 
+// openLink is a link that opens url: its text in the link color with an
+// optional icon before it, underlined under the pointer. It reports a
+// click; the text is shown as given, the label names the url.
+func openLink(c *ui.Context, p palette, icon, text, url string) bool {
+	b := clickable(c).Label(fmt.Sprintf(tr("打开 %s", "Open %s"), url)).Tooltip(url).Gap(4).AlignItems(ui.Center).
+		MinWidth(0).Shrink(1)
+	hover := b.Hovered()
+	b.Children(func() {
+		if icon != "" {
+			ui.Icon(c, icons[icon]).Size(11, 11).Shrink(0).TextColor(p.link)
+		}
+		t := label(c, text, p.link)
+		if hover {
+			t.Underline()
+		}
+	})
+	return b.Clicked()
+}
+
 // checkbox is a square box for picking rows: empty (state 0), partly
 // filled for a group with some of its rows picked (1), or checked (2).
 func checkbox(c *ui.Context, p palette, label string, state int) bool {
