@@ -4,6 +4,7 @@ package localengine
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -115,5 +116,44 @@ func TestRestoreRetainsLegacyNoNewPrivileges(t *testing.T) {
 	}
 	if restored[currentID].run.Flags&guestwire.RunNoNewPrivs != 0 {
 		t.Fatal("new record inherited the legacy no-new-privileges policy")
+	}
+}
+
+// Failed serialization or replacement must not destroy a previously saved
+// record, and must not leave temporary records for later restoration.
+func TestSaveJSONReplacement(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "record.json")
+	if err := saveJSON(dir, "record.json", map[string]int{"value": 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := saveJSON(dir, "record.json", make(chan int)); err == nil {
+		t.Fatal("unsupported JSON value succeeded")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || string(data) != "{\"value\":1}\n" {
+		t.Fatalf("previous record changed: %q, %v", data, err)
+	}
+	if err := saveJSON(dir, "record.json", map[string]int{"value": 2}); err != nil {
+		t.Fatal(err)
+	}
+	data, err = os.ReadFile(path)
+	if err != nil || string(data) != "{\"value\":2}\n" {
+		t.Fatalf("replacement missing: %q, %v", data, err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "blocked.json"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := saveJSON(dir, "blocked.json", map[string]int{"value": 3}); err == nil {
+		t.Fatal("replacing a directory succeeded")
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".record-") {
+			t.Fatalf("temporary record leaked: %s", entry.Name())
+		}
 	}
 }

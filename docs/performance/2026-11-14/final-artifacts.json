@@ -1,0 +1,23 @@
+[
+  {
+    "path": "/Users/mike/source/project/openfabrica/FabriBay/target/perf-container-lifecycle/bin/fabo-daemon-final",
+    "sha256": "7c308c9f64cd8719b7cbe38b93d3614d5887017d4d1395421d5d4f035b99aa3b",
+    "mtime": "2026-11-14T11:40:55.420666+00:00",
+    "size": 16939872,
+    "original_path": "/Users/mike/source/project/openfabrica/FabriBay/.worktrees/perf-container-lifecycle/target/perf/bin/fabo-daemon-final"
+  },
+  {
+    "path": "/Users/mike/source/project/openfabrica/FabriBay/target/perf-container-lifecycle/bin/fabo-init-final",
+    "sha256": "8db5539025bac1e8b128f753e283393ef0e91ef194f65cff4191c7bfd979ceec",
+    "mtime": "2026-11-14T11:40:55.721322+00:00",
+    "size": 10715132,
+    "original_path": "/Users/mike/source/project/openfabrica/FabriBay/.worktrees/perf-container-lifecycle/target/perf/bin/fabo-init-final"
+  },
+  {
+    "path": "/Users/mike/source/project/openfabrica/FabriBay/target/perf-container-lifecycle/bin/initramfs-final.cpio",
+    "sha256": "b84646184b32ccdae339bb0c2f2f3e166c4c531e9a9f488a42479927342a4987",
+    "mtime": "2026-11-14T11:40:55.779063+00:00",
+    "size": 10716192,
+    "original_path": "/Users/mike/source/project/openfabrica/FabriBay/.worktrees/perf-container-lifecycle/target/perf/bin/initramfs-final.cpio"
+  }
+]

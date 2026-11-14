@@ -1,0 +1,16 @@
+{
+  "os": "macOS-27.2.1-arm64-arm-64bit-Mach-O",
+  "cpu": "Apple M5 Pro",
+  "go": "go version go1.26.7 darwin/arm64",
+  "commit": "776613913b88a1d527ac373a574e377239a056a0",
+  "vm_cpus": 2,
+  "vm_memory_mib": 2048,
+  "kiri_version": "0.2.0 (daemon startup log)",
+  "sha256": {
+    "/Applications/Kiri.app/Contents/MacOS/kiri": "c0ab8f299202417ea08cce31e3a15f5d4b89318f94bc8a5788ccfbac60f6c664",
+    "/Applications/Kiri.app/Contents/Resources/guest/Image": "10ae9d855795a53c88d502a927e849a206b71e87253e7920f5643865a31323f8",
+    "/Applications/Fabo.app/Contents/Resources/guest/Image": "10ae9d855795a53c88d502a927e849a206b71e87253e7920f5643865a31323f8",
+    "target/perf/bin/fabo-daemon": "8748a9b9d1e04ca2b362f4462e3c0f530403fe03f8c214ec7b3ca5fa0fcf46f2",
+    "target/perf/bin/fabo-init": "47139b048a621a546833c760c847f8d80bd840bbbc36546a9d14b622477ed4bf"
+  }
+}

@@ -1,0 +1,34 @@
+go -C engine vet ./...
+go -C engine test -race ./...
+# github.com/OpenFabrica/Fabo/engine/cmd/fabo-daemon.test
+ld: warning: ignoring duplicate libraries: '-lobjc'
+ok  	github.com/OpenFabrica/Fabo/engine/cmd/fabo	3.043s
+ok  	github.com/OpenFabrica/Fabo/engine/cmd/fabo-daemon	1.753s
+?   	github.com/OpenFabrica/Fabo/engine/cmd/fabo-guest-check	[no test files]
+?   	github.com/OpenFabrica/Fabo/engine/cmd/fabo-mkinitramfs	[no test files]
+ok  	github.com/OpenFabrica/Fabo/engine/internal/diskusage	1.719s
+?   	github.com/OpenFabrica/Fabo/engine/internal/finder	[no test files]
+ok  	github.com/OpenFabrica/Fabo/engine/internal/guestwire	1.334s
+ok  	github.com/OpenFabrica/Fabo/engine/internal/hostagent	4.084s
+ok  	github.com/OpenFabrica/Fabo/engine/internal/imagescan	1.738s
+ok  	github.com/OpenFabrica/Fabo/engine/internal/localengine	1.602s
+ok  	github.com/OpenFabrica/Fabo/engine/internal/usbhost	1.333s
+go -C desktop vet ./...
+go -C desktop test ./...
+ok  	github.com/OpenFabrica/Fabo/desktop	2.107s
+GOOS=linux GOARCH=arm64 go -C engine vet ./...
+GOOS=linux GOARCH=arm64 go -C engine test -exec true ./...
+ok  	github.com/OpenFabrica/Fabo/engine/cmd/fabo	0.005s
+ok  	github.com/OpenFabrica/Fabo/engine/cmd/fabo-daemon	0.004s
+?   	github.com/OpenFabrica/Fabo/engine/cmd/fabo-guest-check	[no test files]
+?   	github.com/OpenFabrica/Fabo/engine/cmd/fabo-host-run	[no test files]
+ok  	github.com/OpenFabrica/Fabo/engine/cmd/fabo-init	0.006s
+?   	github.com/OpenFabrica/Fabo/engine/cmd/fabo-mkinitramfs	[no test files]
+ok  	github.com/OpenFabrica/Fabo/engine/internal/diskusage	0.005s
+?   	github.com/OpenFabrica/Fabo/engine/internal/finder	[no test files]
+ok  	github.com/OpenFabrica/Fabo/engine/internal/guestagent	0.004s
+ok  	github.com/OpenFabrica/Fabo/engine/internal/guestwire	0.005s
+ok  	github.com/OpenFabrica/Fabo/engine/internal/hostagent	0.006s
+ok  	github.com/OpenFabrica/Fabo/engine/internal/imagescan	0.004s
+ok  	github.com/OpenFabrica/Fabo/engine/internal/localengine	0.003s
+ok  	github.com/OpenFabrica/Fabo/engine/internal/usbhost	0.004s

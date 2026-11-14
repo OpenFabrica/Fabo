@@ -135,8 +135,12 @@ static VZVirtualMachineConfiguration *configuration(
 #endif
     config.directorySharingDevices = shareDevices;
     if (*disk != '\0') {
+        // Use fsync durability, matching host metadata and Kiri. Unlike Full,
+        // this does not flush the drive's internal cache on power loss.
         VZDiskImageStorageDeviceAttachment *attachment =
-            [[VZDiskImageStorageDeviceAttachment alloc] initWithURL:fileURL(disk) readOnly:NO error:error];
+            [[VZDiskImageStorageDeviceAttachment alloc] initWithURL:fileURL(disk) readOnly:NO
+                cachingMode:VZDiskImageCachingModeCached
+                synchronizationMode:VZDiskImageSynchronizationModeFsync error:error];
         if (attachment == nil) {
             return nil;
         }

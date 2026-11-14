@@ -1,0 +1,10 @@
+[
+  "exit-0",
+  "exit-1",
+  "exit-42",
+  "output-drained",
+  "start-twice",
+  "restart-state-restored",
+  "writable-layer-restored",
+  "test-container-removed"
+]

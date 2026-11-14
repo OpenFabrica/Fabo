@@ -1,0 +1,6 @@
+Container lifecycle: alpine@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf → true → exit → removed, 100 runs (+5 warm-up)
+
+  measuring Fabo daemon…
+                                                          p50        p99       mean
+Fabo daemon — Docker API, --network none             33.14 ms   40.09 ms   34.02 ms
+Fabo daemon — docker CLI, --network none             39.73 ms   46.11 ms   39.55 ms

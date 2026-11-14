@@ -1,0 +1,246 @@
+{
+  "socket": "/tmp/fabo-perf-7766139/docker.sock",
+  "image": "alpine@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf",
+  "network": "none",
+  "runs": 30,
+  "warmup": 5,
+  "summary": {
+    "create": {
+      "p50_ms": 4.1018954999999995,
+      "p99_ms": 5.194291,
+      "mean_ms": 4.015494433333333
+    },
+    "wait_registration": {
+      "p50_ms": 0.09972900000000001,
+      "p99_ms": 0.200459,
+      "mean_ms": 0.10838066666666667
+    },
+    "start": {
+      "p50_ms": 13.0452295,
+      "p99_ms": 16.661041,
+      "mean_ms": 13.101515233333334
+    },
+    "exit_remove": {
+      "p50_ms": 15.586146,
+      "p99_ms": 17.24725,
+      "mean_ms": 15.507884733333334
+    },
+    "total": {
+      "p50_ms": 32.770646,
+      "p99_ms": 36.526542,
+      "mean_ms": 32.733275066666664
+    }
+  },
+  "samples_ms": [
+    {
+      "create": 3.496667,
+      "wait_registration": 0.083542,
+      "start": 12.244333,
+      "exit_remove": 13.402208,
+      "total": 29.22675
+    },
+    {
+      "create": 3.378667,
+      "wait_registration": 0.071416,
+      "start": 12.140417,
+      "exit_remove": 14.361375,
+      "total": 29.951875
+    },
+    {
+      "create": 3.435042,
+      "wait_registration": 0.087625,
+      "start": 11.939667,
+      "exit_remove": 15.450458,
+      "total": 30.912792
+    },
+    {
+      "create": 3.5215,
+      "wait_registration": 0.06725,
+      "start": 12.089125,
+      "exit_remove": 14.261833,
+      "total": 29.939708
+    },
+    {
+      "create": 3.4035,
+      "wait_registration": 0.057959,
+      "start": 12.231375,
+      "exit_remove": 16.20925,
+      "total": 31.902084
+    },
+    {
+      "create": 3.493542,
+      "wait_registration": 0.065833,
+      "start": 12.1845,
+      "exit_remove": 15.321125,
+      "total": 31.065
+    },
+    {
+      "create": 3.50775,
+      "wait_registration": 0.059667,
+      "start": 12.173875,
+      "exit_remove": 15.297792,
+      "total": 31.039084
+    },
+    {
+      "create": 3.535208,
+      "wait_registration": 0.069792,
+      "start": 12.242416,
+      "exit_remove": 17.24725,
+      "total": 33.094666
+    },
+    {
+      "create": 4.591875,
+      "wait_registration": 0.090042,
+      "start": 12.239125,
+      "exit_remove": 15.95425,
+      "total": 32.875292
+    },
+    {
+      "create": 3.533458,
+      "wait_registration": 0.076875,
+      "start": 12.305708,
+      "exit_remove": 16.244584,
+      "total": 32.160625
+    },
+    {
+      "create": 4.392916,
+      "wait_registration": 0.069084,
+      "start": 13.280125,
+      "exit_remove": 16.521833,
+      "total": 34.263958
+    },
+    {
+      "create": 4.068375,
+      "wait_registration": 0.075625,
+      "start": 13.379417,
+      "exit_remove": 16.438833,
+      "total": 33.96225
+    },
+    {
+      "create": 4.135416,
+      "wait_registration": 0.09375,
+      "start": 13.076459,
+      "exit_remove": 15.360375,
+      "total": 32.666
+    },
+    {
+      "create": 3.466042,
+      "wait_registration": 0.075167,
+      "start": 13.265583,
+      "exit_remove": 16.336708,
+      "total": 33.1435
+    },
+    {
+      "create": 4.31475,
+      "wait_registration": 0.116375,
+      "start": 15.266458,
+      "exit_remove": 16.379,
+      "total": 36.076583
+    },
+    {
+      "create": 4.37025,
+      "wait_registration": 0.127625,
+      "start": 13.080958,
+      "exit_remove": 16.00325,
+      "total": 33.582083
+    },
+    {
+      "create": 3.750958,
+      "wait_registration": 0.098875,
+      "start": 14.030959,
+      "exit_remove": 14.4705,
+      "total": 32.351292
+    },
+    {
+      "create": 4.385167,
+      "wait_registration": 0.13625,
+      "start": 13.09475,
+      "exit_remove": 15.697958,
+      "total": 33.314125
+    },
+    {
+      "create": 4.141834,
+      "wait_registration": 0.152125,
+      "start": 13.857166,
+      "exit_remove": 15.733792,
+      "total": 33.884917
+    },
+    {
+      "create": 4.196125,
+      "wait_registration": 0.122667,
+      "start": 13.014,
+      "exit_remove": 16.979875,
+      "total": 34.312667
+    },
+    {
+      "create": 3.784625,
+      "wait_registration": 0.126791,
+      "start": 13.941,
+      "exit_remove": 14.514709,
+      "total": 32.367125
+    },
+    {
+      "create": 4.389042,
+      "wait_registration": 0.124791,
+      "start": 13.000084,
+      "exit_remove": 12.467541,
+      "total": 29.981458
+    },
+    {
+      "create": 4.541375,
+      "wait_registration": 0.100583,
+      "start": 13.091875,
+      "exit_remove": 15.474334,
+      "total": 33.208167
+    },
+    {
+      "create": 4.386458,
+      "wait_registration": 0.14675,
+      "start": 11.960917,
+      "exit_remove": 14.782875,
+      "total": 31.277
+    },
+    {
+      "create": 4.027291,
+      "wait_registration": 0.153667,
+      "start": 14.287958,
+      "exit_remove": 16.726792,
+      "total": 35.195708
+    },
+    {
+      "create": 3.855625,
+      "wait_registration": 0.152334,
+      "start": 14.240625,
+      "exit_remove": 17.081291,
+      "total": 35.329875
+    },
+    {
+      "create": 4.598375,
+      "wait_registration": 0.200459,
+      "start": 11.92575,
+      "exit_remove": 14.721458,
+      "total": 31.446042
+    },
+    {
+      "create": 4.234334,
+      "wait_registration": 0.198375,
+      "start": 16.661041,
+      "exit_remove": 14.580584,
+      "total": 35.674334
+    },
+    {
+      "create": 4.334375,
+      "wait_registration": 0.130292,
+      "start": 15.153833,
+      "exit_remove": 16.908042,
+      "total": 36.526542
+    },
+    {
+      "create": 5.194291,
+      "wait_registration": 0.119834,
+      "start": 11.645958,
+      "exit_remove": 14.306667,
+      "total": 31.26675
+    }
+  ]
+}

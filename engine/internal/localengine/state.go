@@ -121,7 +121,9 @@ func saveJSON(dir, name string, value any) error {
 	if err := json.NewEncoder(tmp).Encode(value); err != nil {
 		return err
 	}
-	if err := tmp.Sync(); err != nil {
+	// Match the VM disk policy: fsync, not Darwin File.Sync's stronger
+	// F_FULLFSYNC. Keep write/sync/close failures ahead of atomic replacement.
+	if err := syscall.Fsync(int(tmp.Fd())); err != nil {
 		return err
 	}
 	if err := tmp.Close(); err != nil {

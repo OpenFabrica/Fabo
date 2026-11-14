@@ -213,3 +213,9 @@ DOCKER_CONTEXT=fabo-parity bash tests/e2e.sh
 ```
 
 发布前还需在对应平台运行 `tests/linux-host.sh`、`tests/wsl.sh` 和 `tests/kernel-features.sh`，并补齐迁移、Kubernetes、USB、默认域名及实际桌面交互的验证。验收记录按平台列出测试命令、结果、跳过原因和仍存在的差异。当前全量基线尚未达到可直接替换的验收条件。
+
+### 默认 fsync 同步策略（2026-11-14）
+
+经用户确认，macOS 虚拟磁盘默认显式使用 `Cached + Fsync`，宿主 `saveJSON` 状态文件默认使用 `syscall.Fsync`，对齐 Kiri 的 VM 磁盘策略。原子替换和错误传播保留；不新增持久化格式或配置项。Linux 同样使用 fsync。更改将在重建后的 daemon / VM 启动时生效，无数据迁移。
+
+fsync 不保证断电时驱动器内部缓存已写入永久介质，区别于 macOS 的 F_FULLFSYNC / VM Full 模式。常规重启验证不代表断电安全验证。性能分段、对照条件、原始样本和最终验收见 [性能报告](performance/2026-11-14/README.md)。
