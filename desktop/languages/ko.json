@@ -474,5 +474,10 @@
   "Imported %d images": "이미지 %d개를 가져왔습니다",
   "Imported %s": "%s을(를) 가져왔습니다",
   "Pack ": "패키징 ",
-  "Pack images": "이미지 패키징"
+  "Pack images": "이미지 패키징",
+  "Stop VM": "VM 중지",
+  "Start VM": "VM 시작",
+  "Not connected": "연결되지 않음",
+  "Stopping…": "중지하는 중…",
+  "Engine stopping…": "엔진을 중지하는 중…"
 }

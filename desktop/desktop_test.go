@@ -693,7 +693,7 @@ func TestSidebarFoldsToIcons(t *testing.T) {
 	_, s := newFakeEngine(t)
 	tt := ui.NewTester(s.view, 1180, 760)
 	side, _ := tt.Find("Images")
-	if m := has(tt, "Engine running"); m != "" || side.W < 150 {
+	if m := has(tt, "Linux VM", "Running"); m != "" || side.W < 150 {
 		t.Fatalf("open sidebar: missing %q, entry %v", m, side)
 	}
 	// The sidebar lists the pages without section titles.
@@ -705,7 +705,7 @@ func TestSidebarFoldsToIcons(t *testing.T) {
 	if !found || side.W > 40 || !s.prefs.NavCollapsed {
 		t.Fatalf("folded entry: %v %v", side, found)
 	}
-	if !tt.HasText("Engine running · 4 CPU") {
+	if !tt.HasText("Linux VM · Running · 4 CPU") {
 		t.Fatalf("engine state left the window: %q", tt.Texts())
 	}
 	if err := tt.Click("Images"); err != nil || s.page != imagesPage {
@@ -808,7 +808,7 @@ func TestStoppedEngineOffersToStart(t *testing.T) {
 	f, s := newFakeEngine(t)
 	s.info.FaboStopped = true
 	tt := ui.NewTester(s.view, 1180, 760)
-	if m := has(tt, "The engine is stopped", "Engine stopped"); m != "" {
+	if m := has(tt, "The engine is stopped", "Linux VM", "Off"); m != "" {
 		t.Fatalf("missing %q", m)
 	}
 	if err := tt.Click("Start engine"); err != nil {
@@ -830,7 +830,7 @@ func TestAppearanceIsChosenInSettings(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if m := has(tt, "外观", "容器", "引擎运行中"); m != "" || s.prefs.Lang != "zh-Hans" {
+	if m := has(tt, "外观", "容器", "Linux 虚拟机"); m != "" || s.prefs.Lang != "zh-Hans" {
 		t.Fatalf("missing %q after switching to Chinese", m)
 	}
 	if err := tt.Click("浅色"); err != nil || s.prefs.Theme != "light" || s.dark {

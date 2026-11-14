@@ -474,5 +474,10 @@
   "Imported %d images": "%d image diimpor",
   "Imported %s": "%s diimpor",
   "Pack ": "Kemas ",
-  "Pack images": "Kemas image"
+  "Pack images": "Kemas image",
+  "Stop VM": "Hentikan VM",
+  "Start VM": "Mulai VM",
+  "Not connected": "Tidak terhubung",
+  "Stopping…": "Menghentikan…",
+  "Engine stopping…": "Mesin berhenti…"
 }

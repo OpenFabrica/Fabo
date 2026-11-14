@@ -474,5 +474,10 @@
   "Imported %d images": "%d imaj içe aktarıldı",
   "Imported %s": "%s içe aktarıldı",
   "Pack ": "Paketle ",
-  "Pack images": "İmajları paketle"
+  "Pack images": "İmajları paketle",
+  "Stop VM": "VM’yi durdur",
+  "Start VM": "VM’yi başlat",
+  "Not connected": "Bağlı değil",
+  "Stopping…": "Durduruluyor…",
+  "Engine stopping…": "Motor durduruluyor…"
 }

@@ -474,5 +474,10 @@
   "Imported %d images": "已匯入 %d 個映像檔",
   "Imported %s": "已匯入 %s",
   "Pack ": "打包 ",
-  "Pack images": "打包映像檔"
+  "Pack images": "打包映像檔",
+  "Stop VM": "停止虛擬機器",
+  "Start VM": "啓動虛擬機器",
+  "Not connected": "未連線",
+  "Stopping…": "停止中…",
+  "Engine stopping…": "引擎停止中…"
 }

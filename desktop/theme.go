@@ -243,6 +243,12 @@ const (
 // None carries a border: plain buttons sit on a soft fill, ghost buttons
 // only fill under the pointer, and the primary one is the accent.
 func button(c *ui.Context, p palette, label, icon string, kind int, disabled bool) bool {
+	return labeledButton(c, p, label, label, icon, kind, disabled)
+}
+
+// labeledButton is button with a name for assistive technology and tests
+// that says more than its short text.
+func labeledButton(c *ui.Context, p palette, text, label, icon string, kind int, disabled bool) bool {
 	b := ui.ButtonBase(c).Label(label).Height(32).PaddingX(12).Gap(6).Shrink(0).
 		AlignItems(ui.Center).Justify(ui.Center).Radius(8).Disabled(disabled).Cursor(pointerFor(disabled))
 	bg, ink := p.soft, p.text
@@ -281,7 +287,7 @@ func button(c *ui.Context, p palette, label, icon string, kind int, disabled boo
 		if icon != "" {
 			ui.Icon(c, icons[icon]).Size(14, 14).TextColor(ink)
 		}
-		ui.Text(c, label).FontSize(12.5).FontWeight(500).TextColor(ink)
+		ui.Text(c, text).FontSize(12.5).FontWeight(500).TextColor(ink)
 	})
 	return b.Clicked()
 }

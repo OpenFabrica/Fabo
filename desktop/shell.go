@@ -267,19 +267,31 @@ func (s *desktop) pageHead(c *ui.Context, p palette) {
 	})
 }
 
-// engineWords names the engine's state.
+// vmName names what runs the containers, as Kiri does: a Linux VM on the
+// Mac, or the engine itself where it runs directly on Linux.
+func (s *desktop) vmName() string {
+	if s.info.FaboVMControls != nil && !*s.info.FaboVMControls {
+		return tr("引擎", "Engine")
+	}
+	return tr("Linux 虚拟机", "Linux VM")
+}
+
+// engineWords gives the engine's state as a dot kind and a word, in the
+// words Settings uses.
 func (s *desktop) engineWords() (kind, text string) {
 	switch s.engineState() {
 	case "running":
-		return "running", tr("引擎运行中", "Engine running")
+		return "running", tr("运行中", "Running")
 	case "starting":
-		return "busy", tr("引擎启动中…", "Engine starting…")
+		return "busy", tr("启动中…", "Starting…")
+	case "stopping":
+		return "busy", tr("停止中…", "Stopping…")
 	case "asleep":
-		return "stopped", tr("引擎休眠中", "Engine asleep")
+		return "stopped", tr("休眠中", "Asleep")
 	case "stopped":
-		return "stopped", tr("引擎已停止", "Engine stopped")
+		return "stopped", tr("已关闭", "Off")
 	}
-	return "failed", tr("引擎未连接", "Engine unavailable")
+	return "failed", tr("未连接", "Not connected")
 }
 
 // engineSwitch is the button that starts or stops the engine. An engine that
@@ -303,6 +315,7 @@ func (s *desktop) engineSwitch(c *ui.Context, p palette) {
 // engineLine is the one-line engine state of the title bar.
 func (s *desktop) engineLine(c *ui.Context, p palette) {
 	kind, text := s.engineWords()
+	text = s.vmName() + " · " + text
 	ui.Row(c.Key("engine-line")).Shrink(0).Gap(7).AlignItems(ui.Center).Children(func() {
 		dot(c, p, kind)
 		if kind == "running" {
@@ -443,38 +456,69 @@ func (s *desktop) navButton(c *ui.Context, p palette, n navItem, open, on bool, 
 // engineCard sits at the foot of the open sidebar: state and version, the
 // switch that starts or stops the engine, and the memory in use.
 func (s *desktop) engineCard(c *ui.Context, p palette) {
+	state := s.engineState()
 	kind, text := s.engineWords()
 	used, total := s.memoryUse()
+	version := ""
+	if v := s.info.ServerVersion; v != "" && v != "0.0.0" {
+		version = "v" + v
+	}
 	ui.Column(c.Key("engine-card")).FillWidth().Shrink(0).Margin(0, 0, 8).Padding(12).Gap(10).
 		Radius(12).Background(p.panel).Border(1, p.line).Children(func() {
-		ui.Row(c).FillWidth().Gap(8).AlignItems(ui.Center).Children(func() {
-			dot(c, p, kind)
-			ui.Text(c, text).FontSize(12.5).FontWeight(500).TextColor(p.text).SingleLine().Grow(1).MinWidth(0)
-			s.engineSwitch(c, p)
-		})
-		if kind != "running" {
-			return
+		head := ui.Row(c.Key("engine-head")).FillWidth().Gap(7).AlignItems(ui.Center)
+		if version != "" {
+			head.Tooltip(s.vmName() + " · " + version)
 		}
-		// The version shares the memory line, so the state above keeps
-		// its room even for a long development version.
-		ui.Column(c).FillWidth().Gap(6).Children(func() {
-			ui.Row(c).FillWidth().Gap(8).Children(func() {
-				version := ""
-				if v := s.info.ServerVersion; v != "" && v != "0.0.0" {
-					version = "v" + v
+		head.Children(func() {
+			dot(c, p, kind)
+			ui.Text(c, s.vmName()).FontSize(12.5).FontWeight(600).TextColor(p.text).SingleLine().Grow(1).MinWidth(0)
+			ui.Text(c, text).FontSize(12).TextColor(p.muted).SingleLine().Shrink(0)
+		})
+		// What the VM holds, while it is up: containers, CPU and memory.
+		if state == "running" || state == "asleep" {
+			ui.Column(c).FillWidth().Gap(4).Children(func() {
+				fact := func(name, value string) {
+					ui.Row(c).FillWidth().Gap(10).Children(func() {
+						ui.Text(c, name).FontSize(12).TextColor(p.muted).Grow(1).MinWidth(0).SingleLine()
+						ui.Text(c, value).FontSize(12).FontFeatures("tnum").TextColor(p.text).SingleLine().Shrink(0)
+					})
 				}
-				ui.Text(c, version).FontSize(11).FontFeatures("tnum").TextColor(p.muted).SingleLine().Grow(1).MinWidth(0)
+				fact(tr("运行中", "Running"), strconv.Itoa(s.info.ContainersRunning))
+				cpus := strconv.Itoa(s.cores())
+				if state == "running" && len(s.cpuHist) > 0 {
+					cpus = fmt.Sprintf("%.0f%% · %s", s.cpuNow(), cpus)
+				}
+				fact(tr("CPU", "CPUs"), cpus)
 				memory := displaySize(used)
 				if total > 0 {
 					memory += " / " + displaySize(total)
 				}
-				ui.Text(c, memory).Font(mono).FontSize(11).FontFeatures("tnum").TextColor(p.muted).SingleLine().Label(tr("内存", "Memory"))
+				fact(tr("内存", "Memory"), memory)
+				fraction := 0.0
+				if total > 0 {
+					fraction = float64(used) / float64(total)
+				}
+				ui.Box(c).FillWidth().Margin(2, 0, 0).Children(func() { meter(c, p, fraction, 4, p.accent) })
 			})
-			fraction := 0.0
-			if total > 0 {
-				fraction = float64(used) / float64(total)
+		}
+		// An engine on Linux itself has no VM to switch; nor can an
+		// unreachable one be switched from here.
+		if s.info.FaboVMControls != nil && !*s.info.FaboVMControls || state == "offline" {
+			return
+		}
+		ui.Column(c).FillWidth().Children(func() {
+			switch state {
+			case "running", "asleep":
+				if labeledButton(c.Key("engine-toggle"), p, tr("停止虚拟机", "Stop VM"), tr("停止引擎", "Stop engine"), "", plainButton, false) {
+					s.stopEngine()
+				}
+			case "stopped":
+				if labeledButton(c.Key("engine-toggle"), p, tr("启动虚拟机", "Start VM"), tr("启动引擎", "Start engine"), "", primaryButton, false) {
+					s.do("engine", engineAction{http.MethodPost, "/fabo/wake", nil}, tr("引擎已启动", "Engine started"))
+				}
+			default:
+				labeledButton(c.Key("engine-toggle"), p, text, text, "", plainButton, true)
 			}
-			meter(c, p, fraction, 4, p.accent)
 		})
 	})
 }
@@ -506,6 +550,9 @@ func (s *desktop) pageBody(c *ui.Context, p palette) {
 			return
 		case "starting":
 			empty(c, p, "power", tr("引擎启动中…", "Engine starting…"), "")
+			return
+		case "stopping":
+			empty(c, p, "power", tr("引擎停止中…", "Engine stopping…"), "")
 			return
 		case "stopped":
 			if empty(c, p, "power", tr("引擎已停止", "The engine is stopped"), tr("启动引擎", "Start engine")) {

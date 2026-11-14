@@ -474,5 +474,10 @@
   "Imported %d images": "Đã nhập %d image",
   "Imported %s": "Đã nhập %s",
   "Pack ": "Đóng gói ",
-  "Pack images": "Đóng gói image"
+  "Pack images": "Đóng gói image",
+  "Stop VM": "Dừng VM",
+  "Start VM": "Khởi động VM",
+  "Not connected": "Chưa kết nối",
+  "Stopping…": "Đang dừng…",
+  "Engine stopping…": "Đang dừng engine…"
 }

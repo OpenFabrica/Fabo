@@ -22,10 +22,14 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   text size and the row density. These preferences live in `desktop.json` in
   the installation's state directory, so each flavor keeps its own.
 - **Sidebar.** Open, it names each page with its count and carries the
-  engine card: state, version, memory in use, and the switch that starts
-  or stops the VM. Folded (Command/Ctrl+B, or the button beside the window
-  buttons) it shows icons only, and the engine's state moves to the title
-  strip. A window narrower than 1040 points folds it on its own; unfolding
+  engine card, as Kiri's: "Linux VM" with its state (Running, Asleep, Off,
+  Starting…, Stopping…), and while it is up the running containers, the
+  CPUs (with the current load when awake) and memory in use against the
+  VM's ceiling, then a full-width Stop VM or Start VM button. The version
+  is the card head's tooltip. An engine running directly on Linux is named
+  "Engine" and has no button. Folded (Command/Ctrl+B, or the button beside
+  the window buttons) it shows icons only, and "Linux VM · state" moves to
+  the title strip. A window narrower than 1040 points folds it on its own; unfolding
   it there lasts until the window widens, without changing the saved choice. Kubernetes is a group of its own: its heading shows the cluster's
   state and opens its settings, and Pods and Services open their lists.
   USB devices and Share are not built yet and stay out of the sidebar.

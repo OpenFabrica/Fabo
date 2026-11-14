@@ -402,6 +402,8 @@ func (i engineInfo) awake() bool { return !i.FaboStopped && (i.FaboVmAwake == ni
 // engineState names the engine's condition for the sidebar and the title bar.
 func (s *desktop) engineState() string {
 	switch {
+	case s.working["engine-stop"]:
+		return "stopping"
 	case s.working["engine"]:
 		return "starting"
 	case !s.connected:

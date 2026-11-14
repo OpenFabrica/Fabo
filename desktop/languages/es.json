@@ -474,5 +474,10 @@
   "Imported %d images": "%d imágenes importadas",
   "Imported %s": "%s importado",
   "Pack ": "Empaquetar ",
-  "Pack images": "Empaquetar imágenes"
+  "Pack images": "Empaquetar imágenes",
+  "Stop VM": "Detener la VM",
+  "Start VM": "Iniciar la VM",
+  "Not connected": "Sin conexión",
+  "Stopping…": "Deteniendo…",
+  "Engine stopping…": "Deteniendo el motor…"
 }

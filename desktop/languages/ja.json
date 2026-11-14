@@ -474,5 +474,10 @@
   "Imported %d images": "%d 個のイメージを読み込みました",
   "Imported %s": "%s を読み込みました",
   "Pack ": "パッケージ化 ",
-  "Pack images": "イメージをパッケージ化"
+  "Pack images": "イメージをパッケージ化",
+  "Stop VM": "VM を停止",
+  "Start VM": "VM を起動",
+  "Not connected": "未接続",
+  "Stopping…": "停止しています…",
+  "Engine stopping…": "エンジンを停止しています…"
 }

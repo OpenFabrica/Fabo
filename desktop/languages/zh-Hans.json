@@ -474,5 +474,10 @@
   "Imported %d images": "已导入 %d 个镜像",
   "Imported %s": "已导入 %s",
   "Pack ": "打包 ",
-  "Pack images": "打包镜像"
+  "Pack images": "打包镜像",
+  "Stop VM": "停止虚拟机",
+  "Start VM": "启动虚拟机",
+  "Not connected": "未连接",
+  "Stopping…": "停止中…",
+  "Engine stopping…": "引擎停止中…"
 }

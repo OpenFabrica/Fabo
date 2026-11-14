@@ -474,5 +474,10 @@
   "Imported %d images": "Zaimportowano obrazy: %d",
   "Imported %s": "Zaimportowano %s",
   "Pack ": "Spakuj ",
-  "Pack images": "Spakuj obrazy"
+  "Pack images": "Spakuj obrazy",
+  "Stop VM": "Zatrzymaj VM",
+  "Start VM": "Uruchom VM",
+  "Not connected": "Brak połączenia",
+  "Stopping…": "Zatrzymywanie…",
+  "Engine stopping…": "Zatrzymywanie silnika…"
 }

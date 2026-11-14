@@ -407,7 +407,7 @@ func (s *desktop) stopEngine() {
 		title: tr("停止引擎？", "Stop the engine?"),
 		body:  tr("运行中的容器会停止，引擎在你再次启动前保持关闭。", "Running containers stop, and the engine stays off until you start it again."),
 		ok:    tr("停止", "Stop"),
-		run:   func() { s.do("engine", engineAction{http.MethodPost, "/fabo/stop", nil}, "") },
+		run:   func() { s.do("engine-stop", engineAction{http.MethodPost, "/fabo/stop", nil}, "") },
 	}
 }
 
@@ -442,6 +442,8 @@ func (s *desktop) resourcesPane(c *ui.Context, p palette) {
 			title, hint = tr("已关闭", "Off"), tr("点「启动引擎」来运行容器。重启电脑后它仍保持关闭，直到你启动它。", "Press Start engine to run containers. It stays off after a restart until you start it.")
 		case "starting":
 			title = tr("启动中…", "Starting…")
+		case "stopping":
+			title = tr("停止中…", "Stopping…")
 		case "asleep":
 			title = tr("休眠中", "Asleep")
 		}
@@ -450,7 +452,7 @@ func (s *desktop) resourcesPane(c *ui.Context, p palette) {
 				if button(c.Key("on"), p, tr("启动引擎", "Start engine"), "play", primaryButton, s.working["engine"]) {
 					s.do("engine", engineAction{http.MethodPost, "/fabo/wake", nil}, tr("引擎已启动", "Engine started"))
 				}
-			} else if button(c.Key("off"), p, tr("关闭引擎", "Turn off engine"), "power", plainButton, s.working["engine"]) {
+			} else if button(c.Key("off"), p, tr("关闭引擎", "Turn off engine"), "power", plainButton, s.working["engine"] || s.working["engine-stop"]) {
 				s.stopEngine()
 			}
 		})
