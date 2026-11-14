@@ -457,5 +457,16 @@
   "stopped": "已停止",
   "tagged": "打標籤",
   "under a minute": "不到 1 分鐘",
-  "up to %.0f GB": "最多 %.0f GB"
+  "up to %.0f GB": "最多 %.0f GB",
+  "Fabo package": "Fabo 容器包",
+  "Import a package": "匯入容器包",
+  "Import": "匯入",
+  "Imported %d containers": "已匯入 %d 個容器",
+  "Imported": "已匯入",
+  "Importing…": "匯入中…",
+  "Pack containers": "打包容器",
+  "Pack the project": "打包專案",
+  "Pack": "打包",
+  "Packed into %s": "已打包到 %s",
+  "Pack…": "打包…"
 }

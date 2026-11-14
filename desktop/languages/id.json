@@ -457,5 +457,16 @@
   "stopped": "Berhenti",
   "tagged": "diberi tag",
   "under a minute": "kurang dari satu menit",
-  "up to %.0f GB": "hingga %.0f GB"
+  "up to %.0f GB": "hingga %.0f GB",
+  "Fabo package": "Paket Fabo",
+  "Import a package": "Impor paket",
+  "Import": "Impor",
+  "Imported %d containers": "%d kontainer diimpor",
+  "Imported": "Diimpor",
+  "Importing…": "Mengimpor…",
+  "Pack containers": "Kemas kontainer",
+  "Pack the project": "Kemas proyek",
+  "Pack": "Kemas",
+  "Packed into %s": "Dikemas ke %s",
+  "Pack…": "Kemas…"
 }

@@ -115,6 +115,9 @@ func (s *desktop) projectDock(c *ui.Context, p palette, name string, members []c
 		if pr.workDir != "" && iconButton(c.Key("open-dir"), p, "folder", tr("打开项目目录", "Open the project folder"), false).Clicked() {
 			c.OpenURL((&url.URL{Scheme: "file", Path: pr.workDir}).String())
 		}
+		if s.launcher != nil && iconButton(c.Key("pack-project"), p, "archive", tr("打包项目", "Pack the project"), s.working["pack"]).Clicked() {
+			s.pack(nil, name, name)
+		}
 		if iconButton(c.Key("delete-all"), p, "trash", tr("删除项目的全部容器", "Delete the project's containers"), false).Clicked() {
 			s.removeContainers(members, fmt.Sprintf(tr("删除 %s 的 %d 个容器？", "Delete the %[2]d containers of %[1]s?"), name, len(members)))
 		}

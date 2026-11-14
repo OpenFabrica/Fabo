@@ -86,6 +86,29 @@ func (c *commandClient) request(method, path string, body, out any) error {
 	return err
 }
 
+// stream sends a request whose body or answer may be gigabytes, so it has no
+// overall deadline; the caller closes the returned body. size is the body's
+// length, or -1 when unknown.
+func (c *commandClient) stream(method, path, contentType string, body io.Reader, size int64) (io.ReadCloser, error) {
+	req, err := http.NewRequest(method, "http://fabo"+path, body)
+	if err != nil {
+		return nil, err
+	}
+	if body != nil {
+		req.ContentLength = size
+		req.Header.Set("Content-Type", contentType)
+	}
+	resp, err := (&http.Client{Transport: c.http.Transport}).Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		defer resp.Body.Close()
+		return nil, commandResponseError(resp)
+	}
+	return resp.Body, nil
+}
+
 // exec is for bounded setup commands, not an interactive shell. TTY output
 // is unframed; Docker handles the user's interactive terminal separately.
 func (c *commandClient) exec(container string, command []string) (int, string, error) {

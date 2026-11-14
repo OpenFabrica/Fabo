@@ -172,6 +172,8 @@ var icons = map[string]*ui.SVG{
 	"copy":     lineIcon(`<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/>`),
 	"folder":   lineIcon(`<path d="M3 7a1 1 0 011-1h5l2 2h8a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V7z"/>`),
 	"file":     lineIcon(`<path d="M7 3h7l4 4v14H7zM14 3v4h4"/>`),
+	"archive":  lineIcon(`<rect x="3.5" y="4" width="17" height="5" rx="1"/><path d="M5 9v10a1 1 0 001 1h12a1 1 0 001-1V9M10 13h4"/>`),
+	"import":   lineIcon(`<path d="M12 3v11M8 10l4 4 4-4M4 14v5a1 1 0 001 1h14a1 1 0 001-1v-5"/>`),
 	"download": lineIcon(`<path d="M12 4v11M8 11l4 4 4-4M5 20h14"/>`),
 	"shield":   lineIcon(`<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z"/>`),
 	// The panel's maximize and restore: two corners pointing out, or in.

@@ -457,5 +457,16 @@
   "stopped": "Đã dừng",
   "tagged": "đã gắn thẻ",
   "under a minute": "chưa đầy một phút",
-  "up to %.0f GB": "tối đa %.0f GB"
+  "up to %.0f GB": "tối đa %.0f GB",
+  "Fabo package": "Gói Fabo",
+  "Import a package": "Nhập gói",
+  "Import": "Nhập",
+  "Imported %d containers": "Đã nhập %d container",
+  "Imported": "Đã nhập",
+  "Importing…": "Đang nhập…",
+  "Pack containers": "Đóng gói container",
+  "Pack the project": "Đóng gói dự án",
+  "Pack": "Đóng gói",
+  "Packed into %s": "Đã đóng gói vào %s",
+  "Pack…": "Đóng gói…"
 }

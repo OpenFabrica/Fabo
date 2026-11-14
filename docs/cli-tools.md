@@ -1,6 +1,6 @@
-# Kubernetes、迁入、USB、基准、raw 与 MCP 命令
+# Kubernetes、迁入、打包、USB、基准、raw 与 MCP 命令
 
-这五组命令对照 `/Users/mike/source/project/tmp/kiri` 的 `a649319` 实现。公开入口为 `fabo`；资源名、context、标签、`FABO_*` 环境变量和 socket 都使用 Fabo 的名字。`AGENTS.md` 已记录本地参考源码路径。`fabo mcp` 是 Fabo 自己加的，上游没有对应命令。
+这五组命令对照 `/Users/mike/source/project/tmp/kiri` 的 `a649319` 实现。公开入口为 `fabo`；资源名、context、标签、`FABO_*` 环境变量和 socket 都使用 Fabo 的名字。`AGENTS.md` 已记录本地参考源码路径。`fabo pack` / `fabo unpack` 和 `fabo mcp` 是 Fabo 自己加的，上游没有对应命令。
 
 ## 命令与状态归属
 
@@ -65,6 +65,26 @@ fabo import desktop-linux volume app-data
 整批导入跳过目标已有资源、悬空镜像标签和 64 位十六进制匿名卷。单独指定已有目标卷会拒绝覆盖。容器按 inspect 的配置和支持的 HostConfig 字段重建，保留网络名称/别名，始终保持停止。与上游一样，不复制容器可写层、不迁移宿主 bind 目录、不完整复制自定义网络的驱动/IPAM 参数。需要应用一致性快照时，应先停止源端写入。
 
 源端会运行短暂的只读卷 helper；原有镜像、容器和卷数据不删除或修改。源 context 若指向目标同一 Unix socket，命令直接拒绝。
+
+## 容器打包与导入
+
+```sh
+fabo pack shop-web-1 shop-db-1 -o shop.fabopack
+fabo pack --project shop
+fabo unpack --start shop.fabopack
+```
+
+`pack` 把容器连同它们里面的改动、卷里的文件和自定义网络写进一个 `.fabopack` 文件。文件是 gzip 压缩的 tar，依次包含：
+
+- `manifest.json`：每个容器的创建参数、卷和网络的定义
+- `images.tar`：每个容器 commit 后的镜像，标签为 `fabo-pack/<容器名>:<时间>`；一次 save，共享的层只存一份
+- `volumes/<n>.tar`：卷里的文件，保留属主和权限
+
+容器在运行时也可以打包，commit 时会短暂暂停它；数据库这类边运行边写的卷，要得到一致的快照，先停止容器。写完后 commit 出的临时标签会从源引擎删掉，包写完整之前只存在 `.partial` 临时文件里。卷的内容通过一个只挂载卷、只跑 `sleep` 的 helper 容器读写，所以停止的容器也能打包。helper 优先用本地已有的 busybox 或 alpine，都没有时才拉 `alpine:latest`。宿主机目录的 bind 挂载只记录路径，不复制内容；绑定宿主目录的 local 卷和其他驱动的卷只带定义。
+
+`unpack` 先检查名字，任何容器名或具名卷已经存在就直接拒绝，什么都不改；匿名卷重名时换一个新名字。随后依次加载镜像、创建缺少的网络和卷、按原配置创建容器（停止状态），再把卷的文件写回去。中途失败会删除本次创建的容器、卷和网络，已经加载的镜像保留。这台机器上不存在的 bind 源路径会跳过并提示。`--start` 只启动打包时正在运行的容器。Compose 标签原样保留，导入后仍按项目分组。
+
+桌面端：容器页工具栏的"导入"选择 `.fabopack` 文件，执行 `unpack --start`；单个容器的"更多"菜单、多选栏和 Compose 项目面板里的"打包"选择保存位置（默认在"下载"），执行 `pack`。
 
 ## USB 实现与验证边界
 

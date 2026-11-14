@@ -457,5 +457,16 @@
   "stopped": "Zatrzymany",
   "tagged": "oznaczono tagiem",
   "under a minute": "mniej niż minuta",
-  "up to %.0f GB": "do %.0f GB"
+  "up to %.0f GB": "do %.0f GB",
+  "Fabo package": "Pakiet Fabo",
+  "Import a package": "Importuj pakiet",
+  "Import": "Importuj",
+  "Imported %d containers": "Zaimportowano kontenery: %d",
+  "Imported": "Zaimportowano",
+  "Importing…": "Importowanie…",
+  "Pack containers": "Spakuj kontenery",
+  "Pack the project": "Spakuj projekt",
+  "Pack": "Spakuj",
+  "Packed into %s": "Spakowano do %s",
+  "Pack…": "Spakuj…"
 }

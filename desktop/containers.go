@@ -204,11 +204,12 @@ func (s *desktop) containersView(c *ui.Context, p palette) {
 			s.list(containersPage).ScrollTo(0, ui.Start)
 		}
 		ui.Box(c).Grow(1)
-		// The filters take about 290, Remove stopped about 110 and Run
-		// container about 120; a narrower table drops the first button,
-		// then keeps only the icon of the second.
+		// The filters take about 290, Remove stopped about 110, Import about
+		// 90 and Run container about 120; a narrower table drops the first
+		// button, then keeps only the icons of the others, then drops Import
+		// (closing the panel brings it back).
 		wide := s.listWidth()
-		if len(dead) > 0 && wide >= 620 && button(c.Key("prune"), p, fmt.Sprintf(tr("清理已停止 %d", "Remove stopped %d"), len(dead)), "", ghostButton, false) {
+		if len(dead) > 0 && wide >= 720 && button(c.Key("prune"), p, fmt.Sprintf(tr("清理已停止 %d", "Remove stopped %d"), len(dead)), "", ghostButton, false) {
 			s.pending = &confirmation{
 				title: fmt.Sprintf(tr("清理 %d 个已停止的容器？", "Remove %d stopped containers?"), len(dead)), ok: tr("清理", "Remove"),
 				run: func() {
@@ -216,8 +217,20 @@ func (s *desktop) containersView(c *ui.Context, p palette) {
 				},
 			}
 		}
+		importing := s.working["unpack"]
+		importLabel := tr("导入", "Import")
+		if importing {
+			importLabel = tr("导入中…", "Importing…")
+		}
+		if wide >= 680 {
+			if button(c.Key("unpack"), p, importLabel, "import", plainButton, importing || s.launcher == nil) {
+				s.unpack()
+			}
+		} else if wide >= 420 && iconButton(c.Key("unpack"), p, "import", tr("导入容器包", "Import a package"), importing || s.launcher == nil).Clicked() {
+			s.unpack()
+		}
 		run := tr("运行容器", "Run container")
-		if wide < 480 {
+		if wide < 530 {
 			b := ui.ButtonBase(c.Key("run")).Label(run).Tooltip(run).Size(32, 32).Shrink(0).Radius(8).Center().
 				Cursor(ui.CursorPointer).Background(p.accent)
 			if b.Hovered() {
@@ -328,6 +341,9 @@ func (s *desktop) pickedBar(c *ui.Context, p palette, shown []container) {
 				s.stopContainer(x)
 			}
 		}
+	}
+	if s.launcher != nil && button(c.Key("pack-picked"), p, tr("打包", "Pack"), "archive", plainButton, s.working["pack"]) {
+		s.pack(containerNames(picked), "", packName(picked))
 	}
 	if button(c.Key("delete-picked"), p, tr("删除", "Delete"), "trash", removeButton, false) {
 		s.removeContainers(picked, "")
@@ -561,6 +577,9 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 			}
 			if m.Item(tr("文件", "Files")).Chosen() {
 				show(3)
+			}
+			if s.launcher != nil && m.Item(tr("打包…", "Pack…")).Disabled(s.working["pack"]).Chosen() {
+				s.pack([]string{x.Name}, "", x.Name)
 			}
 			if m.Item(tr("复制 ID", "Copy ID")).Chosen() {
 				c.WriteClipboard(x.ID)

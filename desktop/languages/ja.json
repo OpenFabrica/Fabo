@@ -457,5 +457,16 @@
   "stopped": "停止",
   "tagged": "タグ付け済み",
   "under a minute": "1 分未満",
-  "up to %.0f GB": "最大 %.0f GB"
+  "up to %.0f GB": "最大 %.0f GB",
+  "Fabo package": "Fabo パッケージ",
+  "Import a package": "パッケージを読み込む",
+  "Import": "読み込む",
+  "Imported %d containers": "%d 個のコンテナを読み込みました",
+  "Imported": "読み込みました",
+  "Importing…": "読み込み中…",
+  "Pack containers": "コンテナをパッケージ化",
+  "Pack the project": "プロジェクトをパッケージ化",
+  "Pack": "パッケージ化",
+  "Packed into %s": "%s にパッケージ化しました",
+  "Pack…": "パッケージ化…"
 }

@@ -105,7 +105,9 @@ type desktop struct {
 	engine engineClient
 	// launcher runs this installation's `fabo` command, which makes the
 	// machine-level changes the engine cannot. Nil when there is none.
-	launcher    func(ctx context.Context, args ...string) ([]byte, error)
+	launcher func(ctx context.Context, args ...string) ([]byte, error)
+	// chooser replaces the system's file dialogs in tests.
+	chooser     func(save bool, name string) string
 	ctx         context.Context
 	prefs       prefs
 	prefsFile   string

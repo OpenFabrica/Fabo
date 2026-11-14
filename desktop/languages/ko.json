@@ -457,5 +457,16 @@
   "stopped": "중지됨",
   "tagged": "태그 지정됨",
   "under a minute": "1분 미만",
-  "up to %.0f GB": "최대 %.0f GB"
+  "up to %.0f GB": "최대 %.0f GB",
+  "Fabo package": "Fabo 패키지",
+  "Import a package": "패키지 가져오기",
+  "Import": "가져오기",
+  "Imported %d containers": "컨테이너 %d개를 가져왔습니다",
+  "Imported": "가져왔습니다",
+  "Importing…": "가져오는 중…",
+  "Pack containers": "컨테이너 패키징",
+  "Pack the project": "프로젝트 패키징",
+  "Pack": "패키징",
+  "Packed into %s": "%s(으)로 패키징했습니다",
+  "Pack…": "패키징…"
 }
