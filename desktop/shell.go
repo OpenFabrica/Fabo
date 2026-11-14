@@ -481,7 +481,8 @@ func (s *desktop) navButton(c *ui.Context, p palette, n navItem, open, on bool, 
 }
 
 // engineCard sits at the foot of the open sidebar: state and version, the
-// switch that starts or stops the engine, and the memory in use.
+// switch that starts or stops the engine, and the memory in use. The version
+// is a line of its own whenever the engine answers, not only a tooltip.
 func (s *desktop) engineCard(c *ui.Context, p palette) {
 	state := s.engineState()
 	kind, text := s.engineWords()
@@ -501,6 +502,14 @@ func (s *desktop) engineCard(c *ui.Context, p palette) {
 			ui.Text(c, s.vmName()).FontSize(12.5).FontWeight(600).TextColor(p.text).SingleLine().Grow(1).MinWidth(0)
 			ui.Text(c, text).FontSize(12).TextColor(p.muted).SingleLine().Shrink(0)
 		})
+		// The engine's version. A development build's is long
+		// (0.5.0-3-g1a2b3c4-dirty): it is cut short, not the label.
+		versionRow := func() {
+			ui.Row(c.Key("engine-version")).FillWidth().Gap(10).Children(func() {
+				ui.Text(c, tr("版本", "Version")).FontSize(12).TextColor(p.muted).SingleLine().Shrink(0)
+				ui.Text(c, version).FontSize(12).FontFeatures("tnum").TextColor(p.text).SingleLine().Grow(1).MinWidth(0).TextAlign(ui.End)
+			})
+		}
 		// What the VM holds, while it is up: containers, CPU and memory.
 		if state == "running" || state == "asleep" {
 			ui.Column(c).FillWidth().Gap(4).Children(func() {
@@ -509,6 +518,9 @@ func (s *desktop) engineCard(c *ui.Context, p palette) {
 						ui.Text(c, name).FontSize(12).TextColor(p.muted).Grow(1).MinWidth(0).SingleLine()
 						ui.Text(c, value).FontSize(12).FontFeatures("tnum").TextColor(p.text).SingleLine().Shrink(0)
 					})
+				}
+				if version != "" {
+					versionRow()
 				}
 				fact(tr("运行中", "Running"), strconv.Itoa(s.info.ContainersRunning))
 				cpus := strconv.Itoa(s.cores())
@@ -527,6 +539,9 @@ func (s *desktop) engineCard(c *ui.Context, p palette) {
 				}
 				ui.Box(c).FillWidth().Margin(2, 0, 0).Children(func() { meter(c, p, fraction, 4, p.accent) })
 			})
+		} else if version != "" && state != "offline" {
+			// A stopped VM's engine still answers with its version.
+			versionRow()
 		}
 		// An engine on Linux itself has no VM to switch; nor can an
 		// unreachable one be switched from here.

@@ -25,8 +25,9 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   engine card, as Kiri's: "Linux VM" with its state (Running, Asleep, Off,
   Starting…, Stopping…), and while it is up the running containers, the
   CPUs (with the current load when awake) and memory in use against the
-  VM's ceiling, then a full-width Stop VM or Start VM button. The version
-  is the card head's tooltip. An engine running directly on Linux is named
+  VM's ceiling, then a full-width Stop VM or Start VM button. The engine's
+  version is the card's first line whenever the engine answers, stopped VM
+  included, and also the card head's tooltip. An engine running directly on Linux is named
   "Engine" and has no button. Folded (Command/Ctrl+B, or the button beside
   the window buttons) it shows icons only, and "Linux VM · state" moves to
   the title strip. A window narrower than 1040 points folds it on its own; unfolding
