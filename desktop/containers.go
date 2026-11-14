@@ -284,7 +284,7 @@ func (s *desktop) containerDock(c *ui.Context, p palette, x container) {
 		s.detail = detail{key: key}
 		s.loadDetail(key)
 	}
-	tabs := []string{tr("信息", "Info"), tr("日志", "Logs"), tr("终端", "Terminal"), tr("文件", "Files")}
+	tabs := []string{tr("信息", "Info"), tr("日志", "Logs"), tr("终端", "Terminal"), tr("文件", "Files"), tr("设置", "Container settings")}
 	s.dock(c, p, x.Name, func() {
 		label(c, x.status(s.now), stateColor(p, x.bucket())).Shrink(0)
 	}, tabs, func() {
@@ -324,6 +324,8 @@ func (s *desktop) containerDock(c *ui.Context, p palette, x container) {
 			s.terminalTab(c, p, x)
 		case 3:
 			s.filesTab(c, p, x)
+		case 4:
+			s.containerSettingsTab(c, p, x)
 		}
 	})
 }

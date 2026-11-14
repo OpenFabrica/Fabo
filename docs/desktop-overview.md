@@ -9,7 +9,9 @@ Upstream Kiri's WebView window, which this document calls **Advanced tools**,
 was hosted by the Rust binary and left the tree with it. The daemon still
 serves the `/kiri/*` endpoints that window used. The sections below describe
 them as the contract for the workflows the MyGo window has yet to take over:
-onboarding, container settings, registry logins and Kubernetes forwards.
+onboarding, continuous terminal sessions and Kubernetes forwards. Container
+settings, registry logins and Kubernetes browsing are now provided by MyGo;
+see [Advanced desktop operations](desktop-advanced.md).
 
 The window is a title strip, a sidebar, the page, and a status line.
 
@@ -23,8 +25,8 @@ The window is a title strip, a sidebar, the page, and a status line.
   engine card: state, memory in use, CPU load, and the switch that starts
   or stops the VM. Folded (Command/Ctrl+B, or the button beside the window
   buttons) it shows icons only, and the engine's state moves to the title
-  strip. Kubernetes, USB devices and Share hold a place and open an empty
-  page.
+  strip. Kubernetes opens Pods and Services. USB devices and Share still open
+  placeholder pages.
 - **Lists.** Every page is a table over a dock. Command/Ctrl+K focuses the
   search field of the title strip, which filters the page's table. Up and
   Down move the selection and Escape closes the dock. Only visible rows are
@@ -35,7 +37,10 @@ The window is a title strip, a sidebar, the page, and a status line.
   folds and starts, restarts or stops all of them. Rows show state, the
   first published port, CPU, memory and age. The dock has Info (from
   inspect), Logs (the last 400 lines, refreshed while shown, with a filter
-  and a follow switch), Terminal and Files.
+  and a follow switch), Terminal, Files and Settings. The Settings tab edits
+  the environment
+  (with a confirmed restart) and live TCP/UDP port bindings while retaining
+  the existing container and its data.
   - Terminal runs one command at a time through `sh -c` and keeps what each
     printed. It is not an interactive terminal.
   - Files lists one directory at a time by running `ls -1Ap` in the
@@ -47,6 +52,10 @@ The window is a title strip, a sidebar, the page, and a status line.
 - **Volumes and networks.** Both list the containers using them, which open
   the container. A volume in use, a network in use and the three built-in
   networks cannot be removed.
+- **Kubernetes.** Pods and Services are read through kubectl in the existing
+  k3s node. The dock shows details and the last 400 Pod log lines, with a
+  container and previous-run choice. Pod deletion asks for confirmation.
+  Browsing never starts the cluster, and passive execs use background headers.
 - **Builds.** The engine keeps no record of past builds. The page shows the
   BuildKit builder from `/kiri/builder`, sets its cache limit, and clears
   the build cache.
@@ -60,9 +69,11 @@ The window is a title strip, a sidebar, the page, and a status line.
   the proxy through `/kiri/proxy`. Builds shows the builder, its cache limit
   and clears the build cache. Domains changes the HTTP and HTTPS ports
   through `/kiri/domains`, and switches Local names and HTTPS through the
-  launcher's `kiri domains` command (see Container domains). About lists
-  the versions. Kiri's Registries, Kubernetes, Import and Diagnostics
-  sections and the Build with choice are not there yet.
+  launcher's `kiri domains` command (see Container domains). Registries
+  shares Docker credential helpers or macOS Keychain records
+  for sign-in, sign-out and authenticated pulls. Kubernetes controls the
+  cluster and its network settings through `fabo k8s`. About lists
+  the versions. Import, Diagnostics and the Build with choice are not there yet.
 
 The window reads the engine every two seconds while it is visible. Those
 reads are background reads and never keep an idle VM awake. Usage comes from
@@ -580,8 +591,9 @@ nodes in their own `/dev`, including the kernel log device used by kubelet.
 
 While the node runs, the Go daemon queries k3s for LoadBalancer services.
 It publishes their TCP and UDP ports using the node's API listener scope,
-loopback by default or all interfaces in LAN mode. The Advanced tools
-window can request a loopback TCP forward to a pod or ClusterIP service.
+loopback by default or all interfaces in LAN mode. The former Advanced tools
+window could request a loopback TCP forward to a pod or ClusterIP service;
+the MyGo window has not taken over that control yet.
 The Go agent routes only the cluster's default pod and service ranges
 through the node. Routes and forwards are released when the node stops.
 

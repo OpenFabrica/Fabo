@@ -15,15 +15,15 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// settingsTabs are the sections of Settings, in Fabo's order. The ones Fabo
-// has and this window lacks (registries, Kubernetes, import, diagnostics)
-// have no engine endpoint to stand on.
+// settingsTabs are the sections of Settings.
 var settingsTabs = []struct{ id, icon, zh, en string }{
 	{"appearance", "palette", "外观", "Appearance"},
 	{"resources", "cpu", "资源", "Resources"},
 	{"network", "globe", "网络", "Network"},
 	{"builds", "hammer", "构建", "Builds"},
 	{"domains", "link", "域名", "Domains"},
+	{"registries", "layers", "镜像仓库", "Registries"},
+	{"kubernetes", "helm", "Kubernetes", "Kubernetes"},
 	{"about", "info", "关于", "About"},
 }
 
@@ -136,6 +136,10 @@ func (s *desktop) settingsView(c *ui.Context, p palette) {
 					s.builderRows(c, p)
 				case "domains":
 					s.domainsPane(c, p)
+				case "registries":
+					s.registryPane(c, p)
+				case "kubernetes":
+					s.kubernetesPane(c, p)
 				case "about":
 					s.aboutPane(c, p)
 				}

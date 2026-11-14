@@ -114,7 +114,7 @@ func (s *desktop) toggleSidebar() {
 
 // searchable reports whether the page has a list the title bar's field filters.
 func searchable(page string) bool {
-	return page == containersPage || page == imagesPage || page == volumesPage || page == networksPage
+	return page == containersPage || page == imagesPage || page == volumesPage || page == networksPage || page == kubernetesPage
 }
 
 // strip is the window's title bar: sidebar switch, page name, the search
@@ -391,6 +391,8 @@ func (s *desktop) pageBody(c *ui.Context, p palette) {
 		s.networksView(c, p)
 	case buildsPage:
 		s.buildsView(c, p)
+	case kubernetesPage:
+		s.kubernetesView(c, p)
 	case settingsPage:
 		s.settingsView(c, p)
 	}
@@ -702,7 +704,19 @@ func (s *desktop) submit() bool {
 		}
 		s.working["pull"] = true
 		s.run(10*time.Minute, func(ctx context.Context) func() {
-			err := s.engine.pull(ctx, ref)
+			key, err := registryForImage(ref)
+			auth := ""
+			if err == nil {
+				var login registryLogin
+				var found bool
+				login, found, err = s.credentials.find(ctx, key)
+				if found && err == nil {
+					auth = registryHeader(key, login)
+				}
+			}
+			if err == nil {
+				err = s.engine.pullAuthenticated(ctx, ref, auth)
+			}
 			return func() {
 				delete(s.working, "pull")
 				s.settle(err, tr("已拉取 ", "Pulled ")+ref)

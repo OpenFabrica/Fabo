@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -549,22 +550,41 @@ func (e engineClient) scan(ctx context.Context, ref string, progress func(float6
 
 // pull fetches an image. The engine reports only the start and the end.
 func (e engineClient) pull(ctx context.Context, ref string) error {
-	name, tag := ref, "latest"
-	if i := strings.LastIndex(ref, ":"); i > strings.LastIndex(ref, "/") {
-		name, tag = ref[:i], ref[i+1:]
-	}
-	var raw []byte
-	path := "/images/create?fromImage=" + url.QueryEscape(name) + "&tag=" + url.QueryEscape(tag)
-	if err := e.request(ctx, http.MethodPost, path, nil, &raw); err != nil {
+	return e.pullAuthenticated(ctx, ref, "")
+}
+
+func (e engineClient) pullAuthenticated(ctx context.Context, ref, auth string) error {
+	// fromImage accepts both a tag and a digest. Splitting on ':' would turn
+	// repo@sha256:digest into a tag and prevents content-addressed pulls.
+	path := "/images/create?fromImage=" + url.QueryEscape(ref)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://localhost"+path, nil)
+	if err != nil {
 		return err
 	}
-	for _, line := range strings.Split(string(raw), "\n") {
+	if auth != "" {
+		req.Header.Set("X-Registry-Auth", auth)
+	}
+	res, err := e.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return responseError(res)
+	}
+	dec := json.NewDecoder(res.Body)
+	for {
 		var step struct{ Error string }
-		if json.Unmarshal([]byte(line), &step) == nil && step.Error != "" {
-			return fmt.Errorf("%s", step.Error)
+		if err := dec.Decode(&step); err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+		if step.Error != "" {
+			return errors.New(step.Error)
 		}
 	}
-	return nil
 }
 
 // runSpec is what the run dialog collects.
@@ -609,6 +629,9 @@ func (e engineClient) exec(ctx context.Context, id string, cmd []string) (string
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if ctx.Value(backgroundRead{}) == true {
+		req.Header.Set("X-Kiri-Background", "1")
+	}
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
 	res, err := e.http.Do(req)
@@ -619,8 +642,28 @@ func (e engineClient) exec(ctx context.Context, id string, cmd []string) (string
 	if res.StatusCode != http.StatusSwitchingProtocols && res.StatusCode != http.StatusOK {
 		return "", responseError(res)
 	}
-	raw, _ := io.ReadAll(io.LimitReader(res.Body, 256<<10))
-	return logText(raw, false), nil
+	raw, err := io.ReadAll(io.LimitReader(res.Body, (4<<20)+1))
+	text := logText(raw, false)
+	if err != nil {
+		return text, err
+	}
+	if len(raw) > 4<<20 {
+		return text, fmt.Errorf("command output exceeds 4 MiB")
+	}
+	var state struct {
+		Running  bool
+		ExitCode int
+	}
+	if err := e.get(ctx, "/exec/"+url.PathEscape(created.ID)+"/json", &state); err != nil {
+		return text, err
+	}
+	if state.Running {
+		return text, fmt.Errorf("command stream ended before the command exited")
+	}
+	if state.ExitCode != 0 {
+		return text, fmt.Errorf("command exited with code %d: %s", state.ExitCode, strings.TrimSpace(text))
+	}
+	return text, nil
 }
 
 // logs returns the tail of a container's output as lines.
@@ -742,7 +785,7 @@ func responseError(res *http.Response) error {
 	var problem struct{ Message string }
 	_ = json.NewDecoder(io.LimitReader(res.Body, 65536)).Decode(&problem)
 	if problem.Message != "" {
-		return fmt.Errorf("%s", problem.Message)
+		return &engineError{res.StatusCode, problem.Message}
 	}
-	return fmt.Errorf("Kiri returned HTTP %d", res.StatusCode)
+	return &engineError{res.StatusCode, fmt.Sprintf("Kiri returned HTTP %d", res.StatusCode)}
 }

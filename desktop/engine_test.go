@@ -70,6 +70,8 @@ func TestEngineErrorUsesDaemonMessage(t *testing.T) {
 func TestExecReadsTheUpgradedStream(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/exec/exec-1/json":
+			fmt.Fprint(w, `{"Running":false,"ExitCode":0}`)
 		case "/containers/api/exec":
 			w.WriteHeader(http.StatusCreated)
 			fmt.Fprint(w, `{"Id":"exec-1"}`)

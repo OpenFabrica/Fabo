@@ -79,14 +79,24 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 
 剩余差异：kubeconfig 暂在 start/status 同步，未接 daemon 启动后台同步；raw 使用独立 Go 存储，镜像列表格式与 Rust 不同。物理 USB 捕获/helper 安装、真实 OrbStack/Docker Desktop 迁移、Linux 宿主尚未实测。未运行全量端到端套件。
 
+### 桌面高级功能（2026-11-14）
+
+对照本地 Kiri `a649319`，MyGo 新增三组操作：容器详情中的环境变量和 TCP / UDP 端口编辑；设置中的仓库登录、退出及凭据拉取；Kubernetes Pods / Services、Pod 日志和删除、集群启停与网络设置。详细规则、接口和失败语义见 [桌面高级操作](desktop-advanced.md)。原有文件浏览、镜像分层与扫描、代理及域名设置继续保留。
+
+验证：`make check`、desktop race（含专用 Keychain 创建 / 更新 / 删除测试）、深浅主题渲染通过；Linux ARM64 与 Windows AMD64 桌面交叉编译通过，仅 macOS 实际运行。当前源码构建的原生窗口、daemon 和 guest agent 配合隔离 VM，**12 项验收通过**，覆盖环境保存后容器 ID / 卷文件保留、即时端口修改及非法输入、真实本地 Registry 鉴权与 helper 存取、k3s 启动、Pod / Service / 日志、删除确认、网络重建后 ConfigMap 保留及集群清理。Pod 尚在 ContainerCreating 时，日志显示原因，运行后手动刷新读取成功。内核复用现有 Dev 包，与本轮 Advanced 包的内核哈希相同。
+
+原生窗口截图及逐项结果保留在 `target/desktop-advanced-check/`。专用 VM、临时 HOME / Docker 配置 / kubeconfig、测试容器和数据卷均已清理，日常 Dev 引擎未重启。`target/dev/Fabo Advanced.app` 已构建并通过 ad hoc 签名检查，未安装或发布。
+
+剩余边界：Pod 日志为尾部 400 行的手动刷新；交互终端仍逐条执行；Linux 引导、多语言、Kubernetes forwards、Import / Diagnostics / Build with、USB / Share 界面尚未补齐。仓库 token 与私有镜像鉴权头由接口测试覆盖，未使用真实私人仓库账号；Linux / Windows 的真实桌面和全量 `tests/e2e.sh` 未在本轮验证。
+
 ### 待对齐功能
 
-上游这些功能由 Rust 实现，本仓库现在没有。对照实现在上游的 `crates/` 下。
+下面列出尚未补齐的范围。上游对应实现在 `crates/` 下。
 
 | 模块 | 缺什么 | 上游位置 |
 | --- | --- | --- |
 | 需要管理员密码的设置 | `kiri setup --docker-socket`（把 `/var/run/docker.sock` 链到本引擎，并装开机恢复它的 LaunchDaemon），卸载时也不会清理它。`*.kiri.local` 和 HTTPS 证书信任已对齐（`kiri domains`、`kiri setup --domains`、设置 → 域名），但开启本地域名时不像上游那样用同一次密码顺带链接 `/var/run/docker.sock`；密码框由 `osascript` 和 `security` 弹出，标题不是 Kiri | `crates/kiri/src/setup.rs` 的 `docker_socket` |
-| 桌面高级功能 | 原 WebView 窗口的全部界面：引导、文件浏览、镜像分层与扫描、容器设置、代理与域名设置、Kubernetes、仓库登录、内嵌终端、14 种语言。对应的 `/kiri/*` 接口仍由引擎提供 | `crates/kiri/src/ui/` |
+| 桌面高级功能 | Linux 首次引导、连续交互式内嵌终端、Pod 连续日志与 Kubernetes forwards、14 种语言、Import / Diagnostics / Build with 桌面入口，以及 USB / Share 页面仍待补齐。文件浏览、镜像分层与扫描、代理与域名、容器环境与端口设置、仓库登录、Kubernetes 管理已有 MyGo 实现；具体验证见下文及 [桌面高级操作](desktop-advanced.md) | `crates/kiri/src/ui/` |
 | 自动更新与诊断 | 更新源检查与安装、崩溃报告和日志脱敏 | `crates/kiri/src/update.rs`、`diag/` |
 | Windows | `kiri-win` 宿主（named pipe、托盘、设置、更新）、WSL 里的 `kiri bridge`、MSI。`installer/windows`、`contrib/windows`、`contrib/wsl`、`scripts/kiri-linux.sh` 仍按 Rust 二进制编写 | `crates/kiri-win/`、`crates/kiri/src/bridge.rs` |
 | Linux 包 | `packaging/linux`、`scripts/ci/linux-build.sh`、`scripts/ci/linux-packages.sh`、`contrib/linux` 仍要求 Rust 的 `kiri`、`kiri-init` 和 GTK 窗口；`kiri host-access` 没有 Go 版本 | `packaging/linux`、`crates/kiri/src/hostaccess.rs` |
@@ -119,7 +129,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | 网络 | IPv4/IPv6 桥接和 IPAM、静态 IP/MAC、端口发布、动态网络连接、共享和 host 网络、别名 DNS、`--domainname`、`--link`、Mac 宿主服务访问。端口发布支持 TCP/UDP |
 | 存储 | 命名和匿名卷、嵌套 bind 下的镜像内容初始化、tmpfs、双向 `docker cp`、`diff`、`export`、`commit`。旧 Go 记录缺少匿名卷归属时保留卷数据 |
 | 镜像与构建 | 拉取、标签、归档导入导出、历史、清理、仓库登录和推送、Compose、BuildKit/Buildx、Apple Silicon 上的 Rosetta |
-| macOS 与桌面 | Go VM 启停、空闲休眠、资源设置，Finder 只读浏览，MyGo 主窗口（深浅主题、中英文、可折叠侧栏；概览、容器、镜像、卷、网络、构建器、设置；详情坞含日志、逐条执行的终端、文件浏览、镜像分层与安全扫描）、托盘 |
+| macOS 与桌面 | Go VM 启停、空闲休眠、资源设置，Finder 只读浏览，MyGo 主窗口（深浅主题、中英文、可折叠侧栏；概览、容器、镜像、卷、网络、构建器、设置；详情坞含日志、逐条执行的终端、文件浏览、环境变量与端口设置、镜像分层与安全扫描；仓库登录与凭据拉取；Kubernetes Pods / Services、Pod 日志与集群管理）、托盘 |
 | 安装与数据 | macOS 和 Linux 已验证 Rust 离线导入。Windows WSL 的引擎一侧已实现，平台验证范围见上表 |
 
 ## 最近一次全量回归的失败项

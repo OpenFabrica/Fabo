@@ -62,7 +62,7 @@ func (e engineClient) request(ctx context.Context, method, path string, input an
 	if input != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if method == http.MethodGet {
+	if method == http.MethodGet || ctx.Value(backgroundRead{}) == true {
 		// Browsing must not extend the lifetime of an idle VM.
 		req.Header.Set("X-Kiri-Background", "1")
 	}
@@ -72,12 +72,7 @@ func (e engineClient) request(ctx context.Context, method, path string, input an
 	}
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		var problem struct{ Message string }
-		_ = json.NewDecoder(io.LimitReader(res.Body, 65536)).Decode(&problem)
-		if problem.Message != "" {
-			return fmt.Errorf("%s", problem.Message)
-		}
-		return fmt.Errorf("Kiri returned HTTP %d", res.StatusCode)
+		return responseError(res)
 	}
 	if out == nil {
 		_, err = io.Copy(io.Discard, res.Body)
@@ -118,3 +113,13 @@ func logText(raw []byte, tty bool) string {
 	}
 	return text.String()
 }
+
+// backgroundRead marks passive execs as window polling, including their POST requests.
+type backgroundRead struct{}
+
+type engineError struct {
+	status  int
+	message string
+}
+
+func (e *engineError) Error() string { return e.message }

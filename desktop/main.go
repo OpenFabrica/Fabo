@@ -45,7 +45,7 @@ var navItems = []navItem{
 	{volumesPage, "cylinder", "卷", "Volumes", false},
 	{networksPage, "network", "网络", "Networks", false},
 	{buildsPage, "hammer", "构建", "Builds", false},
-	{"kubernetes", "helm", "Kubernetes", "Kubernetes", true},
+	{kubernetesPage, "helm", "Kubernetes", "Kubernetes", false},
 	{"usb", "usb", "USB 设备", "USB devices", true},
 	{"share", "share", "共享", "Share", true},
 	{settingsPage, "sliders", "设置", "Settings", false},
@@ -134,48 +134,52 @@ type desktop struct {
 	now        int64
 
 	// What the window shows.
-	selected    map[string]string
-	tab         map[string]int
-	filter      map[string]int
-	collapsed   map[string]bool
-	lists       map[string]*ui.ListState
-	visible     []string
-	dockMax     bool
-	detail      detail
-	term        map[string][]string
-	termInput   string
-	filePath    map[string]string
-	logFilter   string
-	follow      bool
-	pending     *confirmation
-	form        form
-	notices     []string
-	working     map[string]bool
-	refreshing  bool
-	settingsTab int
-	settingsFor string
-	cpus        float64
-	memory      float64
-	cacheGB     string
-	resOK       bool
-	proxy       proxyInfo
-	proxyDraft  proxySettings
-	proxyOK     bool
-	domainsOK   bool
-	names       nameState
-	namesOK     bool
-	builderOK   bool
-	portHTTP    string
-	portHTTPS   string
-	fonts       []string
-	monoFonts   []string
+	selected       map[string]string
+	tab            map[string]int
+	filter         map[string]int
+	collapsed      map[string]bool
+	lists          map[string]*ui.ListState
+	visible        []string
+	dockMax        bool
+	detail         detail
+	term           map[string][]string
+	termInput      string
+	filePath       map[string]string
+	logFilter      string
+	follow         bool
+	pending        *confirmation
+	form           form
+	notices        []string
+	working        map[string]bool
+	refreshing     bool
+	settingsTab    int
+	settingsFor    string
+	cpus           float64
+	memory         float64
+	cacheGB        string
+	resOK          bool
+	proxy          proxyInfo
+	proxyDraft     proxySettings
+	proxyOK        bool
+	domainsOK      bool
+	names          nameState
+	namesOK        bool
+	builderOK      bool
+	portHTTP       string
+	portHTTPS      string
+	credentials    *registryStore
+	registries     registryUI
+	kube           kubernetesUI
+	containerDraft containerSettings
+	fonts          []string
+	monoFonts      []string
 }
 
 // newDesktop makes the window's state with every map ready to use.
 func newDesktop(engine engineClient) *desktop {
 	return &desktop{
 		engine: engine, ctx: context.Background(), page: containersPage, follow: true,
-		prefs: defaultPrefs(),
+		prefs: defaultPrefs(), credentials: newRegistryStore(),
 		usage: map[string]*usage{}, scans: map[string]*scanResult{}, scanning: map[string]float64{},
 		selected: map[string]string{}, tab: map[string]int{containersPage: 1}, filter: map[string]int{},
 		collapsed: map[string]bool{}, lists: map[string]*ui.ListState{}, term: map[string][]string{},
@@ -366,6 +370,9 @@ func (s *desktop) refresh() {
 		return
 	}
 	s.refreshing = true
+	if s.page == kubernetesPage || s.page == settingsPage {
+		s.refreshKubernetes()
+	}
 	page, logsOf := s.page, ""
 	if page == containersPage && s.tab[page] == 1 {
 		logsOf = s.selected[page]

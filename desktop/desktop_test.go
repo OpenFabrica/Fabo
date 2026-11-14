@@ -97,6 +97,11 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			t.Errorf("read could keep the VM awake: %s", r.URL)
 		}
 		switch {
+		case path == "/exec/exec-1/json":
+			fmt.Fprint(w, `{"Running":false,"ExitCode":0}`)
+		case path == "/containers/kiri-k8s/json":
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, `{"message":"No such container"}`)
 		case path == "/info":
 			fmt.Fprint(w, `{"Name":"kiri","ServerVersion":"0.4.0","KiriVmAwake":true,"KiriVMControls":true,"NCPU":4,"MemTotal":8589934592,"Containers":5,"ContainersRunning":3,"Images":3}`)
 		case path == "/containers/json":
@@ -152,6 +157,8 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 	s := newDesktop(newEngineClient(func(ctx context.Context) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "tcp", f.server.Listener.Addr().String())
 	}))
+	s.credentials = &registryStore{path: filepath.Join(t.TempDir(), "config.json"), native: &memoryRegistry{items: map[string]registryLogin{}}, helper: runCredentialHelper}
+	s.prefsFile = filepath.Join(t.TempDir(), "desktop.json")
 	s.prefs.Theme, s.prefs.Lang, s.contextName = "dark", "en", "kiri-dev"
 	s.refresh()
 	s.refresh()
