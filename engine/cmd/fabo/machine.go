@@ -155,6 +155,12 @@ func machineCommand(args []string) error {
 	if op.verb == "shell" {
 		cwd, _ := os.Getwd()
 		_, ttyErr := unix.IoctlGetTermios(int(os.Stdin.Fd()), terminalGetAttr)
+		if ttyErr == nil {
+			// Best effort: a shell without colors still works.
+			client := newCommandClient(in.socket())
+			_, _, _ = client.exec("machine-"+op.name, []string{"sh", "-c", machineColorScript})
+			client.http.CloseIdleConnections()
+		}
 		return in.runDocker(machineShellArgs(op, hostMachineUser(), cwd, ttyErr == nil))
 	}
 	client := newCommandClient(in.socket())
@@ -307,6 +313,20 @@ echo 'no systemd for this distro' >&2; exit 1`
 	return script + "trap 'exit 0' TERM INT\nwhile :; do sleep 3600 & wait $!; done"
 }
 
+// machineColorScript writes /etc/profile.d/fabo-color.sh, which login
+// shells of every distribution read after their own prompt: a colored
+// prompt, and ls and grep in color. A user's own ~/.profile still wins.
+const machineColorScript = `mkdir -p /etc/profile.d && cat > /etc/profile.d/fabo-color.sh <<'EOF'
+# Colors for interactive shells in a Fabo machine, written by fabo machine shell.
+if [ -n "${PS1-}" ]; then
+  PS1='\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+  alias ls='ls --color=auto'
+  alias ll='ls -lah --color=auto'
+  alias grep='grep --color=auto'
+  export CLICOLOR=1
+fi
+EOF`
+
 func machineShellArgs(op machineOptions, user machineUser, cwd string, tty bool) []string {
 	home := user.home()
 	if rel, err := filepath.Rel(machineHomes(), cwd); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
@@ -316,7 +336,12 @@ func machineShellArgs(op machineOptions, user machineUser, cwd string, tty bool)
 	if tty {
 		terminal = "-it"
 	}
-	args := []string{"exec", terminal, "-u", user.name, "-w", cwd, "-e", "HOME=" + home, "machine-" + op.name}
+	args := []string{"exec", terminal, "-u", user.name, "-w", cwd, "-e", "HOME=" + home}
+	if tty {
+		// Programs color their output for a 256-color terminal.
+		args = append(args, "-e", "TERM=xterm-256color")
+	}
+	args = append(args, "machine-"+op.name)
 	if len(op.command) > 0 {
 		return append(args, op.command...)
 	}

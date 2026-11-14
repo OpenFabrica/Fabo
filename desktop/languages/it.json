@@ -500,5 +500,16 @@
   "The machine %s is running": "La macchina %s è in esecuzione",
   "Use letters, digits and dashes, not starting with a dash": "Usa lettere, cifre e trattini, senza iniziare con un trattino",
   "What was installed in it goes; files under %s are on the host and stay.": "Ciò che vi è installato viene eliminato; i file in %s sono sull’host e restano.",
-  "debug ": "debug "
+  "debug ": "debug ",
+  "Back to machines": "Torna alle macchine",
+  "Black": "Nero",
+  "Close ": "Chiudi ",
+  "Container, Linux machine and host terminals.": "Terminali di container, macchine Linux e host.",
+  "Follow appearance": "Segui l’aspetto",
+  "Graphite": "Grafite",
+  "Ink": "Inchiostro",
+  "Shell %d": "Shell %d",
+  "Terminal background": "Sfondo del terminale",
+  "Terminal of %s": "Terminale di %s",
+  "White": "Bianco"
 }

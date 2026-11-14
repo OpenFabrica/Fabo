@@ -77,6 +77,9 @@ func (s *desktop) machine(id string) (container, bool) {
 // machinesView is the machines page: the list with each machine's state
 // and shell, and New machine.
 func (s *desktop) machinesView(c *ui.Context, p palette) {
+	if s.machineTerm != "" && s.machineTerminalView(c, p) {
+		return
+	}
 	query := strings.ToLower(strings.TrimSpace(s.search))
 	var shown []container
 	for _, x := range s.machines {
@@ -297,9 +300,143 @@ func validMachineName(name string) bool {
 	return true
 }
 
-// openMachineShell opens a terminal tab with the machine's shell.
+// openMachineShell shows the machine's own terminal page, opening its first
+// shell when it has none yet.
 func (s *desktop) openMachineShell(x container) {
-	s.openLauncherTerminal(x.Machine, "machine", "shell", x.Machine)
+	if s.launcherPath == "" {
+		return
+	}
+	if s.page != machinesPage {
+		s.navigate(machinesPage)
+	}
+	s.machineTerm = x.Machine
+	if len(s.machineTabs[x.Machine]) == 0 {
+		s.newMachineTerminal(x.Machine)
+	}
+}
+
+// newMachineTerminal opens another shell in a machine, as a tab of its
+// terminal page.
+func (s *desktop) newMachineTerminal(name string) {
+	s.hostSequence++
+	key := fmt.Sprintf("machine/%s/%d", name, s.hostSequence)
+	number := 1
+	for _, k := range s.machineTabs[name] {
+		if t := s.terminals[k]; t != nil {
+			var n int
+			if _, err := fmt.Sscanf(t.label, tr("终端 %d", "Shell %d"), &n); err == nil && n >= number {
+				number = n + 1
+			}
+		}
+	}
+	s.terminals[key] = s.launcherSession(fmt.Sprintf(tr("终端 %d", "Shell %d"), number), "machine", "shell", name)
+	s.machineTabs[name] = append(s.machineTabs[name], key)
+	s.machineActive[name] = key
+}
+
+// closeMachineTerminal ends one of a machine's shells; the page closes
+// with its last one.
+func (s *desktop) closeMachineTerminal(name, key string) {
+	s.retireTerminal(key)
+	tabs := slices.DeleteFunc(s.machineTabs[name], func(k string) bool { return k == key })
+	s.machineTabs[name] = tabs
+	if s.machineActive[name] == key {
+		s.machineActive[name] = ""
+		if len(tabs) > 0 {
+			s.machineActive[name] = tabs[len(tabs)-1]
+		}
+	}
+	if len(tabs) == 0 && s.machineTerm == name {
+		s.machineTerm = ""
+	}
+}
+
+// machineTerminalView is a machine's terminal page: a tab per shell, New
+// terminal, and the chosen shell. It reports false when there is nothing to
+// show (the machine is gone or stopped, or its last shell ended), and the
+// list shows again.
+func (s *desktop) machineTerminalView(c *ui.Context, p palette) bool {
+	name := s.machineTerm
+	var x container
+	found := false
+	for _, m := range s.machines {
+		if m.Machine == name {
+			x, found = m, true
+		}
+	}
+	// A shell that exited, as after typing exit, closes its tab.
+	for _, key := range slices.Clone(s.machineTabs[name]) {
+		t := s.terminals[key]
+		if t == nil {
+			s.closeMachineTerminal(name, key)
+			continue
+		}
+		if _, exited, _, _ := t.snapshot(); exited || !found || x.bucket() != "running" {
+			s.closeMachineTerminal(name, key)
+		}
+	}
+	if s.machineTerm == "" || len(s.machineTabs[name]) == 0 {
+		s.machineTerm = ""
+		return false
+	}
+	toolbar(c, func() {
+		// Closing a tab changes the list, so the row walks a copy.
+		for _, key := range slices.Clone(s.machineTabs[name]) {
+			t := s.terminals[key]
+			if t == nil {
+				continue
+			}
+			on := key == s.machineActive[name]
+			chip := ui.Row(c.Key("tab-"+key)).Height(30).Shrink(0).Padding(0, 4, 0, 4).Gap(2).Radius(8).AlignItems(ui.Center)
+			if on {
+				chip.Background(p.soft)
+			}
+			chip.Children(func() {
+				b := clickable(c.Key("pick")).Label(t.label).Height(26).PaddingX(8).Radius(6).Center()
+				ink := p.sub
+				if on {
+					ink = p.text
+				} else if b.Hovered() {
+					b.Background(p.soft)
+				}
+				b.Children(func() {
+					ui.Icon(c, icons["terminal"]).Size(13, 13).TextColor(ink)
+					ui.Text(c, t.label).FontSize(12.5).FontWeight(500).TextColor(ink).Padding(0, 0, 0, 6)
+				})
+				if b.Clicked() {
+					s.machineActive[name] = key
+				}
+				if iconButton(c.Key("close"), p, "x", tr("关闭 ", "Close ")+t.label, false).Size(22, 22).Clicked() {
+					s.closeMachineTerminal(name, key)
+				}
+			})
+		}
+		if iconButton(c.Key("new-machine-terminal"), p, "plus", tr("新建终端", "New terminal"), false).Clicked() {
+			s.newMachineTerminal(name)
+		}
+		ui.Box(c).Grow(1)
+	})
+	// The last tab closed while this frame drew the toolbar: the list shows
+	// from the next frame, which this asks for.
+	if s.machineTerm == "" {
+		c.AnimationFrame()
+		return true
+	}
+	key := s.machineActive[name]
+	session := s.terminals[key]
+	if session == nil {
+		return true
+	}
+	term, _, problem, _ := session.snapshot()
+	if problem != "" {
+		remark(c, p, problem)
+	}
+	ui.Column(c.Key("machine-well")).Grow(1).MinHeight(0).Margin(0, pageInset, 16).Radius(10).Clip().Background(s.termBackground()).Children(func() {
+		if term != nil {
+			terminal.View(c.Key(key), term).Fill().AutoFocus().Label(fmt.Sprintf(tr("%s 的终端", "Terminal of %s"), name))
+		}
+	})
+	return true
 }
 
 // openDebugShell opens a terminal tab with a debug shell beside x.
@@ -307,35 +444,41 @@ func (s *desktop) openDebugShell(x container) {
 	s.openLauncherTerminal(tr("调试 ", "debug ")+x.Name, "debug", x.Name)
 }
 
-// openLauncherTerminal runs one of this installation's fabo commands in a
-// new tab of the window's terminal and shows it. The tab ends with the
-// command.
-func (s *desktop) openLauncherTerminal(label string, args ...string) {
-	if s.launcherPath == "" {
-		return
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		s.notices = append(s.notices, err.Error())
-		return
-	}
-	s.hostSequence++
-	key := "host/" + fmt.Sprint(s.hostSequence)
+// launcherSession starts one of this installation's fabo commands in a
+// terminal with the chosen background.
+func (s *desktop) launcherSession(label string, args ...string) *terminalSession {
+	home, _ := os.UserHomeDir()
+	light, dark := s.termThemes()
 	opts := terminal.Options{Command: append([]string{s.launcherPath}, args...), Dir: home, Env: terminalEnvironment(s.prefsFile),
-		Font: terminal.Font{Family: s.prefs.Mono, Size: s.prefs.LogSize}, Scrollback: 4 << 20}
-	// Tests see the command instead of starting it.
+		Font: terminal.Font{Family: s.prefs.Mono, Size: s.prefs.LogSize}, Scrollback: 4 << 20,
+		Theme: light, DarkTheme: dark, Padding: terminal.Padding{X: 14, Y: 12}}
 	if s.openTerminal != nil {
+		// Tests see the command instead of starting it; the session stays
+		// open until closed.
 		s.openTerminal(opts)
-		s.navigate(terminalPage)
-		return
+		return newTerminalSession(s.ctx, label, "", 0, s.invalidate, func(ctx context.Context) (*terminal.Terminal, *execStream, error) {
+			<-ctx.Done()
+			return nil, nil, ctx.Err()
+		})
 	}
-	s.terminals[key] = newTerminalSession(s.ctx, label, "", 0, s.invalidate, func(ctx context.Context) (*terminal.Terminal, *execStream, error) {
+	return newTerminalSession(s.ctx, label, "", 0, s.invalidate, func(ctx context.Context) (*terminal.Terminal, *execStream, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, nil, err
 		}
 		term, err := terminal.New(opts)
 		return term, nil, err
 	})
+}
+
+// openLauncherTerminal runs one of this installation's fabo commands in a
+// new tab of the window's terminal page and shows it.
+func (s *desktop) openLauncherTerminal(label string, args ...string) {
+	if s.launcherPath == "" {
+		return
+	}
+	s.hostSequence++
+	key := "host/" + fmt.Sprint(s.hostSequence)
+	s.terminals[key] = s.launcherSession(label, args...)
 	s.hostSessions = append(s.hostSessions, key)
 	s.hostActive = key
 	s.navigate(terminalPage)

@@ -78,6 +78,9 @@ type prefs struct {
 	LogSize      float32 `json:"log_size"`
 	NavCollapsed bool    `json:"nav_collapsed"`
 	DockWidth    float32 `json:"dock_width"`
+	// TermBg is the terminals' background, one of termBackgrounds; empty
+	// is black.
+	TermBg string `json:"term_bg"`
 }
 
 // prefsPath places the file in the installation's state directory, which is
@@ -163,6 +166,7 @@ var icons = map[string]*ui.SVG{
 	"more":     lineIcon(`<path d="M6 12h.01M12 12h.01M18 12h.01" stroke-width="3"/>`),
 	"search":   lineIcon(`<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>`),
 	"terminal": lineIcon(`<rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M7 9.5l3 2.5-3 2.5M12.5 15H17"/>`),
+	"back":     lineIcon(`<path d="M15 6l-6 6 6 6"/>`),
 	"chevron":  lineIcon(`<path d="M9 6l6 6-6 6"/>`),
 	"down":     lineIcon(`<path d="M6 9l6 6 6-6"/>`),
 	"plus":     lineIcon(`<path d="M12 5v14M5 12h14"/>`),

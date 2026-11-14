@@ -41,7 +41,13 @@ flowchart TD
 
 侧栏的"Linux 机器"页单独列出 machine，它们不再出现在容器列表里（调试会话、打包和导入时用的临时 helper 容器也不出现）。每行显示发行版图标、发行版、状态和创建时间；行上的按钮打开终端、启动或停止，"更多"菜单里有重启、复制终端命令和删除。详情面板显示镜像、用户、共享目录和终端命令。
 
-"新建机器"对话框选择名称、发行版和是否运行 systemd，交给 `fabo machine create`。终端按钮在窗口的终端页新开一个标签，运行 `fabo machine shell NAME`。删除前会确认，并说明共享目录下的文件留在宿主上。启动、停止和删除直接调用引擎，和 CLI 等价。
+"新建机器"对话框选择名称、发行版和是否运行 systemd，交给 `fabo machine create`。删除前会确认，并说明共享目录下的文件留在宿主上。启动、停止和删除直接调用引擎，和 CLI 等价。
+
+终端按钮打开这台机器自己的终端页：页头是返回箭头、机器名和发行版，下面每个 shell 一个标签（终端 1、终端 2…），+ 按钮再开一个 `fabo machine shell NAME`。关闭一个标签就结束对应的 shell，在 shell 里输入 `exit` 也一样；最后一个关掉后，页面回到机器列表。点返回箭头回到列表时 shell 保持打开，再点这台机器的终端按钮会回到原来的标签。机器停止或删除后，它的 shell 会全部关闭。
+
+有终端时，`fabo machine shell` 传 `TERM=xterm-256color`，并在机器里写入 `/etc/profile.d/fabo-color.sh`：交互登录 shell 用彩色提示符（绿色的 `用户@主机`、蓝色的路径），`ls`、`grep` 带颜色，另有 `ll`。各发行版的登录 shell 都会在自己的提示符之后读取这个文件，所以以前创建的机器也会生效；用户自己 `~/.profile` 里的设置仍然优先。
+
+终端背景默认黑色，在"设置 › 外观 › 终端背景"里可以改成石墨、墨蓝、白色，或跟随窗口外观。这个设置作用于容器、Linux 机器和宿主终端，已经打开的终端会立即换色。
 
 daemon 需要共享 `/Users`（macOS）或 `/home`（Linux）才能创建 machine。`fabo` 启动 daemon 时传 `-standard-shares`；手动运行 `fabo-daemon` 做测试时也要带上它，否则创建会报 `VM bind mounts require a configured -share directory`。
 

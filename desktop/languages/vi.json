@@ -500,5 +500,16 @@
   "The machine %s is running": "Máy %s đang chạy",
   "Use letters, digits and dashes, not starting with a dash": "Dùng chữ, số và dấu gạch ngang, không bắt đầu bằng dấu gạch ngang",
   "What was installed in it goes; files under %s are on the host and stay.": "Những gì đã cài trong máy sẽ bị xóa; tệp trong %s nằm trên máy chủ và được giữ lại.",
-  "debug ": "gỡ lỗi "
+  "debug ": "gỡ lỗi ",
+  "Back to machines": "Quay lại danh sách máy",
+  "Black": "Đen",
+  "Close ": "Đóng ",
+  "Container, Linux machine and host terminals.": "Terminal của container, máy Linux và máy chủ.",
+  "Follow appearance": "Theo giao diện",
+  "Graphite": "Than chì",
+  "Ink": "Mực",
+  "Shell %d": "Shell %d",
+  "Terminal background": "Nền terminal",
+  "Terminal of %s": "Terminal của %s",
+  "White": "Trắng"
 }

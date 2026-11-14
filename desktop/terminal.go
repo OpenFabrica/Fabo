@@ -143,6 +143,7 @@ func (s *desktop) openContainerTerminal(x container) {
 	}
 	font := terminal.Font{Family: s.prefs.Mono, Size: s.prefs.LogSize}
 	engine := s.engine
+	light, dark := s.termThemes()
 	s.terminals[key] = newTerminalSession(s.ctx, x.Name, x.ID, x.Started, s.invalidate, func(ctx context.Context) (*terminal.Terminal, *execStream, error) {
 		if err := terminal.Load(); err != nil {
 			return nil, nil, err
@@ -152,7 +153,7 @@ func (s *desktop) openContainerTerminal(x container) {
 			return nil, stream, err
 		}
 		term, err := terminal.New(terminal.Options{Conn: stream, Font: font, Scrollback: 4 << 20,
-			Theme: consoleTheme, DarkTheme: consoleTheme, Padding: terminal.Padding{X: 14, Y: 12}})
+			Theme: light, DarkTheme: dark, Padding: terminal.Padding{X: 14, Y: 12}})
 		return term, stream, err
 	})
 }
@@ -195,7 +196,7 @@ func (s *desktop) interactiveTerminalTab(c *ui.Context, p palette, x container) 
 		hint = tr("正在连接终端…", "Connecting terminal…")
 	}
 	ui.Text(c, hint).FontSize(12.5).LineHeight(1.45).TextColor(ink).Padding(12, 16, 10)
-	well := ui.Column(c.Key("terminal-well")).Grow(1).MinHeight(0).Margin(0, 16, 16).Radius(10).Clip().Background(consoleTheme.Background)
+	well := ui.Column(c.Key("terminal-well")).Grow(1).MinHeight(0).Margin(0, 16, 16).Radius(10).Clip().Background(s.termBackground())
 	well.Children(func() {
 		if term != nil {
 			terminal.View(c.Key("container-terminal"), term).Fill().AutoFocus().Label(tr("容器交互终端", "Container terminal"))
@@ -259,7 +260,8 @@ func terminalEnvironment(prefsFile string) []string {
 	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
 		dirs = append(dirs, dir)
 	}
-	return []string{"PATH=" + strings.Join(dirs, string(os.PathListSeparator)), "TERM_PROGRAM=Fabo"}
+	// A 256-color terminal with truecolor: programs then color their output.
+	return []string{"PATH=" + strings.Join(dirs, string(os.PathListSeparator)), "TERM_PROGRAM=Fabo", "TERM=xterm-256color", "COLORTERM=truecolor", "CLICOLOR=1"}
 }
 func (s *desktop) openHostTerminal() {
 	shells := installedShells()
@@ -284,7 +286,9 @@ func (s *desktop) openHostTerminal() {
 		s.notices = append(s.notices, err.Error())
 		return
 	}
-	opts := terminal.Options{Command: []string{shell}, Dir: home, Env: terminalEnvironment(s.prefsFile), Font: terminal.Font{Family: s.prefs.Mono, Size: s.prefs.LogSize}, Scrollback: 4 << 20}
+	light, dark := s.termThemes()
+	opts := terminal.Options{Command: []string{shell}, Dir: home, Env: terminalEnvironment(s.prefsFile), Font: terminal.Font{Family: s.prefs.Mono, Size: s.prefs.LogSize}, Scrollback: 4 << 20,
+		Theme: light, DarkTheme: dark, Padding: terminal.Padding{X: 14, Y: 12}}
 	if runtime.GOOS == "darwin" {
 		opts.Command = append(opts.Command, "-l")
 	}
@@ -364,7 +368,9 @@ func (s *desktop) hostTerminalView(c *ui.Context, p palette) {
 	if exited {
 		remark(c, p, fmt.Sprintf(tr("会话已结束，退出码 %d", "Session ended with code %d"), code))
 	}
-	terminal.View(c.Key(s.hostActive), term).Fill().AutoFocus().Label(tr("宿主交互终端", "Host terminal session"))
+	ui.Column(c.Key("host-well")).Grow(1).MinHeight(0).Margin(0, 16, 16).Radius(10).Clip().Background(s.termBackground()).Children(func() {
+		terminal.View(c.Key(s.hostActive), term).Fill().AutoFocus().Label(tr("宿主交互终端", "Host terminal session"))
+	})
 }
 
 // Stop sessions for removed/restarted containers. Host shells and a selected
@@ -441,4 +447,77 @@ func (s *desktop) reapClosedSessions() {
 		}
 	}
 	s.closingLogs = logs
+}
+
+// termBackgrounds are the terminal backgrounds Settings offers, black
+// first, as the default. "system" follows the window's appearance.
+var termBackgrounds = []struct{ id, zh, en, color string }{
+	{"black", "黑色", "Black", "#000000"},
+	{"graphite", "石墨", "Graphite", "#1E1F22"},
+	{"ink", "墨蓝", "Ink", "#0B0F14"},
+	{"white", "白色", "White", "#FFFFFF"},
+	{"system", "跟随外观", "Follow appearance", ""},
+}
+
+// termThemeCache keeps one theme per background, so that a frame does not
+// allocate them and a terminal keeps the same one.
+var termThemeCache = map[string]*terminal.Theme{}
+
+// termThemeFor is a terminal theme on the given background: the dark
+// palette on the dark ones, the light palette on white.
+func termThemeFor(id string) *terminal.Theme {
+	if t := termThemeCache[id]; t != nil {
+		return t
+	}
+	var t *terminal.Theme
+	switch id {
+	case "white", "light":
+		t = terminal.LightTheme()
+		t.Background, t.Foreground = ui.Hex("#FFFFFF"), ui.Hex("#1F2328")
+	default:
+		t = terminal.DarkTheme()
+		t.Foreground, t.Cursor, t.Selection = ui.Hex("#E6EDF3"), ui.Hex("#E6EDF3"), ui.Hex("#264F78")
+		t.Background = ui.Hex("#000000")
+		for _, b := range termBackgrounds {
+			if b.id == id && b.color != "" {
+				t.Background = ui.Hex(b.color)
+			}
+		}
+	}
+	termThemeCache[id] = t
+	return t
+}
+
+// termThemes are the themes a new terminal gets: the chosen background in
+// light and dark windows alike, or white and black following the window.
+func (s *desktop) termThemes() (light, dark *terminal.Theme) {
+	id := s.prefs.TermBg
+	if id == "" {
+		id = "black"
+	}
+	if id == "system" {
+		return termThemeFor("white"), termThemeFor("black")
+	}
+	t := termThemeFor(id)
+	return t, t
+}
+
+// termBackground is the color around a terminal, matching its theme in
+// this window's appearance.
+func (s *desktop) termBackground() ui.Color {
+	light, dark := s.termThemes()
+	if s.dark {
+		return dark.Background
+	}
+	return light.Background
+}
+
+// retheme gives every open terminal the chosen background.
+func (s *desktop) retheme() {
+	light, dark := s.termThemes()
+	for _, t := range s.terminals {
+		if term, _, _, _ := t.snapshot(); term != nil {
+			term.SetTheme(light, dark)
+		}
+	}
 }

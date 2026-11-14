@@ -278,6 +278,30 @@ func (s *desktop) appearancePane(c *ui.Context, p palette) {
 		}
 	})
 
+	pref(c, p, tr("终端背景", "Terminal background"), tr("容器、Linux 机器和宿主的终端。", "Container, Linux machine and host terminals."), func() {
+		for _, b := range termBackgrounds {
+			on := b.id == s.prefs.TermBg || (s.prefs.TermBg == "" && b.id == termBackgrounds[0].id)
+			sw := clickable(c.Key("term-"+b.id)).Label(tr(b.zh, b.en)).Tooltip(tr(b.zh, b.en)).Size(26, 26).Radius(13).Center()
+			if on {
+				sw.Border(2, p.accent)
+			}
+			sw.Children(func() {
+				dot := ui.Box(c).Size(18, 18).Radius(9).Border(1, p.line)
+				if b.color == "" {
+					// Following the appearance: half white, half black.
+					dot.Gradient(ui.Hex("#FFFFFF"), ui.Hex("#000000"), 90)
+				} else {
+					dot.Background(ui.Hex(b.color))
+				}
+			})
+			if sw.Clicked() {
+				s.prefs.TermBg = b.id
+				s.savePrefs()
+				s.retheme()
+			}
+		}
+	})
+
 	// Listing the system's fonts takes a moment the first time, so it waits
 	// until this pane is shown.
 	if s.fonts == nil {

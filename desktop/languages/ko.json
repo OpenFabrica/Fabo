@@ -500,5 +500,16 @@
   "The machine %s is running": "머신 %s이(가) 실행 중입니다",
   "Use letters, digits and dashes, not starting with a dash": "문자, 숫자, 하이픈만 쓰고 하이픈으로 시작하지 마세요",
   "What was installed in it goes; files under %s are on the host and stay.": "안에 설치한 것은 삭제됩니다. %s 아래 파일은 호스트에 있어 그대로 남습니다.",
-  "debug ": "디버그 "
+  "debug ": "디버그 ",
+  "Back to machines": "머신 목록으로 돌아가기",
+  "Black": "검정",
+  "Close ": "닫기: ",
+  "Container, Linux machine and host terminals.": "컨테이너, Linux 머신, 호스트 터미널.",
+  "Follow appearance": "모양 따르기",
+  "Graphite": "그래파이트",
+  "Ink": "잉크",
+  "Shell %d": "셸 %d",
+  "Terminal background": "터미널 배경",
+  "Terminal of %s": "%s 터미널",
+  "White": "흰색"
 }

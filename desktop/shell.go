@@ -268,6 +268,20 @@ func (s *desktop) pageSummary() string {
 // pageHead is the top of the page card: the page's title with its summary.
 func (s *desktop) pageHead(c *ui.Context, p palette) {
 	ui.Row(c.Key("page-head")).FillWidth().Shrink(0).Padding(20, pageInset, 14, pageInset).Gap(14).AlignItems(ui.Center).Children(func() {
+		// A machine's terminal page is titled with the machine, with a way
+		// back to the list that leaves its shells open.
+		if s.page == machinesPage && s.machineTerm != "" {
+			if iconButton(c.Key("machines-back"), p, "back", tr("返回 Linux 机器", "Back to machines"), false).Clicked() {
+				s.machineTerm = ""
+			}
+			ui.Text(c, s.machineTerm).FontSize(21).FontWeight(600).LetterSpacing(-0.3).TextColor(p.text).Shrink(0)
+			for _, m := range s.machines {
+				if m.Machine == s.machineTerm {
+					ui.Text(c, distroName(m.Image)).FontSize(13).TextColor(p.muted).SingleLine().MinWidth(0)
+				}
+			}
+			return
+		}
 		ui.Text(c, pageTitle(s.page)).FontSize(21).FontWeight(600).LetterSpacing(-0.3).TextColor(p.text).Shrink(0)
 		if sum := s.pageSummary(); sum != "" && s.engineState() == "running" {
 			ui.Text(c, sum).FontSize(13).FontFeatures("tnum").TextColor(p.muted).SingleLine().MinWidth(0)

@@ -118,13 +118,18 @@ type desktop struct {
 	launcherPath string
 	openTerminal func(terminal.Options)
 	// machines are the Linux machines, kept out of containers.
-	machines    []container
-	ctx         context.Context
-	prefs       prefs
-	prefsFile   string
-	locale      string
-	dark        bool
-	contextName string
+	machines []container
+	// machineTerm names the machine whose terminal page shows; each
+	// machine's shells are its tabs, by terminal key, with the chosen one.
+	machineTerm   string
+	machineTabs   map[string][]string
+	machineActive map[string]string
+	ctx           context.Context
+	prefs         prefs
+	prefsFile     string
+	locale        string
+	dark          bool
+	contextName   string
 
 	page, search string
 	searchBox    ui.Handle
@@ -221,6 +226,7 @@ func newDesktop(engine engineClient) *desktop {
 		selected: map[string]string{}, tab: map[string]int{containersPage: 1}, filter: map[string]int{},
 		collapsed: map[string]bool{}, picked: map[string]bool{}, lists: map[string]*ui.ListState{},
 		filePath: map[string]string{}, working: map[string]bool{}, now: time.Now().Unix(),
+		machineTabs: map[string][]string{}, machineActive: map[string]string{},
 	}
 }
 

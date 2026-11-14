@@ -500,5 +500,16 @@
   "The machine %s is running": "機器 %s 已執行",
   "Use letters, digits and dashes, not starting with a dash": "名稱只能用字母、數字和連字號，且不能以連字號開頭",
   "What was installed in it goes; files under %s are on the host and stay.": "機器裡安裝的軟體和其他檔案會被刪除；%s 下的檔案在主機上，不受影響。",
-  "debug ": "除錯 "
+  "debug ": "除錯 ",
+  "Back to machines": "返回 Linux 機器",
+  "Black": "黑色",
+  "Close ": "關閉 ",
+  "Container, Linux machine and host terminals.": "容器、Linux 機器和主機的終端機。",
+  "Follow appearance": "跟隨外觀",
+  "Graphite": "石墨",
+  "Ink": "墨藍",
+  "Shell %d": "終端機 %d",
+  "Terminal background": "終端機背景",
+  "Terminal of %s": "%s 的終端機",
+  "White": "白色"
 }

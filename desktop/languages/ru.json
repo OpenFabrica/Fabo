@@ -500,5 +500,16 @@
   "The machine %s is running": "Машина %s запущена",
   "Use letters, digits and dashes, not starting with a dash": "Используйте буквы, цифры и дефисы, не начиная с дефиса",
   "What was installed in it goes; files under %s are on the host and stay.": "Установленное в ней будет удалено; файлы в %s находятся на хосте и останутся.",
-  "debug ": "отладка "
+  "debug ": "отладка ",
+  "Back to machines": "Назад к машинам",
+  "Black": "Чёрный",
+  "Close ": "Закрыть ",
+  "Container, Linux machine and host terminals.": "Терминалы контейнеров, машин Linux и хоста.",
+  "Follow appearance": "Как в оформлении",
+  "Graphite": "Графит",
+  "Ink": "Чернила",
+  "Shell %d": "Оболочка %d",
+  "Terminal background": "Фон терминала",
+  "Terminal of %s": "Терминал %s",
+  "White": "Белый"
 }

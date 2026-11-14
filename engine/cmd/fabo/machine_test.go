@@ -242,7 +242,11 @@ func TestMachineShellArguments(t *testing.T) {
 			if tty {
 				wantTTY = "-it"
 			}
-			want := []string{"exec", wantTTY, "-u", "tester", "-w", wantDir, "-e", "HOME=" + user.home(), "machine-dev", "printf", "%s", "a b", "*"}
+			want := []string{"exec", wantTTY, "-u", "tester", "-w", wantDir, "-e", "HOME=" + user.home()}
+			if tty {
+				want = append(want, "-e", "TERM=xterm-256color")
+			}
+			want = append(want, "machine-dev", "printf", "%s", "a b", "*")
 			if !reflect.DeepEqual(args, want) {
 				t.Fatalf("args=%q want=%q", args, want)
 			}

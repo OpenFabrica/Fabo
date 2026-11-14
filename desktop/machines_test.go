@@ -46,11 +46,20 @@ func TestMachinesPage(t *testing.T) {
 		t.Fatalf("start: %s", got)
 	}
 	click(t, tt, "Open a shell in dev")
-	if !reflect.DeepEqual(commands, [][]string{{s.launcherPath, "machine", "shell", "dev"}}) || s.page != terminalPage {
-		t.Fatalf("shell: %q on %s", commands, s.page)
+	if !reflect.DeepEqual(commands, [][]string{{s.launcherPath, "machine", "shell", "dev"}}) || s.page != machinesPage || s.machineTerm != "dev" {
+		t.Fatalf("shell: %q on %s/%s", commands, s.page, s.machineTerm)
 	}
-
-	s.navigate(machinesPage)
+	tt.Frame()
+	click(t, tt, "Back to machines")
+	if s.machineTerm != "" || len(s.machineTabs["dev"]) != 1 {
+		t.Fatalf("back: %q, tabs %v", s.machineTerm, s.machineTabs)
+	}
+	// Coming back shows the shells still open rather than a new one.
+	click(t, tt, "Open a shell in dev")
+	if len(commands) != 1 || s.machineTerm != "dev" {
+		t.Fatalf("reopened: %q", commands)
+	}
+	s.machineTerm = ""
 	tt.Frame()
 	click(t, tt, "New machine")
 	s.form.name, s.form.image, s.form.flag = "work", "Debian", true
@@ -96,5 +105,90 @@ func TestDebugShellOpensFromTheContainerMenu(t *testing.T) {
 	tt.Frame()
 	if !reflect.DeepEqual(commands, [][]string{{"/usr/local/bin/fabo", "debug", "redis-cache"}}) || s.page != terminalPage {
 		t.Fatalf("debug: %q on %s", commands, s.page)
+	}
+}
+
+// A machine's terminal page belongs to it: New terminal opens another of
+// its shells as a tab, closing a tab ends that shell, and closing the last
+// one, or the shell ending, closes the page.
+func TestMachineTerminalTabs(t *testing.T) {
+	_, s := newFakeEngine(t)
+	var commands [][]string
+	s.launcherPath = "/x/fabo"
+	s.openTerminal = func(o terminal.Options) {
+		commands = append(commands, o.Command)
+		if o.Theme == nil || o.Theme.Background != ui.Hex("#000000") {
+			t.Errorf("terminal background %v, want black", o.Theme)
+		}
+	}
+	s.navigate(machinesPage)
+	tt := ui.NewTester(s.view, 1180, 760)
+	click(t, tt, "Open a shell in dev")
+	tt.Frame()
+	if m := has(tt, "dev", "Ubuntu", "Shell 1"); m != "" {
+		t.Fatalf("missing %q in %q", m, tt.Texts())
+	}
+	click(t, tt, "New terminal")
+	tt.Frame()
+	if len(commands) != 2 || !tt.HasText("Shell 2") || s.machineActive["dev"] != s.machineTabs["dev"][1] {
+		t.Fatalf("second shell: %q, tabs %v", commands, s.machineTabs)
+	}
+	click(t, tt, "Shell 1")
+	if s.machineActive["dev"] != s.machineTabs["dev"][0] {
+		t.Fatal("picking a tab did not show it")
+	}
+	click(t, tt, "Close Shell 1")
+	tt.Frame()
+	if len(s.machineTabs["dev"]) != 1 || s.machineTerm != "dev" || tt.HasText("Shell 1") {
+		t.Fatalf("after closing one: %v", s.machineTabs)
+	}
+	// A new shell takes the next number, not one still in use.
+	click(t, tt, "New terminal")
+	tt.Frame()
+	if !tt.HasText("Shell 3") {
+		t.Fatalf("numbering: %q", tt.Texts())
+	}
+	click(t, tt, "Close Shell 2")
+	click(t, tt, "Close Shell 3")
+	tt.Frame()
+	if s.machineTerm != "" || len(s.machineTabs["dev"]) != 0 || !tt.HasText("old") {
+		t.Fatalf("the page stayed after its last shell: %q", s.machineTerm)
+	}
+
+	// A shell that exits closes its tab; the last one closes the page.
+	click(t, tt, "Open a shell in dev")
+	key := s.machineTabs["dev"][0]
+	session := s.terminals[key]
+	session.mu.Lock()
+	session.exited = true
+	session.mu.Unlock()
+	tt.Frame()
+	tt.Frame()
+	if s.machineTerm != "" || s.terminals[key] != nil {
+		t.Fatal("an ended shell kept its page")
+	}
+}
+
+// The terminal background is black by default; Settings changes it for new
+// terminals and those already open.
+func TestTerminalBackgroundSetting(t *testing.T) {
+	_, s := newFakeEngine(t)
+	if light, dark := s.termThemes(); light.Background != ui.Hex("#000000") || dark != light {
+		t.Fatalf("default: %v %v", light.Background, dark.Background)
+	}
+	s.prefs.TermBg = "white"
+	if light, _ := s.termThemes(); light.Background != ui.Hex("#FFFFFF") {
+		t.Fatalf("white: %v", light.Background)
+	}
+	s.prefs.TermBg = "system"
+	if light, dark := s.termThemes(); light.Background != ui.Hex("#FFFFFF") || dark.Background != ui.Hex("#000000") {
+		t.Fatalf("system: %v %v", light.Background, dark.Background)
+	}
+	s.prefs.TermBg = ""
+	s.navigate(settingsPage)
+	tt := ui.NewTester(s.view, 1180, 900)
+	click(t, tt, "Graphite")
+	if s.prefs.TermBg != "graphite" || s.termBackground() != ui.Hex("#1E1F22") {
+		t.Fatalf("graphite: %q %v", s.prefs.TermBg, s.termBackground())
 	}
 }
