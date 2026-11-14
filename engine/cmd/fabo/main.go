@@ -27,6 +27,7 @@ const usage = `usage: fabo [ui [-view PAGE] [-start]]   open the desktop window
        fabo bench [--runs N] [--image IMAGE] [--network none|bridge] [--only fabo|orbstack|docker]
        fabo raw run [OPTIONS] IMAGE [COMMAND...] | pull IMAGE | images | rmi IMAGE...
        fabo migrate [OPTIONS]       import an offline Kiri store
+       fabo mcp                          read-only Model Context Protocol server for agents, on stdin/stdout
 `
 
 func main() {
@@ -48,6 +49,8 @@ func main() {
 		err = domainsCommand(args[1:])
 	case args[0] == "migrate":
 		err = migrate(args)
+	case args[0] == "mcp":
+		err = mcpCommand(args[1:])
 	case args[0] == "k8s":
 		err = k8sCommand(args[1:])
 	case args[0] == "import":

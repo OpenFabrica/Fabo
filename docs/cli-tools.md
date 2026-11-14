@@ -1,6 +1,6 @@
-# Kubernetes、迁入、USB、基准与 raw 命令
+# Kubernetes、迁入、USB、基准、raw 与 MCP 命令
 
-这五组命令对照 `/Users/mike/source/project/tmp/kiri` 的 `a649319` 实现。公开入口为 `fabo`；资源名、context、标签、`FABO_*` 环境变量和 socket 都使用 Fabo 的名字。`AGENTS.md` 已记录本地参考源码路径。
+这五组命令对照 `/Users/mike/source/project/tmp/kiri` 的 `a649319` 实现。公开入口为 `fabo`；资源名、context、标签、`FABO_*` 环境变量和 socket 都使用 Fabo 的名字。`AGENTS.md` 已记录本地参考源码路径。`fabo mcp` 是 Fabo 自己加的，上游没有对应命令。
 
 ## 命令与状态归属
 
@@ -88,6 +88,29 @@ fabo raw rmi alpine:latest
 raw 支持镜像 Entrypoint/Cmd、环境变量覆盖、用户、工作目录、stdout/stderr 和退出码；只支持 `--network none`。`--rm` 清理该次可写层，`--timings` 报告启动和 guest 阶段耗时。并发访问同一个 raw 存储在启动 guest 前因独占锁失败。macOS 使用 bundle 的内核/Go initramfs，源码验证可用 `FABO_GUEST_DIR`；Linux 使用 `FABO_AGENT` 或相邻的 `fabo-init`。
 
 与上游的存储差异：Go raw 使用独立 `~/.fabo[-flavor]/raw`，不共享 daemon 或 Rust 的镜像索引/数据盘。`images` 输出规范化镜像名、配置 digest、字节大小和层数，未复刻 Rust 的显示格式及拉取时间列。
+
+## 给 agent 的 MCP
+
+`fabo mcp` 在 stdin/stdout 上运行只读的 Model Context Protocol 服务（JSON-RPC 2.0，按行分隔，协议版本 `2025-06-18`）。它只发 GET 请求，不启动、停止、删除或拉取任何东西；写操作仍交给 agent 已有的 `docker` / `docker compose`。每个工具都带 `readOnlyHint`，结果同时给文本和 `structuredContent`。
+
+| 工具 | 内容 |
+| --- | --- |
+| `engine_info` | 引擎版本、容器与镜像数量、虚拟机是否醒着、本地地址后缀和端口 |
+| `list_containers` | 容器名、镜像、状态、Compose 项目与服务、端口、本地地址；可按 `project`、`running` 过滤 |
+| `container_logs` | 最近 `tail` 行（默认 200，上限 5000），可用 `grep` 和 `level`（error / warn / info / debug）筛 |
+| `compose_projects` | 每个项目的工作目录、配置文件、Compose 版本、服务和运行数 |
+| `find_local_images` | 按仓库分组的本地镜像：标签、大小、创建时间、正在使用它的容器；Docker Hub 的完整写法折回 `postgres:17` 这样的常用名 |
+| `image_scan` | 镜像的漏洞扫描结果；还没扫描时返回 `scanned: false` |
+
+`initialize` 的说明要求 agent 写 compose 文件、`docker run` 或 `FROM` 之前先调 `find_local_images`：本地已有大版本一致、变体合适的镜像就沿用，不另拉标签，也不悄悄换成另一个变体。本地地址按桌面端的规则算：`dev.fabo.domain` 标签优先，其次 `服务.项目`，最后容器名，再接上 `fabo domains` 的后缀、协议和非默认端口。
+
+注册到 agent（路径换成实际的 `fabo`）：
+
+```sh
+claude mcp add fabo -- /Applications/Fabo.app/Contents/MacOS/fabo mcp
+```
+
+`FABO_SOCKET` 照常覆盖目标引擎，试迁移的实例可以这样接：`claude mcp add fabo-trial -e FABO_SOCKET=$HOME/.fabo-trial/run/docker.sock -- /path/to/fabo mcp`。
 
 ## 2026-11-13 验证
 

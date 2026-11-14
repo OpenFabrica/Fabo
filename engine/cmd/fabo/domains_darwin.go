@@ -61,6 +61,13 @@ func domainsCommand(args []string) error {
 	return errors.New("usage: fabo domains [local on|off | https on|off]")
 }
 
+// machineNames is the suffix local addresses carry and whether Fabo's
+// certificate is trusted, for fabo mcp.
+func machineNames(in installation) (string, bool) {
+	state := newSetup(in).domainState()
+	return state.Suffix, state.HTTPS
+}
+
 // domainState reads both settings from the machine.
 func (s *setup) domainState() domainState {
 	state := domainState{On: s.namesInstalled(), Suffix: "fabo.localhost", HTTPS: s.httpsTrusted()}

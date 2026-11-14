@@ -17,6 +17,10 @@ func buildWithCommand([]string) error {
 }
 
 // domainsCommand has nothing to switch: Linux has *.fabo.localhost only.
+// machineNames is the suffix local addresses carry on Linux, which needs
+// no resolver rule, and no trusted certificate.
+func machineNames(installation) (string, bool) { return "fabo.localhost", false }
+
 func domainsCommand([]string) error {
 	return errors.New("*.fabo.local names and HTTPS are not available on Linux yet")
 }
