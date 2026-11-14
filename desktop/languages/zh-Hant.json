@@ -468,5 +468,11 @@
   "Pack the project": "打包專案",
   "Pack": "打包",
   "Packed into %s": "已打包到 %s",
-  "Pack…": "打包…"
+  "Pack…": "打包…",
+  "Image archive": "映像檔封存",
+  "Import an image archive": "匯入映像檔封存",
+  "Imported %d images": "已匯入 %d 個映像檔",
+  "Imported %s": "已匯入 %s",
+  "Pack ": "打包 ",
+  "Pack images": "打包映像檔"
 }

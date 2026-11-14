@@ -468,5 +468,11 @@
   "Pack the project": "Kemas proyek",
   "Pack": "Kemas",
   "Packed into %s": "Dikemas ke %s",
-  "Pack…": "Kemas…"
+  "Pack…": "Kemas…",
+  "Image archive": "Arsip image",
+  "Import an image archive": "Impor arsip image",
+  "Imported %d images": "%d image diimpor",
+  "Imported %s": "%s diimpor",
+  "Pack ": "Kemas ",
+  "Pack images": "Kemas image"
 }

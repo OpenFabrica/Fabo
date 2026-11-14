@@ -468,5 +468,11 @@
   "Pack the project": "Đóng gói dự án",
   "Pack": "Đóng gói",
   "Packed into %s": "Đã đóng gói vào %s",
-  "Pack…": "Đóng gói…"
+  "Pack…": "Đóng gói…",
+  "Image archive": "Tệp lưu trữ image",
+  "Import an image archive": "Nhập tệp lưu trữ image",
+  "Imported %d images": "Đã nhập %d image",
+  "Imported %s": "Đã nhập %s",
+  "Pack ": "Đóng gói ",
+  "Pack images": "Đóng gói image"
 }

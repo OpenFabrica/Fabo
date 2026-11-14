@@ -146,6 +146,10 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 				w.WriteHeader(http.StatusCreated)
 				fmt.Fprint(w, `{"Id":"c-new"}`)
 			}
+			if path == "/images/load" {
+				fmt.Fprint(w, `{"stream":"Loaded image: shop/api:dev\n"}`)
+				return
+			}
 			if strings.HasSuffix(path, "/exec") {
 				var spec struct{ Cmd []string }
 				_ = json.Unmarshal(sent, &spec)
@@ -217,6 +221,8 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			fmt.Fprint(w, `{"Name":"fabo","FaboExecStop":true,"ServerVersion":"0.4.0","FaboVmAwake":true,"FaboVMControls":true,"NCPU":4,"MemTotal":8589934592,"Containers":5,"ContainersRunning":3,"Images":3}`)
 		case path == "/containers/json":
 			fmt.Fprint(w, containers)
+		case path == "/images/get":
+			fmt.Fprint(w, "archive of "+strings.Join(r.URL.Query()["names"], ","))
 		case path == "/images/json":
 			fmt.Fprintf(w, `[{"Id":"sha256:img-nginx","RepoTags":["nginx:1.27-alpine"],"Size":50331648,"Created":%[1]d},
 			 {"Id":"sha256:img-api","RepoTags":["shop/api:dev"],"Size":432013312,"Created":%[1]d},

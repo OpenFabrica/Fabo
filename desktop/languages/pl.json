@@ -468,5 +468,11 @@
   "Pack the project": "Spakuj projekt",
   "Pack": "Spakuj",
   "Packed into %s": "Spakowano do %s",
-  "Pack…": "Spakuj…"
+  "Pack…": "Spakuj…",
+  "Image archive": "Archiwum obrazu",
+  "Import an image archive": "Importuj archiwum obrazu",
+  "Imported %d images": "Zaimportowano obrazy: %d",
+  "Imported %s": "Zaimportowano %s",
+  "Pack ": "Spakuj ",
+  "Pack images": "Spakuj obrazy"
 }

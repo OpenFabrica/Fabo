@@ -24,8 +24,12 @@ func (s *desktop) onMain(fn func()) {
 }
 
 // imageOptional are the columns left out beside a detail panel: ID, the
-// number of containers and the creation time.
-var imageOptional = []int{1, 4, 5}
+// number of containers and the creation time. A tight table also leaves out
+// the security summary, which the panel's Security tab shows.
+var (
+	imageOptional = []int{1, 4, 5}
+	imageTight    = []int{1, 3, 4, 5}
+)
 
 // imageColumns are shared by the header and the rows of the images table.
 func imageColumns() []column {
@@ -115,7 +119,11 @@ func (s *desktop) imagesView(c *ui.Context, p palette) {
 			s.list(imagesPage).ScrollTo(0, ui.Start)
 		}
 		ui.Box(c).Grow(1)
-		if len(idle) > 0 && button(c.Key("prune"), p, fmt.Sprintf(tr("清理未使用 %d", "Remove unused %d"), len(idle)), "", ghostButton, false) {
+		// The filters take about 250, Remove unused about 130, Import about
+		// 90 and Pull image about 110; a narrower table drops the first
+		// button, then keeps only the icons of the others.
+		wide := s.listWidth()
+		if len(idle) > 0 && wide >= 640 && button(c.Key("prune"), p, fmt.Sprintf(tr("清理未使用 %d", "Remove unused %d"), len(idle)), "", ghostButton, false) {
 			s.pending = &confirmation{
 				title: fmt.Sprintf(tr("清理 %d 个未使用的镜像？", "Remove %d unused images?"), len(idle)), ok: tr("清理", "Remove"),
 				run: func() {
@@ -125,20 +133,54 @@ func (s *desktop) imagesView(c *ui.Context, p palette) {
 				},
 			}
 		}
+		loading := s.working["load"]
+		load := tr("导入", "Import")
+		if loading {
+			load = tr("导入中…", "Importing…")
+		}
+		if wide >= 620 {
+			if button(c.Key("load"), p, load, "import", plainButton, loading) {
+				s.loadImage()
+			}
+		} else if iconButton(c.Key("load"), p, "import", tr("导入镜像归档", "Import an image archive"), loading).Clicked() {
+			s.loadImage()
+		}
 		pulling := s.working["pull"]
 		name := tr("拉取镜像", "Pull image")
 		if pulling {
 			name = tr("拉取中…", "Pulling…")
 		}
-		if button(c.Key("pull"), p, name, "download", primaryButton, pulling) {
+		if wide < 460 {
+			b := ui.ButtonBase(c.Key("pull")).Label(name).Tooltip(name).Size(32, 32).Shrink(0).Radius(8).Center().
+				Cursor(ui.CursorPointer).Background(p.accent).Disabled(pulling)
+			if b.Hovered() {
+				b.Background(p.accent.Mix(p.text, 0.1))
+			}
+			b.Children(func() { ui.Icon(c, icons["download"]).Size(16, 16).TextColor(p.onAccent) })
+			if b.Clicked() {
+				s.form = form{kind: "pull"}
+			}
+		} else if button(c.Key("pull"), p, name, "download", primaryButton, pulling) {
 			s.form = form{kind: "pull"}
 		}
 	})
-	const actionsWidth = 92
 	cols := imageColumns()
-	narrow := s.narrow()
+	// Size, Security, three buttons and the padding take about 380; below
+	// 520 the name would have less than 140 left.
+	narrow, tight := s.narrow(), s.listWidth() < 520
+	// Beside a detail panel the row keeps three buttons; Pack moves to the
+	// panel's head.
+	rowPack := s.selected[imagesPage] == ""
+	actionsWidth := float32(92)
+	if rowPack {
+		actionsWidth = 124
+	}
 	if !s.dockMax {
-		tableHeader(c, p, narrowColumns(cols, narrow, imageOptional...), actionsWidth, nil)
+		optional := imageOptional
+		if tight {
+			optional = imageTight
+		}
+		tableHeader(c, p, narrowColumns(cols, narrow, optional...), actionsWidth, nil)
 		if len(shown) == 0 {
 			title := tr("没有匹配的镜像", "No matching images")
 			if len(s.images) == 0 {
@@ -157,10 +199,12 @@ func (s *desktop) imagesView(c *ui.Context, p palette) {
 							cell(rc, cols[1].width, 0).Children(func() { label(rc, shortID(img.ID), p.muted) })
 						}
 						cell(rc, cols[2].width, 0).Children(func() { number(rc, displaySize(img.Size), p.text) })
-						cell(rc, cols[3].width, 0).Children(func() {
-							text, ink := s.scanWords(p, img)
-							label(rc, text, ink)
-						})
+						if !tight {
+							cell(rc, cols[3].width, 0).Children(func() {
+								text, ink := s.scanWords(p, img)
+								label(rc, text, ink)
+							})
+						}
 						if narrow {
 							return
 						}
@@ -175,6 +219,9 @@ func (s *desktop) imagesView(c *ui.Context, p palette) {
 					}, func() {
 						if iconButton(rc.Key("run"), p, "play", tr("运行 ", "Run ")+img.ref(), len(img.Tags) == 0).Clicked() {
 							s.form = form{kind: "run", image: img.ref(), named: true}
+						}
+						if rowPack && iconButton(rc.Key("save"), p, "archive", tr("打包 ", "Pack ")+img.ref(), s.working["save:"+img.ID]).Clicked() {
+							s.saveImage(img)
 						}
 						_, scanning := s.scanning[img.ID]
 						if iconButton(rc.Key("scan"), p, "shield", tr("扫描 ", "Scan ")+img.ref(), scanning).Clicked() {
@@ -213,6 +260,9 @@ func (s *desktop) imageDock(c *ui.Context, p palette, img image) {
 	s.dock(c, p, img.ref(), func() { label(c, displaySize(img.Size), p.muted).Shrink(0) },
 		[]string{layersTab, tr("安全扫描", "Security"), tr("信息", "Info")},
 		func() {
+			if iconButton(c.Key("save"), p, "archive", tr("打包 ", "Pack ")+img.ref(), s.working["save:"+img.ID]).Clicked() {
+				s.saveImage(img)
+			}
 			if s.tab[imagesPage] == 1 && result != nil && button(c.Key("rescan"), p, tr("重新扫描", "Rescan"), "", ghostButton, scanning) {
 				s.startScan(img)
 			}

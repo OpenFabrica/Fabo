@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -81,5 +82,69 @@ func TestPackAndImportUseLauncher(t *testing.T) {
 	click(t, tt, "Import")
 	if len(calls) != 0 {
 		t.Fatalf("canceled import ran %q", calls)
+	}
+}
+
+// An image's Pack button writes the engine's archive of it into the chosen
+// file; Import sends a chosen archive to the engine and names what loaded.
+func TestImagePackAndImport(t *testing.T) {
+	f, s := newFakeEngine(t)
+	dir := t.TempDir()
+	in := filepath.Join(dir, "in.tar")
+	if err := os.WriteFile(in, []byte("an image archive"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var asked []string
+	s.chooser = func(save bool, name string) string {
+		if !save {
+			return in
+		}
+		asked = append(asked, name)
+		return filepath.Join(dir, "api")
+	}
+	s.navigate(imagesPage)
+	tt := ui.NewTester(s.view, 1180, 760)
+	click(t, tt, "Pack shop/api:dev")
+	got, err := os.ReadFile(filepath.Join(dir, "api.tar"))
+	if err != nil || string(got) != "archive of shop/api:dev" || !slices.Equal(asked, []string{"shop-api-dev.tar"}) {
+		t.Fatalf("saved %q %v, asked %q", got, err, asked)
+	}
+	if leftovers, _ := filepath.Glob(filepath.Join(dir, ".*partial")); len(leftovers) > 0 {
+		t.Fatalf("partial files left: %v", leftovers)
+	}
+	click(t, tt, "Import")
+	f.mu.Lock()
+	sent := f.last
+	f.mu.Unlock()
+	tt.Frame()
+	if sent != "an image archive" || !tt.HasText("Imported shop/api:dev") {
+		t.Fatalf("load sent %q; texts %q", sent, tt.Texts())
+	}
+}
+
+// At every window width, with the panel open or not, the images toolbar's
+// Pull image stays in view and the image's name keeps its room.
+func TestImageToolbarFitsEveryWidth(t *testing.T) {
+	_, s := newFakeEngine(t)
+	s.navigate(imagesPage)
+	for _, sel := range []string{"", "sha256:img-api"} {
+		s.selectRow(sel)
+		for w := 860; w <= 1500; w += 20 {
+			s.lists = map[string]*ui.ListState{}
+			tt := ui.NewTester(s.view, w, 760)
+			tt.Frame()
+			card := float32(w)
+			if sel != "" {
+				card -= s.dockWidth()
+			}
+			pull, found := tt.Find("Pull image")
+			name, named := tt.Find("alpine:3.21")
+			if !found || pull.X+pull.W > card || !named || name.W < 60 {
+				t.Fatalf("width %v, panel %q: pull %v, name %v", w, sel, pull, name)
+			}
+			if _, found := tt.Find("Pack alpine:3.21"); !found && sel == "" {
+				t.Fatalf("width %v: no Pack button", w)
+			}
+		}
 	}
 }

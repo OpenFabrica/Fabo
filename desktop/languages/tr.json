@@ -468,5 +468,11 @@
   "Pack the project": "Projeyi paketle",
   "Pack": "Paketle",
   "Packed into %s": "%s dosyasına paketlendi",
-  "Pack…": "Paketle…"
+  "Pack…": "Paketle…",
+  "Image archive": "İmaj arşivi",
+  "Import an image archive": "İmaj arşivi içe aktar",
+  "Imported %d images": "%d imaj içe aktarıldı",
+  "Imported %s": "%s içe aktarıldı",
+  "Pack ": "Paketle ",
+  "Pack images": "İmajları paketle"
 }

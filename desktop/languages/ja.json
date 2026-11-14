@@ -468,5 +468,11 @@
   "Pack the project": "プロジェクトをパッケージ化",
   "Pack": "パッケージ化",
   "Packed into %s": "%s にパッケージ化しました",
-  "Pack…": "パッケージ化…"
+  "Pack…": "パッケージ化…",
+  "Image archive": "イメージアーカイブ",
+  "Import an image archive": "イメージアーカイブを読み込む",
+  "Imported %d images": "%d 個のイメージを読み込みました",
+  "Imported %s": "%s を読み込みました",
+  "Pack ": "パッケージ化 ",
+  "Pack images": "イメージをパッケージ化"
 }

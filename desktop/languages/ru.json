@@ -468,5 +468,11 @@
   "Pack the project": "Упаковать проект",
   "Pack": "Упаковать",
   "Packed into %s": "Упаковано в %s",
-  "Pack…": "Упаковать…"
+  "Pack…": "Упаковать…",
+  "Image archive": "Архив образа",
+  "Import an image archive": "Импортировать архив образа",
+  "Imported %d images": "Импортировано образов: %d",
+  "Imported %s": "Импортировано: %s",
+  "Pack ": "Упаковать ",
+  "Pack images": "Упаковать образы"
 }

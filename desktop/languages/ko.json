@@ -468,5 +468,11 @@
   "Pack the project": "프로젝트 패키징",
   "Pack": "패키징",
   "Packed into %s": "%s(으)로 패키징했습니다",
-  "Pack…": "패키징…"
+  "Pack…": "패키징…",
+  "Image archive": "이미지 아카이브",
+  "Import an image archive": "이미지 아카이브 가져오기",
+  "Imported %d images": "이미지 %d개를 가져왔습니다",
+  "Imported %s": "%s을(를) 가져왔습니다",
+  "Pack ": "패키징 ",
+  "Pack images": "이미지 패키징"
 }

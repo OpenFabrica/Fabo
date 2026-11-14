@@ -468,5 +468,11 @@
   "Pack the project": "Impacchetta il progetto",
   "Pack": "Impacchetta",
   "Packed into %s": "Impacchettato in %s",
-  "Pack…": "Impacchetta…"
+  "Pack…": "Impacchetta…",
+  "Image archive": "Archivio immagine",
+  "Import an image archive": "Importa un archivio immagine",
+  "Imported %d images": "%d immagini importate",
+  "Imported %s": "%s importato",
+  "Pack ": "Impacchetta ",
+  "Pack images": "Impacchetta le immagini"
 }

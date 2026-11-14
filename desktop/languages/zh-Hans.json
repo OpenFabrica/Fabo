@@ -468,5 +468,11 @@
   "Pack the project": "打包项目",
   "Pack": "打包",
   "Packed into %s": "已打包到 %s",
-  "Pack…": "打包…"
+  "Pack…": "打包…",
+  "Image archive": "镜像归档",
+  "Import an image archive": "导入镜像归档",
+  "Imported %d images": "已导入 %d 个镜像",
+  "Imported %s": "已导入 %s",
+  "Pack ": "打包 ",
+  "Pack images": "打包镜像"
 }
