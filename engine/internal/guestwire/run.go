@@ -14,6 +14,11 @@ const (
 	StartedMessage Kind = 13
 	OutputMessage  Kind = 14
 	ExitedMessage  Kind = 15
+	// SettledMessage tells the host that a container reported started has
+	// entered its own root and namespaces, so requests that read them (exec,
+	// a network join) can go to the guest. It carries only the ID. The guest
+	// never waits for this on its serial control channel; the host does.
+	SettledMessage Kind = 81
 )
 
 // RunAutoRemove removes the writable layer when the container exits.
@@ -233,6 +238,10 @@ func DecodeRunEvent(frame Frame) (RunEvent, error) {
 			return RunEvent{}, fmt.Errorf("invalid Started payload size %d", len(payload))
 		}
 		event.PID = binary.LittleEndian.Uint32(payload)
+	case SettledMessage:
+		if len(payload) != 0 {
+			return RunEvent{}, fmt.Errorf("invalid Settled payload size %d", len(payload))
+		}
 	case OutputMessage:
 		if len(payload) == 0 || (payload[0] != 1 && payload[0] != 2) {
 			return RunEvent{}, fmt.Errorf("invalid container output stream")

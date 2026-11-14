@@ -20,6 +20,9 @@ func (r *Runtime) listening(id string) (guestwire.Frame, error) {
 	if child == nil || child.isExec {
 		return guestwire.Frame{}, fmt.Errorf("container is not running")
 	}
+	if err := child.requireSettled(id); err != nil {
+		return guestwire.Frame{}, err
+	}
 	root, err := os.OpenRoot(fmt.Sprintf("/proc/%d", child.Process.Pid))
 	if err != nil {
 		return guestwire.Frame{}, err

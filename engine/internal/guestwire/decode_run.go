@@ -156,6 +156,7 @@ func (event RunEvent) Frame() (Frame, error) {
 	switch event.Kind {
 	case StartedMessage:
 		e.u32(event.PID)
+	case SettledMessage:
 	case OutputMessage:
 		e.add(event.Stream)
 		if len(event.Data) > MaxFrame-headerSize {

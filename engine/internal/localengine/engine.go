@@ -176,6 +176,11 @@ type container struct {
 type runAttempt struct {
 	done             chan struct{}
 	started          chan struct{}
+	// settled closes when the guest reports that this run has entered its
+	// own root and namespaces (guestwire.SettledMessage), which can be after
+	// Started. Exec and network joins wait for it, holding no lock, before
+	// asking the guest. Nil when the run was not started through the guest.
+	settled          chan struct{}
 	startedAt        time.Time
 	pid              uint32
 	inputCancel      context.CancelFunc
@@ -207,6 +212,40 @@ func (c *container) nextAttempt() *runAttempt {
 	return c.attempt
 }
 
+// markSettled records the guest's Settled event for this run, once. The
+// caller holds the engine mutex.
+func (a *runAttempt) markSettled() {
+	if a.settled == nil {
+		return
+	}
+	select {
+	case <-a.settled:
+	default:
+		close(a.settled)
+	}
+}
+
+// waitSettled waits until the run has entered its own root and namespaces,
+// or has ended, which later checks report. The caller holds neither the
+// engine mutex nor this run's container operation lock: a setup may take
+// long and anything in the container may stall it, and pausing, signals and
+// removal of that container must stay possible meanwhile. (A container
+// joining its network waits holding its own operation lock, not the
+// owner's.) The channels are fixed when the run starts, so reading them
+// needs no lock.
+func (a *runAttempt) waitSettled(ctx context.Context) error {
+	if a == nil || a.settled == nil {
+		return nil
+	}
+	select {
+	case <-a.settled:
+	case <-a.done:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return nil
+}
+
 func (a *runAttempt) close() {
 	if a.ports != nil {
 		a.ports.close()
@@ -229,10 +268,16 @@ func (e *Engine) markStarted(c *container, pid uint32) {
 	c.builderUsedAt = c.startedAt
 	c.attempt.startedAt = c.startedAt
 	c.attempt.pid = pid
-	if err := e.save(c); err != nil {
-		// The guest has already started the process. Keep tracking the live
-		// run and retry persistence when its terminal state is recorded.
-		log.Print(err)
+	// A --rm container's record is deleted when it exits and it has no
+	// restart policy to replay after a crash, so its running state need not
+	// reach the disk, as with Kiri.
+	if c.run.Flags&guestwire.RunAutoRemove == 0 {
+		if err := e.save(c); err != nil {
+			// The guest has already started the process. Keep tracking the
+			// live run and retry persistence when its terminal state is
+			// recorded.
+			log.Print(err)
+		}
 	}
 	if c.attempt.ports != nil {
 		c.attempt.ports.start()
@@ -873,6 +918,7 @@ func (e *Engine) startContainer(c *container, automatic bool) error {
 	}
 	target := c.networkTarget()
 	var joinErr error
+	var ownerRun *runAttempt
 	proxyNetwork := containerProxyNetwork{host: c.networkMode() == "host", relayOptions: c.run.Options}
 	if target != "" {
 		owner := e.containers[target]
@@ -882,6 +928,7 @@ func (e *Engine) startContainer(c *container, automatic bool) error {
 			joinErr = fmt.Errorf("%w: cannot join network of a non running container: %s", errConflict, target)
 		} else {
 			proxyNetwork = owner.attempt.proxyNetwork
+			ownerRun = owner.attempt
 		}
 	}
 	if pid := c.pidTarget(); pid != "" && joinErr == nil {
@@ -910,14 +957,22 @@ func (e *Engine) startContainer(c *container, automatic bool) error {
 		}
 	}
 	c.setEndpoints(endpoints)
-	if err := e.save(c); err != nil {
-		c.state, c.exit, c.failure, c.oomKilled = previous, code, failure, oom
-		c.startedAt, c.finishedAt, c.vmStopped = startedAt, finishedAt, vmStopped
-		c.restartCount, c.manualStopped, c.restartDelay = count, stopped, delay
-		e.mu.Unlock()
-		return err
+	// The record says "starting", with the cleared stop intent, before the
+	// guest is asked: a daemon crash before Started then restores it as
+	// exited and its restart policy still applies. A --rm container has no
+	// restart policy and its record goes when it exits, so it skips the
+	// write, as with Kiri.
+	if c.run.Flags&guestwire.RunAutoRemove == 0 {
+		if err := e.save(c); err != nil {
+			c.state, c.exit, c.failure, c.oomKilled = previous, code, failure, oom
+			c.startedAt, c.finishedAt, c.vmStopped = startedAt, finishedAt, vmStopped
+			c.restartCount, c.manualStopped, c.restartDelay = count, stopped, delay
+			e.mu.Unlock()
+			return err
+		}
 	}
 	attempt := c.nextAttempt()
+	attempt.settled = make(chan struct{})
 	c.cancelRestart()
 	if joinErr != nil {
 		e.finish(c, 255, joinErr)
@@ -998,6 +1053,11 @@ func (e *Engine) startContainer(c *container, automatic bool) error {
 	if err == nil {
 		err = resolveVolumeMounts(e.ctx, run.Mounts)
 	}
+	if err == nil && ownerRun != nil {
+		// The guest takes the network from the owner's process, which
+		// must have joined its own first.
+		err = ownerRun.waitSettled(e.ctx)
+	}
 	if err == nil {
 		pid, err = hostagent.StartImage(e.ctx, e.session, run, c.blobs)
 	}
@@ -1031,6 +1091,10 @@ func (e *Engine) onEvent(event guestwire.RunEvent) {
 	case guestwire.StartedMessage:
 		if c.state == "starting" {
 			e.markStarted(c, event.PID)
+		}
+	case guestwire.SettledMessage:
+		if c.attempt != nil {
+			c.attempt.markSettled()
 		}
 	case guestwire.OutputMessage:
 		if len(event.Data) == 0 {

@@ -89,3 +89,19 @@ func TestProcessOptionsUseRustRunAndExecFields(t *testing.T) {
 		t.Fatalf("Exec changed process settings: %+v, %v", exec, err)
 	}
 }
+
+// Settled carries only the container ID and survives a round trip.
+func TestSettledEventRoundTrip(t *testing.T) {
+	frame, err := RunEvent{Kind: SettledMessage, ID: "0123456789ab"}.Frame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, err := DecodeRunEvent(frame)
+	if err != nil || event.Kind != SettledMessage || event.ID != "0123456789ab" {
+		t.Fatalf("decoded %+v, %v", event, err)
+	}
+	frame.Payload = append(frame.Payload, 0)
+	if _, err := DecodeRunEvent(frame); err == nil {
+		t.Fatal("Settled with a payload accepted")
+	}
+}

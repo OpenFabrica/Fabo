@@ -61,6 +61,10 @@ func (r *Runtime) Exec(spec guestwire.ExecSpec, emit func(guestwire.RunEvent) er
 	if target == nil || target.isExec || r.children[spec.ID] != nil {
 		return fmt.Errorf("exec requires a running container and a new process ID")
 	}
+	// The exec joins the target's root and namespaces below.
+	if err := target.requireSettled(spec.ContainerID); err != nil {
+		return err
+	}
 
 	spec.Caps = target.caps
 	spec.Flags = spec.Flags&^guestwire.RunSecurityFlags | target.security

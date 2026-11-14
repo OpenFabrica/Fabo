@@ -357,7 +357,7 @@ flowchart LR
 
 ## Go engine migration
 
-`engine/internal/guestwire` implements the version 4 framing and the
+`engine/internal/guestwire` implements the version 5 framing and the
 Hello/Ping/Pong and resource-statistics exchanges. `fabo-guest-check` listens
 on a private test agent directory and reports the hello and stats as JSON.
 The daemon serves the Docker API and manages the Go guest. The guest
@@ -936,6 +936,37 @@ Its initial syscall filter blocks namespace changes, io_uring and non-IP/non-Uni
 socket families. The host receives stdout, stderr and the exit status
 through the existing protocol.
 
+The guest reports a container started once its network is in place, before
+the child has mounted its root and exec'd the command, as Kiri does. A
+setup failure then ends the container instead of failing the start: a
+missing command exits 127, one that cannot run exits 126, any other setup
+error exits 127, and the reason appears on the container's stderr as
+`fabo: cannot start container: …`. A TTY container is the exception: its
+terminal comes back at the end of setup, so the guest still waits for the
+exec and a failure still fails the start. The default device filter is
+loaded once and attached to every container's cgroup.
+
+Until the child reports on its status pipe that it has entered its own root
+and namespaces, the guest holds back everything that reads them from its
+process, and refuses it for good if the setup fails. On its serial control
+channel it never waits for that report: anything can stall a setup (a pause,
+a stop signal, or a process sharing the container's PID namespace stopping
+it), and waiting there could hold the very request that resumes it. File
+browsing and listening-port queries are answered with "still starting"
+instead. Once the setup is over the guest sends a Settled event. The daemon
+waits for it, holding no lock, before sending an exec into the container or
+starting a container that joins its network, so `docker exec` right after a
+start works and a stalled setup still leaves pause, signals and removal of
+that container available. Archive copies and export wait in the guest, on
+their own connection. Statistics report no network traffic until the setup
+is over. Pausing and signals act on the container at once, as before.
+
+A `--rm` container's record is not rewritten when it starts, as it has no
+restart policy and is deleted when it exits. After a daemon crash, a `--rm`
+container that was running therefore shows as Created rather than Exited
+(255); removing it cleans up as before. Other containers are still recorded
+as starting, with a cleared stop intent, before the guest runs them.
+
 `docker run --init` keeps a Go supervisor as PID 1. It starts the workload
 with the same identity and syscall restrictions, forwards signals to it,
 reaps adopted children, and reports the workload's exit status. With a
@@ -973,6 +1004,13 @@ restart or daemon reload preserves the reservation. The guest creates a
 veth pair before releasing the container bootstrap and sets its address
 and default route before exec. Containers on the bridge can communicate
 directly. `--network none` retains a separate loopback-only namespace.
+
+When a container exits, the guest takes its host-side veth off the bridge,
+brings it down and renames it to a `kr…` tombstone before reporting the
+exit, so the address and the `kv…` name are free for the next start at
+once. The kernel needs about 20 ms to delete a veth, so the deletion itself
+runs in the background; agent shutdown waits for it. The kernel also removes
+the pair when the container's namespace goes away.
 
 The guest uses the default uplink for source NAT and allows replies back
 to the bridge. A bind mount over `/etc/resolv.conf` takes precedence over

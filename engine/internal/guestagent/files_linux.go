@@ -25,6 +25,9 @@ func (r *Runtime) runningRoot(id string) (*os.File, error) {
 	if child == nil || child.isExec {
 		return nil, fmt.Errorf("container %s is not running", id)
 	}
+	if err := child.requireSettled(id); err != nil {
+		return nil, err
+	}
 	return openProcessRoot(child)
 }
 

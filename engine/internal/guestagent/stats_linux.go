@@ -64,7 +64,12 @@ func (r *Runtime) containerStats(id string) (guestwire.ContainerStats, error) {
 			s.OnlineCPUs++
 		}
 	}
-	netDev := readText(fmt.Sprintf("/proc/%d/net/dev", child.Process.Pid))
+	netDev := ""
+	// Until its setup is done, a container joining another's network still
+	// sees the agent's: report no traffic rather than the agent's.
+	if done, ok := child.settled(); done && ok {
+		netDev = readText(fmt.Sprintf("/proc/%d/net/dev", child.Process.Pid))
+	}
 	for line := range strings.SplitSeq(netDev, "\n") {
 		if name, values, ok := strings.Cut(line, ":"); ok && strings.TrimSpace(name) != "lo" {
 			columns := strings.Fields(values)

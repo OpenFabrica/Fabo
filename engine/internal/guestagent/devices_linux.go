@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sync"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -61,10 +62,44 @@ func deviceProgram(extra []guestwire.DeviceRule) []uint64 {
 	return append(p, insn(0xb7, 0, 0, 0, 0), insn(0x95, 0, 0, 0, 0))
 }
 
+// defaultDeviceFilter holds the loaded program for containers without
+// device rules of their own, nearly all of them. Loading runs the BPF
+// verifier, about 0.1 ms on every start, and one program can be attached to
+// any number of cgroups. The descriptor is close-on-exec, as every BPF
+// descriptor is, and stays open for the agent's lifetime.
+var defaultDeviceFilter struct {
+	sync.Mutex
+	fd int
+}
+
+// restrictDevices attaches the device filter for rules to cgroup.
 func restrictDevices(cgroup *os.File, rules []guestwire.DeviceRule) error {
 	if cgroup == nil {
 		return fmt.Errorf("no delegated cgroup")
 	}
+	if len(rules) != 0 {
+		fd, err := loadDeviceProgram(rules)
+		if err != nil {
+			return err
+		}
+		defer unix.Close(fd)
+		return attachDeviceProgram(cgroup, fd)
+	}
+	defaultDeviceFilter.Lock()
+	defer defaultDeviceFilter.Unlock()
+	if defaultDeviceFilter.fd == 0 {
+		fd, err := loadDeviceProgram(nil)
+		if err != nil {
+			return err
+		}
+		defaultDeviceFilter.fd = fd
+	}
+	return attachDeviceProgram(cgroup, defaultDeviceFilter.fd)
+}
+
+// loadDeviceProgram loads the device filter for rules and returns its
+// descriptor.
+func loadDeviceProgram(rules []guestwire.DeviceRule) (int, error) {
 	program := deviceProgram(rules)
 	license := []byte("GPL\x00")
 	// Linux bpf_attr for BPF_PROG_LOAD, through prog_name; absent tail is zero.
@@ -81,11 +116,15 @@ func restrictDevices(cgroup *os.File, rules []guestwire.DeviceRule) error {
 	runtime.KeepAlive(program)
 	runtime.KeepAlive(license)
 	if errno != 0 {
-		return fmt.Errorf("load cgroup device filter: %w", errno)
+		return 0, fmt.Errorf("load cgroup device filter: %w", errno)
 	}
-	defer unix.Close(int(fd))
+	return int(fd), nil
+}
+
+// attachDeviceProgram attaches a loaded device filter to cgroup.
+func attachDeviceProgram(cgroup *os.File, fd int) error {
 	attach := struct{ Target, Program, Type, Flags uint32 }{uint32(cgroup.Fd()), uint32(fd), unix.BPF_CGROUP_DEVICE, unix.BPF_F_ALLOW_MULTI}
-	_, _, errno = unix.Syscall(unix.SYS_BPF, unix.BPF_PROG_ATTACH, uintptr(unsafe.Pointer(&attach)), unsafe.Sizeof(attach))
+	_, _, errno := unix.Syscall(unix.SYS_BPF, unix.BPF_PROG_ATTACH, uintptr(unsafe.Pointer(&attach)), unsafe.Sizeof(attach))
 	runtime.KeepAlive(cgroup)
 	if errno != 0 {
 		return fmt.Errorf("attach cgroup device filter: %w", errno)

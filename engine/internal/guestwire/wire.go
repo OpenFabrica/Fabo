@@ -12,8 +12,11 @@ import (
 )
 
 const (
-	Port       = 1024
-	Version    = 4
+	Port = 1024
+	// Version 5 adds SettledMessage, which the host requires before exec
+	// into a container started early: a peer of another version is refused
+	// at Hello rather than left waiting for an event it never sends.
+	Version    = 5
 	MaxFrame   = 1 << 20
 	headerSize = 6
 )

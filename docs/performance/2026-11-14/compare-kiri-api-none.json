@@ -1,0 +1,736 @@
+{
+  "socket": "/tmp/fabo-cmp/kiri.sock",
+  "image": "alpine@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf",
+  "network": "none",
+  "runs": 100,
+  "warmup": 5,
+  "summary": {
+    "create": {
+      "p50_ms": 0.47789550000000003,
+      "p99_ms": 0.6805,
+      "mean_ms": 0.48429831
+    },
+    "wait_registration": {
+      "p50_ms": 0.032479,
+      "p99_ms": 0.044666,
+      "mean_ms": 0.03325589
+    },
+    "start": {
+      "p50_ms": 0.419875,
+      "p99_ms": 0.764791,
+      "mean_ms": 0.44009624
+    },
+    "exit_remove": {
+      "p50_ms": 0.355479,
+      "p99_ms": 1.012708,
+      "mean_ms": 0.38944328
+    },
+    "total": {
+      "p50_ms": 1.303604,
+      "p99_ms": 2.171625,
+      "mean_ms": 1.34709372
+    }
+  },
+  "samples_ms": [
+    {
+      "create": 0.504583,
+      "wait_registration": 0.033167,
+      "start": 0.452708,
+      "exit_remove": 0.445,
+      "total": 1.435458
+    },
+    {
+      "create": 0.500625,
+      "wait_registration": 0.036834,
+      "start": 0.425083,
+      "exit_remove": 0.455667,
+      "total": 1.418209
+    },
+    {
+      "create": 0.431209,
+      "wait_registration": 0.040791,
+      "start": 0.444834,
+      "exit_remove": 0.416,
+      "total": 1.332834
+    },
+    {
+      "create": 0.436625,
+      "wait_registration": 0.037167,
+      "start": 0.425292,
+      "exit_remove": 0.38025,
+      "total": 1.279334
+    },
+    {
+      "create": 0.479666,
+      "wait_registration": 0.031292,
+      "start": 0.421208,
+      "exit_remove": 0.417417,
+      "total": 1.349583
+    },
+    {
+      "create": 0.6805,
+      "wait_registration": 0.033,
+      "start": 0.44225,
+      "exit_remove": 0.44375,
+      "total": 1.5995
+    },
+    {
+      "create": 0.448166,
+      "wait_registration": 0.038667,
+      "start": 0.414917,
+      "exit_remove": 0.359708,
+      "total": 1.261458
+    },
+    {
+      "create": 0.416333,
+      "wait_registration": 0.033125,
+      "start": 0.493042,
+      "exit_remove": 0.442833,
+      "total": 1.385333
+    },
+    {
+      "create": 0.492625,
+      "wait_registration": 0.040084,
+      "start": 0.503375,
+      "exit_remove": 0.530833,
+      "total": 1.566917
+    },
+    {
+      "create": 0.516083,
+      "wait_registration": 0.036417,
+      "start": 0.484375,
+      "exit_remove": 0.360625,
+      "total": 1.3975
+    },
+    {
+      "create": 0.44275,
+      "wait_registration": 0.033,
+      "start": 0.429458,
+      "exit_remove": 0.353459,
+      "total": 1.258667
+    },
+    {
+      "create": 0.573625,
+      "wait_registration": 0.031584,
+      "start": 0.764791,
+      "exit_remove": 0.297209,
+      "total": 1.667209
+    },
+    {
+      "create": 0.505667,
+      "wait_registration": 0.037708,
+      "start": 0.551042,
+      "exit_remove": 0.382333,
+      "total": 1.47675
+    },
+    {
+      "create": 0.523958,
+      "wait_registration": 0.033875,
+      "start": 0.495792,
+      "exit_remove": 0.340041,
+      "total": 1.393666
+    },
+    {
+      "create": 0.469833,
+      "wait_registration": 0.035542,
+      "start": 0.713958,
+      "exit_remove": 0.379208,
+      "total": 1.598541
+    },
+    {
+      "create": 0.456542,
+      "wait_registration": 0.037333,
+      "start": 0.44425,
+      "exit_remove": 0.352458,
+      "total": 1.290583
+    },
+    {
+      "create": 0.630291,
+      "wait_registration": 0.032625,
+      "start": 0.45925,
+      "exit_remove": 0.371125,
+      "total": 1.493291
+    },
+    {
+      "create": 0.533834,
+      "wait_registration": 0.030875,
+      "start": 0.441458,
+      "exit_remove": 0.358375,
+      "total": 1.364542
+    },
+    {
+      "create": 0.45125,
+      "wait_registration": 0.032291,
+      "start": 0.413,
+      "exit_remove": 0.371292,
+      "total": 1.267833
+    },
+    {
+      "create": 0.438916,
+      "wait_registration": 0.029125,
+      "start": 0.481042,
+      "exit_remove": 0.37625,
+      "total": 1.325333
+    },
+    {
+      "create": 0.503834,
+      "wait_registration": 0.03525,
+      "start": 0.43225,
+      "exit_remove": 0.341291,
+      "total": 1.312625
+    },
+    {
+      "create": 0.500958,
+      "wait_registration": 0.035917,
+      "start": 0.487041,
+      "exit_remove": 0.354584,
+      "total": 1.3785
+    },
+    {
+      "create": 0.590584,
+      "wait_registration": 0.032291,
+      "start": 0.536042,
+      "exit_remove": 1.012708,
+      "total": 2.171625
+    },
+    {
+      "create": 0.47,
+      "wait_registration": 0.03375,
+      "start": 0.414333,
+      "exit_remove": 0.366792,
+      "total": 1.284875
+    },
+    {
+      "create": 0.508041,
+      "wait_registration": 0.034709,
+      "start": 0.450333,
+      "exit_remove": 0.345583,
+      "total": 1.338666
+    },
+    {
+      "create": 0.513667,
+      "wait_registration": 0.03425,
+      "start": 0.413542,
+      "exit_remove": 0.364958,
+      "total": 1.326417
+    },
+    {
+      "create": 0.415666,
+      "wait_registration": 0.03175,
+      "start": 0.386042,
+      "exit_remove": 0.37275,
+      "total": 1.206208
+    },
+    {
+      "create": 0.583333,
+      "wait_registration": 0.030208,
+      "start": 0.422167,
+      "exit_remove": 0.360583,
+      "total": 1.396291
+    },
+    {
+      "create": 0.488625,
+      "wait_registration": 0.029334,
+      "start": 0.700875,
+      "exit_remove": 0.344416,
+      "total": 1.56325
+    },
+    {
+      "create": 0.53925,
+      "wait_registration": 0.03575,
+      "start": 0.395875,
+      "exit_remove": 0.354542,
+      "total": 1.325417
+    },
+    {
+      "create": 0.407542,
+      "wait_registration": 0.034875,
+      "start": 0.365458,
+      "exit_remove": 0.342583,
+      "total": 1.150458
+    },
+    {
+      "create": 0.4,
+      "wait_registration": 0.04375,
+      "start": 0.461291,
+      "exit_remove": 0.693667,
+      "total": 1.598708
+    },
+    {
+      "create": 0.480625,
+      "wait_registration": 0.031375,
+      "start": 0.427083,
+      "exit_remove": 0.379417,
+      "total": 1.3185
+    },
+    {
+      "create": 0.586333,
+      "wait_registration": 0.032792,
+      "start": 0.403875,
+      "exit_remove": 0.365791,
+      "total": 1.388791
+    },
+    {
+      "create": 0.435625,
+      "wait_registration": 0.044666,
+      "start": 0.424459,
+      "exit_remove": 0.342041,
+      "total": 1.246791
+    },
+    {
+      "create": 0.460583,
+      "wait_registration": 0.0425,
+      "start": 0.3935,
+      "exit_remove": 0.338625,
+      "total": 1.235208
+    },
+    {
+      "create": 0.493458,
+      "wait_registration": 0.030459,
+      "start": 0.382458,
+      "exit_remove": 0.352708,
+      "total": 1.259083
+    },
+    {
+      "create": 0.487208,
+      "wait_registration": 0.035792,
+      "start": 0.555416,
+      "exit_remove": 0.350167,
+      "total": 1.428583
+    },
+    {
+      "create": 0.445209,
+      "wait_registration": 0.0375,
+      "start": 0.393208,
+      "exit_remove": 0.378417,
+      "total": 1.254334
+    },
+    {
+      "create": 0.408792,
+      "wait_registration": 0.032708,
+      "start": 0.394209,
+      "exit_remove": 0.357625,
+      "total": 1.193334
+    },
+    {
+      "create": 0.507791,
+      "wait_registration": 0.031584,
+      "start": 0.420375,
+      "exit_remove": 0.348666,
+      "total": 1.308416
+    },
+    {
+      "create": 0.475416,
+      "wait_registration": 0.031959,
+      "start": 0.405583,
+      "exit_remove": 0.344833,
+      "total": 1.257791
+    },
+    {
+      "create": 0.425084,
+      "wait_registration": 0.032166,
+      "start": 0.434042,
+      "exit_remove": 0.366833,
+      "total": 1.258125
+    },
+    {
+      "create": 0.427375,
+      "wait_registration": 0.036042,
+      "start": 0.566375,
+      "exit_remove": 0.7795,
+      "total": 1.809292
+    },
+    {
+      "create": 0.512,
+      "wait_registration": 0.034833,
+      "start": 0.39775,
+      "exit_remove": 0.383542,
+      "total": 1.328125
+    },
+    {
+      "create": 0.604042,
+      "wait_registration": 0.031667,
+      "start": 0.46775,
+      "exit_remove": 0.322208,
+      "total": 1.425667
+    },
+    {
+      "create": 0.418875,
+      "wait_registration": 0.030167,
+      "start": 0.358583,
+      "exit_remove": 0.340167,
+      "total": 1.147792
+    },
+    {
+      "create": 0.422791,
+      "wait_registration": 0.033167,
+      "start": 0.376208,
+      "exit_remove": 0.328667,
+      "total": 1.160833
+    },
+    {
+      "create": 0.479875,
+      "wait_registration": 0.03725,
+      "start": 0.390417,
+      "exit_remove": 0.372375,
+      "total": 1.279917
+    },
+    {
+      "create": 0.451833,
+      "wait_registration": 0.029,
+      "start": 0.462167,
+      "exit_remove": 0.366875,
+      "total": 1.309875
+    },
+    {
+      "create": 0.415959,
+      "wait_registration": 0.028541,
+      "start": 0.423167,
+      "exit_remove": 0.355458,
+      "total": 1.223125
+    },
+    {
+      "create": 0.543709,
+      "wait_registration": 0.033083,
+      "start": 0.397583,
+      "exit_remove": 0.369292,
+      "total": 1.343667
+    },
+    {
+      "create": 0.440834,
+      "wait_registration": 0.030875,
+      "start": 0.692791,
+      "exit_remove": 0.652292,
+      "total": 1.816792
+    },
+    {
+      "create": 0.509375,
+      "wait_registration": 0.04,
+      "start": 0.393375,
+      "exit_remove": 0.3555,
+      "total": 1.29825
+    },
+    {
+      "create": 0.467292,
+      "wait_registration": 0.030208,
+      "start": 0.39225,
+      "exit_remove": 0.348292,
+      "total": 1.238042
+    },
+    {
+      "create": 0.450458,
+      "wait_registration": 0.033042,
+      "start": 0.3905,
+      "exit_remove": 0.329666,
+      "total": 1.203666
+    },
+    {
+      "create": 0.518917,
+      "wait_registration": 0.033292,
+      "start": 0.376458,
+      "exit_remove": 0.346875,
+      "total": 1.275542
+    },
+    {
+      "create": 0.464667,
+      "wait_registration": 0.028458,
+      "start": 0.397583,
+      "exit_remove": 0.343542,
+      "total": 1.23425
+    },
+    {
+      "create": 0.484167,
+      "wait_registration": 0.0295,
+      "start": 0.440375,
+      "exit_remove": 0.3295,
+      "total": 1.283542
+    },
+    {
+      "create": 0.462333,
+      "wait_registration": 0.031209,
+      "start": 0.412791,
+      "exit_remove": 0.357709,
+      "total": 1.264042
+    },
+    {
+      "create": 0.425459,
+      "wait_registration": 0.033958,
+      "start": 0.405917,
+      "exit_remove": 0.335125,
+      "total": 1.200459
+    },
+    {
+      "create": 0.474792,
+      "wait_registration": 0.030292,
+      "start": 0.403333,
+      "exit_remove": 0.387875,
+      "total": 1.296292
+    },
+    {
+      "create": 0.433416,
+      "wait_registration": 0.03225,
+      "start": 0.492959,
+      "exit_remove": 0.353,
+      "total": 1.311625
+    },
+    {
+      "create": 0.562792,
+      "wait_registration": 0.031292,
+      "start": 0.461583,
+      "exit_remove": 0.347583,
+      "total": 1.40325
+    },
+    {
+      "create": 0.46,
+      "wait_registration": 0.035875,
+      "start": 0.396125,
+      "exit_remove": 0.34325,
+      "total": 1.23525
+    },
+    {
+      "create": 0.500209,
+      "wait_registration": 0.036333,
+      "start": 0.445167,
+      "exit_remove": 0.334458,
+      "total": 1.316167
+    },
+    {
+      "create": 0.537958,
+      "wait_registration": 0.0315,
+      "start": 0.40975,
+      "exit_remove": 0.353833,
+      "total": 1.333041
+    },
+    {
+      "create": 0.449,
+      "wait_registration": 0.03025,
+      "start": 0.393417,
+      "exit_remove": 0.641625,
+      "total": 1.514292
+    },
+    {
+      "create": 0.493792,
+      "wait_registration": 0.033333,
+      "start": 0.429792,
+      "exit_remove": 0.36025,
+      "total": 1.317167
+    },
+    {
+      "create": 0.638083,
+      "wait_registration": 0.030375,
+      "start": 0.396917,
+      "exit_remove": 0.342792,
+      "total": 1.408167
+    },
+    {
+      "create": 0.536125,
+      "wait_registration": 0.03525,
+      "start": 0.603958,
+      "exit_remove": 0.382208,
+      "total": 1.557541
+    },
+    {
+      "create": 0.458375,
+      "wait_registration": 0.03375,
+      "start": 0.386458,
+      "exit_remove": 0.346375,
+      "total": 1.224958
+    },
+    {
+      "create": 0.399667,
+      "wait_registration": 0.029333,
+      "start": 0.376709,
+      "exit_remove": 0.393416,
+      "total": 1.199125
+    },
+    {
+      "create": 0.431583,
+      "wait_registration": 0.030292,
+      "start": 0.409917,
+      "exit_remove": 0.613375,
+      "total": 1.485167
+    },
+    {
+      "create": 0.486042,
+      "wait_registration": 0.032333,
+      "start": 0.415459,
+      "exit_remove": 0.320375,
+      "total": 1.254209
+    },
+    {
+      "create": 0.442333,
+      "wait_registration": 0.033667,
+      "start": 0.420875,
+      "exit_remove": 0.346875,
+      "total": 1.24375
+    },
+    {
+      "create": 0.432833,
+      "wait_registration": 0.029917,
+      "start": 0.382042,
+      "exit_remove": 0.432333,
+      "total": 1.277125
+    },
+    {
+      "create": 0.497,
+      "wait_registration": 0.033125,
+      "start": 0.362542,
+      "exit_remove": 0.340375,
+      "total": 1.233042
+    },
+    {
+      "create": 0.486209,
+      "wait_registration": 0.030958,
+      "start": 0.397542,
+      "exit_remove": 0.346291,
+      "total": 1.261
+    },
+    {
+      "create": 0.410167,
+      "wait_registration": 0.0355,
+      "start": 0.440875,
+      "exit_remove": 0.42175,
+      "total": 1.308292
+    },
+    {
+      "create": 0.506084,
+      "wait_registration": 0.03125,
+      "start": 0.388791,
+      "exit_remove": 0.345375,
+      "total": 1.2715
+    },
+    {
+      "create": 0.48175,
+      "wait_registration": 0.038208,
+      "start": 0.400833,
+      "exit_remove": 0.315375,
+      "total": 1.236166
+    },
+    {
+      "create": 0.501583,
+      "wait_registration": 0.029917,
+      "start": 0.391333,
+      "exit_remove": 0.34,
+      "total": 1.262833
+    },
+    {
+      "create": 0.631333,
+      "wait_registration": 0.032083,
+      "start": 0.400917,
+      "exit_remove": 0.357583,
+      "total": 1.421916
+    },
+    {
+      "create": 0.464125,
+      "wait_registration": 0.030917,
+      "start": 0.401958,
+      "exit_remove": 0.342167,
+      "total": 1.239167
+    },
+    {
+      "create": 0.474792,
+      "wait_registration": 0.028583,
+      "start": 0.394125,
+      "exit_remove": 0.346834,
+      "total": 1.244334
+    },
+    {
+      "create": 0.565458,
+      "wait_registration": 0.033833,
+      "start": 0.471292,
+      "exit_remove": 0.7845,
+      "total": 1.855083
+    },
+    {
+      "create": 0.609958,
+      "wait_registration": 0.031,
+      "start": 0.435084,
+      "exit_remove": 0.350083,
+      "total": 1.426125
+    },
+    {
+      "create": 0.506083,
+      "wait_registration": 0.030833,
+      "start": 0.579417,
+      "exit_remove": 0.377833,
+      "total": 1.494166
+    },
+    {
+      "create": 0.458542,
+      "wait_registration": 0.032292,
+      "start": 0.386583,
+      "exit_remove": 0.387,
+      "total": 1.264417
+    },
+    {
+      "create": 0.487916,
+      "wait_registration": 0.031709,
+      "start": 0.419375,
+      "exit_remove": 0.359916,
+      "total": 1.298916
+    },
+    {
+      "create": 0.404917,
+      "wait_registration": 0.029792,
+      "start": 0.519333,
+      "exit_remove": 0.272625,
+      "total": 1.226667
+    },
+    {
+      "create": 0.407167,
+      "wait_registration": 0.030708,
+      "start": 0.373417,
+      "exit_remove": 0.341417,
+      "total": 1.152709
+    },
+    {
+      "create": 0.476125,
+      "wait_registration": 0.031292,
+      "start": 0.395833,
+      "exit_remove": 0.34725,
+      "total": 1.2505
+    },
+    {
+      "create": 0.497875,
+      "wait_registration": 0.031208,
+      "start": 0.429667,
+      "exit_remove": 0.491291,
+      "total": 1.450041
+    },
+    {
+      "create": 0.409,
+      "wait_registration": 0.03075,
+      "start": 0.374958,
+      "exit_remove": 0.3495,
+      "total": 1.164208
+    },
+    {
+      "create": 0.426291,
+      "wait_registration": 0.031167,
+      "start": 0.369958,
+      "exit_remove": 0.341917,
+      "total": 1.169333
+    },
+    {
+      "create": 0.457833,
+      "wait_registration": 0.033917,
+      "start": 0.411333,
+      "exit_remove": 0.352375,
+      "total": 1.255458
+    },
+    {
+      "create": 0.557666,
+      "wait_registration": 0.031209,
+      "start": 0.465125,
+      "exit_remove": 0.367,
+      "total": 1.421
+    },
+    {
+      "create": 0.414291,
+      "wait_registration": 0.035167,
+      "start": 0.43225,
+      "exit_remove": 0.33625,
+      "total": 1.217958
+    }
+  ]
+}

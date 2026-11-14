@@ -34,13 +34,20 @@ func ContainerMain(join bool) {
 	}
 	if err != nil {
 		var command *commandError
-		if join && errors.As(err, &command) {
+		isCommand := errors.As(err, &command)
+		if join && isCommand {
 			// The agent waits for the bootstrap pipe before draining output.
 			_ = status.Close()
 			fmt.Fprintln(os.Stderr, command.err)
 			os.Exit(command.code)
 		}
 		fmt.Fprintln(status, err)
+		// A container is reported started before its setup finishes, so
+		// its exit code tells a missing command (127) from one that cannot
+		// run (126), as Docker's does.
+		if isCommand {
+			os.Exit(command.code)
+		}
 	}
 	os.Exit(127)
 }
@@ -117,6 +124,13 @@ func executeContainer(status *os.File) error {
 	if cfg.Spec.Flags&guestwire.RunReadOnlyRoot != 0 {
 		if err := unix.MountSetattr(unix.AT_FDCWD, "/", 0, &unix.MountAttr{Attr_set: unix.MOUNT_ATTR_RDONLY}); err != nil {
 			return fmt.Errorf("make root filesystem read-only: %w", err)
+		}
+	}
+	if cfg.Early {
+		// The container now has its own root and namespaces: let the agent
+		// admit exec, copies and network joins (see childProcess.setupDone).
+		if _, err := status.Write([]byte{setupReady}); err != nil {
+			return err
 		}
 	}
 	return executeProgram(cfg.Spec, status)

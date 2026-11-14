@@ -144,7 +144,7 @@ func (s *Session) read() {
 				s.fail(err)
 				return
 			}
-		case StartedMessage, OutputMessage, ExitedMessage:
+		case StartedMessage, SettledMessage, OutputMessage, ExitedMessage:
 			event, err := DecodeRunEvent(frame)
 			if err != nil {
 				s.fail(err)

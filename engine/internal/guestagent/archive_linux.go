@@ -79,10 +79,20 @@ func (r *Runtime) ServeCopy(ctx context.Context, conn io.ReadWriter, file func()
 }
 
 func (r *Runtime) copyRoot(spec guestwire.CopySpec) (copyConfig, []*os.File, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	cfg := copyConfig{Spec: spec}
-	if child := r.children[spec.ID]; child != nil && !child.isExec && spec.Op != guestwire.CopyDiff && spec.Op != guestwire.CopyCommit {
+	// Diff and commit read the writable layer, not the running root.
+	layerOnly := spec.Op == guestwire.CopyDiff || spec.Op == guestwire.CopyCommit
+	var child *childProcess
+	if layerOnly {
+		r.mu.Lock()
+	} else {
+		var err error
+		if child, err = r.lockSettled(spec.ID); err != nil {
+			return cfg, nil, err
+		}
+	}
+	defer r.mu.Unlock()
+	if child != nil && !child.isExec && !layerOnly {
 		proc := fmt.Sprintf("/proc/%d", child.Process.Pid)
 		root, err := openProcessRoot(child)
 		if err != nil {

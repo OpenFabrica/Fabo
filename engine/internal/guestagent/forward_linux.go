@@ -239,7 +239,7 @@ func enableIPv6Forwarding(setting forwardingSetting) (func() error, error) {
 	}
 	for _, entry := range entries {
 		name := entry.Name()
-		if name == "all" || name == "default" || name == "lo" || strings.HasPrefix(name, "fabo") || strings.HasPrefix(name, "kv") {
+		if name == "all" || name == "default" || name == "lo" || strings.HasPrefix(name, "fabo") || strings.HasPrefix(name, "kv") || strings.HasPrefix(name, "kr") {
 			continue
 		}
 		path := conf + name + "/accept_ra"

@@ -65,6 +65,14 @@ type childProcess struct {
 	caps         uint64
 	security     uint32
 	execOutput   *execOutput
+	// setup is the child's bootstrap status pipe while a container that was
+	// reported started early is still setting up; see processLaunch.early.
+	setup *os.File
+	// setupDone closes once such a container has entered its own root and
+	// namespaces, or failed to; setupFailed is set before. Nil when the
+	// child was reported started only after its exec. See lockSettled.
+	setupDone   chan struct{}
+	setupFailed bool
 }
 
 type processConfig struct {
@@ -76,6 +84,9 @@ type processConfig struct {
 	JoinNetwork       bool
 	DeviceNodes       []deviceNode
 	HostDevices       []deviceNode
+	// Early asks the child to report the end of its setup on the status pipe
+	// with setupReady, for a container reported started before it.
+	Early bool
 }
 
 func validContainerID(id string) bool {
@@ -199,6 +210,11 @@ func (r *Runtime) Run(spec guestwire.RunSpec, emit func(guestwire.RunEvent) erro
 		if owner == nil || owner.isExec {
 			return fmt.Errorf("network container %s is not running", target)
 		}
+		// The network is taken from the target's process: it must have
+		// joined its own first.
+		if err := owner.requireSettled(target); err != nil {
+			return err
+		}
 		ns, err := openSharedNetwork(owner)
 		if err != nil {
 			return err
@@ -240,7 +256,8 @@ func (r *Runtime) Run(spec guestwire.RunSpec, emit func(guestwire.RunEvent) erro
 	if !hostNetwork && target == "" {
 		attributes.Cloneflags |= unix.CLONE_NEWNET
 	}
-	launch := processLaunch{mode: "__fabo-container", id: spec.ID, flags: spec.Flags, config: cfg, attributes: attributes, cgroup: cgroup, files: files, start: startIn}
+	cfg.Early = spec.Flags&guestwire.RunTTY == 0
+	launch := processLaunch{mode: "__fabo-container", id: spec.ID, flags: spec.Flags, config: cfg, attributes: attributes, cgroup: cgroup, files: files, start: startIn, early: cfg.Early}
 	launch.prepare = func(pid int) error {
 		if hostNetwork || target != "" {
 			return nil
@@ -356,6 +373,13 @@ type processLaunch struct {
 	files      []*os.File
 	start      func(*exec.Cmd) error
 	prepare    func(int) error
+	// early reports the process started once its network is in place,
+	// before the child has mounted its root and exec'd the command, as Kiri
+	// does. A setup failure then ends the container with exit code 127 (126
+	// for a command that cannot run) and the reason on its stderr, instead
+	// of failing the start. A terminal is only received at the end of
+	// setup, so TTY runs keep waiting for it.
+	early bool
 }
 
 func launchProcess(p processLaunch, emit func(guestwire.RunEvent) error, ack func(string, uint32) error) (*childProcess, error) {
@@ -371,7 +395,12 @@ func launchProcess(p processLaunch, emit func(guestwire.RunEvent) error, ack fun
 	if err != nil {
 		return nil, err
 	}
-	defer status.Close()
+	keepStatus := false
+	defer func() {
+		if !keepStatus {
+			_ = status.Close()
+		}
+	}()
 	defer childStatus.Close()
 	ready := make(chan struct{})
 	cmd := exec.Command(self, p.mode)
@@ -460,6 +489,10 @@ func launchProcess(p processLaunch, emit func(guestwire.RunEvent) error, ack fun
 			return err
 		}
 		_ = configWriter.Close()
+		if p.early {
+			// trackProcess reads the outcome of the setup in the background.
+			return nil
+		}
 		// The child keeps fd 3 until exec or reports its setup error.
 		failure, err := io.ReadAll(io.LimitReader(status, 4096))
 		if err != nil {
@@ -484,6 +517,10 @@ func launchProcess(p processLaunch, emit func(guestwire.RunEvent) error, ack fun
 	}
 	launched = true
 	child := &childProcess{Cmd: cmd, terminal: terminal, ready: ready}
+	if p.early {
+		child.setup, keepStatus = status, true
+		child.setupDone = make(chan struct{})
+	}
 	if terminal != nil && p.flags&guestwire.RunStdin != 0 {
 		inputWriter = terminal
 	}
@@ -502,6 +539,10 @@ func (r *Runtime) trackProcess(id string, child *childProcess, start time.Time, 
 	r.children[id] = child
 	r.wait.Add(1)
 	emitErr := emit(guestwire.RunEvent{Kind: guestwire.StartedMessage, ID: id, PID: uint32(child.Process.Pid)})
+	if emitErr == nil && !child.isExec && child.setupDone == nil {
+		// Started only after its exec: the container is already settled.
+		emitErr = emit(guestwire.RunEvent{Kind: guestwire.SettledMessage, ID: id})
+	}
 	close(child.ready)
 	var terminalDone chan struct{}
 	if terminal := child.terminal; terminal != nil {
@@ -518,6 +559,15 @@ func (r *Runtime) trackProcess(id string, child *childProcess, start time.Time, 
 	}
 	go func() {
 		defer r.wait.Done()
+		var setupFailure string
+		if child.setup != nil {
+			// The child holds this close-on-exec pipe until it execs the
+			// command, or writes why it could not and exits.
+			setupFailure = child.readSetup(func() {
+				// The host waits for this before exec or a network join.
+				_ = emit(guestwire.RunEvent{Kind: guestwire.SettledMessage, ID: id})
+			})
+		}
 		err := child.Wait()
 		if terminalDone != nil {
 			<-terminalDone
@@ -537,6 +587,10 @@ func (r *Runtime) trackProcess(id string, child *childProcess, start time.Time, 
 			}
 		} else if err != nil {
 			code = 255
+		}
+		if setupFailure != "" {
+			// After the child's own output, which Wait has drained.
+			_ = emit(guestwire.RunEvent{Kind: guestwire.OutputMessage, ID: id, Stream: 2, Data: []byte("fabo: cannot start container: " + setupFailure + "\n")})
 		}
 		var oom bool
 		if cleanup != nil {
@@ -605,6 +659,9 @@ func (r *Runtime) Close() {
 	}
 	r.mu.Unlock()
 	r.wait.Wait()
+	// The exited containers' veths are deleted in the background; finish
+	// that before the bridges go and, on a Linux host, before the agent exits.
+	retiredVeths.wait()
 	for name := range r.driverMounts {
 		if err := r.releaseDriverVolume(name); err != nil {
 			fmt.Fprintln(os.Stderr, "unmount local volume", name+":", err)
@@ -617,20 +674,19 @@ func (r *Runtime) Close() {
 	}
 }
 
+// deleteVeth deletes link now, treating an already removed link as success.
 func deleteVeth(link netlink.Link) error {
 	if link == nil {
 		return nil
 	}
-	err := netlink.LinkDel(link)
-	var missing netlink.LinkNotFoundError
-	if errors.Is(err, unix.ENODEV) || errors.As(err, &missing) {
-		return nil
+	if err := netlink.LinkDel(link); err != nil && !vethGone(err) {
+		return err
 	}
-	return err
+	return nil
 }
 
+// retireVeth takes an exited container's veth off its bridge at once and
+// deletes it in the background; see vethRetirer.
 func retireVeth(link netlink.Link) {
-	if err := deleteVeth(link); err != nil {
-		fmt.Fprintln(os.Stderr, "remove container veth:", err)
-	}
+	retiredVeths.retire(link)
 }

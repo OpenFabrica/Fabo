@@ -159,6 +159,19 @@ func (e *Engine) startExecHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (e *Engine) startExec(ctx context.Context, id string, detach bool, size [2]uint16, internal bool) (*execProcess, processAttachment, error) {
+	// An exec right after a start waits for the container's setup before
+	// taking the container's operation lock, so a CONT, kill or removal can
+	// still reach a container stalled while setting up. The checks below
+	// reject the exec if that run has ended meanwhile.
+	e.mu.Lock()
+	var run *runAttempt
+	if x := e.execs[id]; x != nil {
+		run = x.containerRun
+	}
+	e.mu.Unlock()
+	if err := run.waitSettled(ctx); err != nil {
+		return nil, processAttachment{}, err
+	}
 	e.mu.Lock()
 	x := e.execs[id]
 	if x == nil || x.private() != internal {
