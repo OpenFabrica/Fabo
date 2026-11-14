@@ -5,6 +5,7 @@ package localengine
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/netip"
 	"os"
@@ -239,8 +240,9 @@ func (e *Engine) convertKiriContainer(old kiriContainer, destination string) (mi
 			return migrationContainer{}, fmt.Errorf("uses unsupported host configuration")
 		}
 	}
-	if (spec.LogConfig.Type != "" && spec.LogConfig.Type != "json-file") || len(spec.LogConfig.Config) != 0 {
-		return migrationContainer{}, fmt.Errorf("uses an unsupported log driver or rotation settings")
+	logging, err := newLogConfig(spec.LogConfig.Type, spec.LogConfig.Config)
+	if err != nil {
+		return migrationContainer{}, fmt.Errorf("uses an unsupported log driver or settings: %w", err)
 	}
 	// Running records indicate an unsafe or inconsistent snapshot. The
 	// source shutdown must finalize exits before we copy the host state.
@@ -334,7 +336,7 @@ func (e *Engine) convertKiriContainer(old kiriContainer, destination string) (mi
 		entrypoint: append([]string{}, spec.Entrypoint...), blobs: slices.Clone(base.Layers),
 		portBindings: bindings, exposedPorts: exposed, volumeNames: volumes, labels: spec.Labels,
 		anonymousVolumes: slices.Clone(spec.AnonVolumes),
-		stopSignal:       spec.StopSignal, stopTimeout: 10, consoleSize: spec.ConsoleSize,
+		stopSignal:       spec.StopSignal, stopTimeout: 10, consoleSize: spec.ConsoleSize, logConfig: logging,
 		healthcheck: spec.Healthcheck, shell: spec.Shell, restartPolicy: restart, restartCount: old.RestartCount,
 		manualStopped: old.StoppedByUser,
 		vmStopped:     old.VMStopped,
@@ -469,7 +471,16 @@ func (e *Engine) kiriMounts(spec kiriContainerSpec, destination string) ([]strin
 					return nil, nil, fmt.Errorf("mount at %q is not backed by the host share", entry.Destination)
 				}
 				if _, err := e.guestShares.source(m.Source, false); err != nil {
-					return nil, nil, err
+					// A bind whose host file is gone, as a /tmp file is after
+					// a restart, keeps its container, as Docker keeps one:
+					// starting it fails and says why. It must still lie
+					// inside the VM shares.
+					if _, statErr := os.Lstat(m.Source); !errors.Is(statErr, os.ErrNotExist) {
+						return nil, nil, err
+					}
+					if err := e.guestShares.shared(m.Source); err != nil {
+						return nil, nil, err
+					}
 				}
 			} else {
 				if fields[0] == e.engineSocket && (engineSocketAlias(entry.Source) || entry.Source == e.engineSocket) {

@@ -5,7 +5,9 @@ package localengine
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -18,11 +20,102 @@ import (
 
 const containerLogLimit = 1 << 20
 
-func (c *container) appendLog(entry record) {
-	if n := len(entry.data); n > containerLogLimit {
-		entry.data = slices.Clone(entry.data[n-containerLogLimit:])
+// logConfig is a container's HostConfig.LogConfig. As Kiri does, the engine
+// keeps json-file's output and accepts its max-size and max-file options;
+// their product bounds how much output the container keeps, below
+// containerLogLimit. Other drivers and options are refused.
+type logConfig struct {
+	Type   string            `json:",omitempty"`
+	Config map[string]string `json:",omitempty"`
+}
+
+// newLogConfig checks a create's or an imported container's LogConfig.
+func newLogConfig(kind string, options map[string]string) (logConfig, error) {
+	if kind != "" && kind != "json-file" {
+		return logConfig{}, fmt.Errorf("%w: unsupported log driver %q", errInvalid, kind)
 	}
-	for c.logBytes+len(entry.data) > containerLogLimit {
+	for option := range options {
+		if option != "max-size" && option != "max-file" {
+			return logConfig{}, fmt.Errorf("%w: unsupported log option %q", errInvalid, option)
+		}
+	}
+	l := logConfig{Type: "json-file"}
+	if len(options) > 0 {
+		l.Config = maps.Clone(options)
+	}
+	if _, err := l.limit(); err != nil {
+		return logConfig{}, fmt.Errorf("%w: %v", errInvalid, err)
+	}
+	return l, nil
+}
+
+// limit is how many bytes of output the container keeps: max-size times
+// max-file, Kiri's 10 MiB and 3 when unset, and never more than
+// containerLogLimit. The errors are Kiri's, which are Docker's.
+func (l logConfig) limit() (int, error) {
+	size, files := uint64(10<<20), uint64(3)
+	if s := l.Config["max-size"]; s != "" && s != "-1" {
+		n, ok := parseLogSize(s)
+		if !ok {
+			return 0, fmt.Errorf("invalid size: '%s'", s)
+		}
+		if n == 0 {
+			return 0, errors.New("max-size must be a positive number")
+		}
+		size = n
+	}
+	if s := l.Config["max-file"]; s != "" {
+		n, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("strconv.Atoi: parsing %q: invalid syntax", s)
+		}
+		if n < 1 {
+			return 0, errors.New("max-file cannot be less than 1")
+		}
+		files = uint64(min(n, 1000))
+	}
+	if size >= containerLogLimit || size*files >= containerLogLimit {
+		return containerLogLimit, nil
+	}
+	return int(size * files), nil
+}
+
+// parseLogSize reads a size as Kiri does: a number and a binary unit,
+// b, k, m, g, t or p, with or without "b" or "ib" after it.
+func parseLogSize(s string) (uint64, bool) {
+	s = strings.TrimSpace(s)
+	end := strings.IndexFunc(s, func(r rune) bool { return !(r >= '0' && r <= '9' || r == '.') })
+	if end < 0 {
+		end = len(s)
+	}
+	n, err := strconv.ParseFloat(s[:end], 64)
+	if err != nil || n < 0 {
+		return 0, false
+	}
+	unit := strings.ToLower(strings.TrimSpace(s[end:]))
+	unit = strings.TrimSuffix(unit, "b")
+	unit = strings.TrimSuffix(unit, "i")
+	shift, ok := map[string]uint{"": 0, "k": 10, "m": 20, "g": 30, "t": 40, "p": 50}[unit]
+	if !ok {
+		return 0, false
+	}
+	return uint64(n * float64(uint64(1)<<shift)), true
+}
+
+// logLimit is the container's own bound on kept output.
+func (c *container) logLimit() int {
+	if limit, err := c.logConfig.limit(); err == nil {
+		return limit
+	}
+	return containerLogLimit
+}
+
+func (c *container) appendLog(entry record) {
+	limit := c.logLimit()
+	if n := len(entry.data); n > limit {
+		entry.data = slices.Clone(entry.data[n-limit:])
+	}
+	for c.logBytes+len(entry.data) > limit {
 		c.logBytes -= len(c.logs[0].data)
 		c.logs[0] = record{}
 		c.logs = c.logs[1:]

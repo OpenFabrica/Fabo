@@ -310,9 +310,17 @@ func (e *Engine) createHTTP(w http.ResponseWriter, r *http.Request) {
 				Type   string
 				Config map[string]string
 			}
-			if json.Unmarshal(value, &logging) == nil && (logging.Type == "" || logging.Type == "json-file") && len(logging.Config) == 0 {
-				continue
+			if err := json.Unmarshal(value, &logging); err != nil {
+				writeError(w, fmt.Errorf("%w: invalid LogConfig", errInvalid))
+				return
 			}
+			config, err := newLogConfig(logging.Type, logging.Config)
+			if err != nil {
+				writeError(w, err)
+				return
+			}
+			body.Config.logConfig = config
+			continue
 		}
 		writeError(w, fmt.Errorf("%w: unsupported HostConfig option %s", errInvalid, field))
 		return
@@ -438,7 +446,15 @@ func (e *Engine) inspectHTTP(w http.ResponseWriter, r *http.Request) {
 	if imageID == "" {
 		imageID = c.image
 	}
+	logging := c.logConfig
+	if logging.Type == "" {
+		logging.Type = "json-file"
+	}
+	if logging.Config == nil {
+		logging.Config = map[string]string{}
+	}
 	hostConfig := map[string]any{
+		"LogConfig":  logging,
 		"AutoRemove": c.run.Flags&guestwire.RunAutoRemove != 0, "NetworkMode": c.networkMode(),
 		"Privileged":   c.run.Flags&guestwire.RunPrivileged != 0,
 		"PortBindings": dockerBindings(c.portBindings, nil), "RestartPolicy": c.restartPolicy.inspect(),

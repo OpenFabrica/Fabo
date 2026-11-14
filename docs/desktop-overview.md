@@ -212,8 +212,12 @@ on the next start.
 The migration preserves container and image IDs, image references, scan history and SBOMs,
 container writable layers, local volume contents and labels, supported
 IPv4 and IPv6 bridge settings, and the recent logs that fit the Go log buffer.
-Host bind mounts still refer to their original paths and must be
-available inside the Go bundle's host directory shares. The migration
+Host bind mounts still refer to their original paths and must lie
+inside the Go bundle's host directory shares. A bind whose host file is
+gone, as a `/tmp` file is after a restart, keeps its container, as Docker
+keeps one: starting it fails and says why. json-file's `max-size` and
+`max-file` carry over and bound the container's kept output, below the
+engine's 1 MiB per container, as they do for a new container. The migration
 retains anonymous volume data and records the container that allocated it.
 
 ### Image layers and security scans

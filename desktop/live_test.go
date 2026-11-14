@@ -67,6 +67,10 @@ func TestLiveEngine(t *testing.T) {
 	}
 	refresh()
 	waitLive(t, tt, "containers", func() bool { return len(s.containers) > 0 })
+	// The list builds only the rows in view, so the window is made tall
+	// enough to show every container.
+	tt.SetSize(1280, min(8000, 400+70*len(s.containers)))
+	tt.Frame()
 
 	// The list: every container by name, a project as a heading, and a
 	// brand tile for the images Fabo's catalog knows.

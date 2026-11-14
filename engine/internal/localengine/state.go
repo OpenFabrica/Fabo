@@ -33,6 +33,7 @@ type savedContainer struct {
 	StopSignal                               uint32
 	StopTimeout                              *int64
 	ConsoleSize                              [2]uint16
+	LogConfig                                *logConfig `json:",omitempty"`
 	ID, Name, Image                          string
 	NetworkName, NetworkID, NetworkInterface string
 	ExtraNetworks                            []containerEndpoint `json:",omitempty"`
@@ -96,7 +97,7 @@ func (s *State) save(c *container) error {
 	rec := savedContainer{
 		StopSignal: c.stopSignal, StopTimeout: &c.stopTimeout, ID: c.id, Name: c.name, Image: c.image, ImageID: c.imageID, Created: c.created, Run: c.run, Blobs: c.blobs, State: c.state, Exit: c.exit, OOMKilled: c.oomKilled, VolumeNames: c.volumeNames,
 		AnonymousVolumes: c.anonymousVolumes,
-		ExposedPorts:     c.exposedPorts, PortBindings: c.portBindings, ConsoleSize: c.consoleSize, NetworkName: c.networkName, NetworkID: c.networkID, NetworkInterface: c.networkInterface, ExtraNetworks: c.extraNetworks, Labels: c.labels,
+		ExposedPorts:     c.exposedPorts, PortBindings: c.portBindings, ConsoleSize: c.consoleSize, LogConfig: savedLogConfig(c.logConfig), NetworkName: c.networkName, NetworkID: c.networkID, NetworkInterface: c.networkInterface, ExtraNetworks: c.extraNetworks, Labels: c.labels,
 		Healthcheck: c.healthcheck, Shell: c.shell, Health: c.health, Entrypoint: c.entrypoint, Init: c.init, Capabilities: c.capabilities, SecurityOpt: append([]string{}, c.securityOpt...),
 		RestartPolicy: c.restartPolicy, RestartCount: c.restartCount, ManualStopped: c.manualStopped, Links: c.links,
 		StartedAt: c.startedAt, FinishedAt: c.finishedAt, VMStopped: c.vmStopped,
@@ -196,7 +197,7 @@ func (s *State) restore() (map[string]*container, error) {
 		c := &container{
 			id: id, name: rec.Name, image: rec.Image, imageID: rec.ImageID, created: rec.Created, run: rec.Run, blobs: rec.Blobs, state: rec.State, exit: rec.Exit, oomKilled: rec.OOMKilled, volumeNames: rec.VolumeNames,
 			anonymousVolumes: rec.AnonymousVolumes,
-			exposedPorts:     rec.ExposedPorts, portBindings: rec.PortBindings, consoleSize: rec.ConsoleSize, networkName: rec.NetworkName, networkID: rec.NetworkID, networkInterface: rec.NetworkInterface, extraNetworks: rec.ExtraNetworks, labels: rec.Labels,
+			exposedPorts:     rec.ExposedPorts, portBindings: rec.PortBindings, consoleSize: rec.ConsoleSize, logConfig: restoredLogConfig(rec.LogConfig), networkName: rec.NetworkName, networkID: rec.NetworkID, networkInterface: rec.NetworkInterface, extraNetworks: rec.ExtraNetworks, labels: rec.Labels,
 			healthcheck: rec.Healthcheck, shell: rec.Shell, health: rec.Health, entrypoint: rec.Entrypoint, init: rec.Init, capabilities: rec.Capabilities, securityOpt: rec.SecurityOpt,
 			restartPolicy: rec.RestartPolicy, restartCount: rec.RestartCount, manualStopped: rec.ManualStopped, links: rec.Links,
 			startedAt: rec.StartedAt, finishedAt: rec.FinishedAt, vmStopped: rec.VMStopped,
@@ -332,4 +333,20 @@ func renameLegacyRecord(rec *savedContainer) {
 	for i, mount := range rec.Run.Mounts {
 		rec.Run.Mounts[i] = renameLegacyMount(mount)
 	}
+}
+
+// savedLogConfig leaves a record without the default log configuration.
+func savedLogConfig(l logConfig) *logConfig {
+	if len(l.Config) == 0 {
+		return nil
+	}
+	return &l
+}
+
+// restoredLogConfig is a record's log configuration, json-file by default.
+func restoredLogConfig(l *logConfig) logConfig {
+	if l == nil {
+		return logConfig{Type: "json-file"}
+	}
+	return *l
 }

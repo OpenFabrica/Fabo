@@ -61,6 +61,7 @@ type Config struct {
 	openStdin                  bool
 	Tty                        bool
 	consoleSize                [2]uint16
+	logConfig                  logConfig
 	bridge                     bool
 	network                    string
 	networkEndpoints           map[string]endpointConfig
@@ -161,6 +162,7 @@ type container struct {
 	failure                                  error
 	logs                                     []record
 	logBytes                                 int
+	logConfig                                logConfig
 	listeners                                map[*outputListener]struct{}
 	removed                                  chan struct{}
 	removing                                 bool
@@ -729,7 +731,7 @@ func (e *Engine) create(name string, cfg Config) (string, error) {
 	c := &container{
 		id: id, name: name, image: cfg.Image, imageID: image.ID, created: time.Now().Unix(), run: run, blobs: image.Layers, state: "created", stopSignal: signal, stopTimeout: timeout, volumeNames: volumeNames,
 		anonymousVolumes: anonymousVolumes,
-		exposedPorts:     exposed, portBindings: bindings, consoleSize: cfg.consoleSize, labels: cfg.Labels, restartPolicy: cfg.restart,
+		exposedPorts:     exposed, portBindings: bindings, consoleSize: cfg.consoleSize, logConfig: cfg.logConfig, labels: cfg.Labels, restartPolicy: cfg.restart,
 		init: cfg.init, capabilities: cfg.capabilities, securityOpt: cfg.securityOpt,
 	}
 	c.entrypoint = append([]string{}, cfg.Entrypoint...)

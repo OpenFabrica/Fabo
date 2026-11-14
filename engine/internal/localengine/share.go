@@ -102,6 +102,34 @@ func (roots ShareRoots) source(source string, create bool) (string, error) {
 	return path.Join(mount, filepath.ToSlash(relative)), nil
 }
 
+// shared checks that a host path which no longer exists lies inside a VM
+// share, resolving its nearest existing ancestor's links as source does
+// (on macOS /tmp is /private/tmp). It creates nothing.
+func (roots ShareRoots) shared(source string) error {
+	if len(roots) == 0 {
+		return fmt.Errorf("%w: VM bind mounts require a configured -share directory", errInvalid)
+	}
+	ancestor := filepath.Clean(source)
+	resolved, err := filepath.EvalSymlinks(ancestor)
+	for errors.Is(err, os.ErrNotExist) {
+		parent := filepath.Dir(ancestor)
+		if parent == ancestor {
+			break
+		}
+		ancestor = parent
+		resolved, err = filepath.EvalSymlinks(ancestor)
+	}
+	if err != nil {
+		return fmt.Errorf("%w: bind source %q: %v", errInvalid, source, err)
+	}
+	tail, err := filepath.Rel(ancestor, filepath.Clean(source))
+	if err != nil {
+		return err
+	}
+	_, _, err = roots.relative(filepath.Join(resolved, tail))
+	return err
+}
+
 func bindSourceError(source string, err error) error {
 	if errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("%w: bind source path does not exist: %s", errInvalid, source)
