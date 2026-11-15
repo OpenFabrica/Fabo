@@ -247,6 +247,8 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			share := uint64(len(path)%5+1) * 30_000_000
 			fmt.Fprintf(w, `{"cpu_stats":{"cpu_usage":{"total_usage":%d},"system_cpu_usage":%d,"online_cpus":4},"memory_stats":{"usage":%d,"stats":{"inactive_file":1048576}}}`,
 				n*share, n*4_000_000_000, uint64(len(path))*9_000_000)
+		case strings.HasSuffix(path, "/logs") && r.URL.Query().Get("since") != "":
+			// Everything the fake container printed predates any clearing.
 		case strings.HasSuffix(path, "/logs"):
 			fmt.Fprint(w, "server listening on :3000\nconnected to postgres shop-db-1:5432\nGET /api/products 200 12ms\n"+
 				"WARN slow query 412ms SELECT * FROM orders WHERE user_id = $1; consider an index on orders(user_id) so that checkout stays fast under load\n"+
@@ -672,6 +674,34 @@ func TestDockShowsTheSelectedContainer(t *testing.T) {
 	}
 	if err := tt.Click("Close"); err != nil || s.selected[containersPage] != "" {
 		t.Fatalf("close left the dock open: %v", err)
+	}
+}
+
+// Cleared logs stay cleared when the tab is left and opened again, and the
+// moment is saved for the next window: a reopened stream asks the engine
+// only for what came after the clearing.
+func TestClearedLogsStayClearedAfterReopening(t *testing.T) {
+	_, s := newFakeEngine(t)
+	s.prefsFile = filepath.Join(t.TempDir(), "desktop.json")
+	tt := ui.NewTester(s.view, 1180, 760)
+	if err := tt.Click("shop-api-1"); err != nil {
+		t.Fatal(err)
+	}
+	waitDesktop(t, tt, func() bool { return tt.HasText("server listening on :3000") })
+	click(t, tt, "Clear")
+	// The next window starts from the same moment.
+	if saved := loadClearedLogs(clearedLogsPath(s.prefsFile))["c-api"]; saved.IsZero() || !saved.Equal(s.logsCleared["c-api"]) {
+		t.Fatalf("saved %v, kept %v", saved, s.logsCleared["c-api"])
+	}
+	if tt.HasText("server listening on :3000") {
+		t.Fatalf("clear kept the lines: %q", tt.Texts())
+	}
+	click(t, tt, "Info")
+	click(t, tt, "Logs")
+	waitDesktop(t, tt, func() bool { return s.containerLogs != nil && s.containerLogs.snapshot().finished })
+	tt.Frame()
+	if tt.HasText("server listening on :3000") || !tt.HasText("No logs yet") {
+		t.Fatalf("cleared lines came back: %q", tt.Texts())
 	}
 }
 

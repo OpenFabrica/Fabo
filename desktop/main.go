@@ -217,8 +217,11 @@ type desktop struct {
 	hostActive, hostShell  string
 	hostSequence           int
 	containerLogs, podLogs *liveLogs
-	closingTerminals       []*terminalSession
-	closingLogs            []*liveLogs
+	// logsCleared holds when each container's logs were last cleared, so a
+	// reopened stream starts there instead of replaying the engine's tail.
+	logsCleared      map[string]time.Time
+	closingTerminals []*terminalSession
+	closingLogs      []*liveLogs
 }
 
 // newDesktop makes the window's state with every map ready to use.
@@ -231,6 +234,7 @@ func newDesktop(engine engineClient) *desktop {
 		collapsed: map[string]bool{}, picked: map[string]bool{}, lists: map[string]*ui.ListState{},
 		filePath: map[string]string{}, working: map[string]bool{}, now: time.Now().Unix(),
 		machineTabs: map[string][]string{}, machineActive: map[string]string{},
+		logsCleared: map[string]time.Time{},
 	}
 }
 
@@ -272,6 +276,7 @@ func main() {
 	mygo.App.WhenReady(func() {
 		s.prefsFile = prefsPath()
 		s.prefs = loadPrefs(s.prefsFile)
+		s.logsCleared = loadClearedLogs(clearedLogsPath(s.prefsFile))
 		s.locale = systemLanguage(mygo.App.PreferredLanguages())
 		s.applyLanguage()
 		mygo.App.OnLocaleChanged(func(string) {

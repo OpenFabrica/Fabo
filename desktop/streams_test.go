@@ -92,7 +92,7 @@ func TestContainerLogStreamFollowsPartialLinesAndCancels(t *testing.T) {
 	defer server.Close()
 	engine := streamClient(server)
 	logs := newLiveLogs(t.Context(), "container", func() {}, func(ctx context.Context) (io.ReadCloser, func() error, error) {
-		return engine.openContainerLogs(ctx, "test")
+		return engine.openContainerLogs(ctx, "test", time.Time{})
 	})
 	defer logs.close()
 	waitStream(t, func() bool { return strings.Join(logs.snapshot().lines, "|") == "你|unfinished" })

@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -146,7 +148,10 @@ func newLiveLogs(parent context.Context, key string, notify func(), open func(co
 	}()
 	return l
 }
-func (e engineClient) openContainerLogs(ctx context.Context, id string) (io.ReadCloser, func() error, error) {
+
+// openContainerLogs follows a container's output; a non-zero since skips
+// what the engine recorded before it.
+func (e engineClient) openContainerLogs(ctx context.Context, id string, since time.Time) (io.ReadCloser, func() error, error) {
 	read, cancel := context.WithTimeout(ctx, 10*time.Second)
 	var details struct{ Config struct{ Tty bool } }
 	err := e.get(read, containerPath(id)+"/json", &details)
@@ -154,7 +159,11 @@ func (e engineClient) openContainerLogs(ctx context.Context, id string) (io.Read
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost"+containerPath(id)+"/logs?stdout=1&stderr=1&follow=1&tail=5000", nil)
+	query := "stdout=1&stderr=1&follow=1&tail=5000"
+	if !since.IsZero() {
+		query += fmt.Sprintf("&since=%d.%09d", since.Unix(), since.Nanosecond())
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost"+containerPath(id)+"/logs?"+query, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -251,13 +260,64 @@ func (s *desktop) syncLogStreams() {
 			s.retireLogs(s.containerLogs)
 		}
 		id := s.selected[containersPage]
+		since := s.logsCleared[id]
 		s.containerLogs = newLiveLogs(s.ctx, containerKey, s.invalidate, func(ctx context.Context) (io.ReadCloser, func() error, error) {
-			return s.engine.openContainerLogs(ctx, id)
+			return s.engine.openContainerLogs(ctx, id, since)
 		})
 	}
 	if podKey == "" && s.podLogs != nil {
 		s.retireLogs(s.podLogs)
 		s.podLogs = nil
+	}
+}
+
+// clearContainerLogs empties the open stream and remembers the moment on
+// disk, so leaving the tab, a container restart or a new window does not
+// bring the lines back. Entries for containers that are gone are dropped on the way.
+func (s *desktop) clearContainerLogs() {
+	if s.containerLogs == nil {
+		return
+	}
+	s.containerLogs.clear()
+	for id := range s.logsCleared {
+		if _, ok := s.container(id); !ok {
+			delete(s.logsCleared, id)
+		}
+	}
+	s.logsCleared[s.selected[containersPage]] = time.Now()
+	saveClearedLogs(clearedLogsPath(s.prefsFile), s.logsCleared)
+}
+
+// clearedLogsPath keeps the clearing times beside the settings file, so each
+// installation remembers its own.
+func clearedLogsPath(prefsFile string) string {
+	if prefsFile == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(prefsFile), "logs-cleared.json")
+}
+
+// loadClearedLogs reads the saved clearing times; a missing or damaged file
+// only means nothing was cleared.
+func loadClearedLogs(path string) map[string]time.Time {
+	cleared := map[string]time.Time{}
+	if path == "" {
+		return cleared
+	}
+	if data, err := os.ReadFile(path); err == nil {
+		_ = json.Unmarshal(data, &cleared)
+	}
+	return cleared
+}
+
+// saveClearedLogs writes the clearing times; a failure only lets the lines
+// come back after the window restarts.
+func saveClearedLogs(path string, cleared map[string]time.Time) {
+	if path == "" {
+		return
+	}
+	if data, err := json.Marshal(cleared); err == nil {
+		_ = os.WriteFile(path, data, 0o600)
 	}
 }
 

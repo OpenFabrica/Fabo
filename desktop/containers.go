@@ -827,7 +827,7 @@ func (s *desktop) logsTab(c *ui.Context, p palette) {
 			s.follow = !s.follow
 		}
 		if button(c.Key("clear-logs"), p, tr("清除", "Clear"), "", plainButton, len(source.lines) == 0) && s.containerLogs != nil {
-			s.containerLogs.clear()
+			s.clearContainerLogs()
 		}
 	})
 	if source.problem != "" {
