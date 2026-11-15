@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Fabo 共享 · 账户与套餐</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F6F9}
+a{color:#3B5BDB;text-decoration:none}a:hover{color:#2B48B8}
+button{font:inherit;cursor:pointer}
+.fb-ghost:hover{background:#F1F3F6}
+.fb-plan:hover{box-shadow:0 0 0 1px #C9CFDA,0 1px 3px rgba(16,24,40,0.06)}
+</style>
+</helmet>
+<div style="min-height: 1500px; background: #F4F6F9; color: #171A1F; font-family: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; font-size: 14px; line-height: 1.5">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 32px; background: #FFFFFF; box-shadow: 0 1px 0 #E6E9EE">
+<img src="/_blob/761f36e4c12f8d6ad4e7c472db30e4eb" alt="" style="width: 26px; height: 26px; object-fit: contain">
+<span style="font-size: 15px; font-weight: 600">Fabo 共享</span>
+<div style="flex: 1"></div>
+<span style="color: #4B5361">octo</span>
+<a href="#logout" style="color: #646B78">退出</a>
+</header>
+
+<div style="max-width: 1000px; margin: 0 auto; box-sizing: border-box; padding: 36px 24px 64px; display: flex; flex-direction: column; gap: 36px">
+
+<section aria-labelledby="now" style="display: flex; flex-wrap: wrap; gap: 28px; align-items: center; padding: 24px 28px; border-radius: 14px; background: #FFFFFF; box-shadow: 0 0 0 1px #E6E9EE">
+<div style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 4px">
+<h1 id="now" style="margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.015em">免费</h1>
+<span style="color: #646B78">1 个连接 · 1 个保留名</span>
+</div>
+<div style="flex: 2 1 360px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; gap: 12px; color: #4B5361">
+<span>本月流量</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace">1.6 / 5 GB</span>
+</div>
+<div role="meter" aria-label="本月流量" aria-valuenow="32" aria-valuemin="0" aria-valuemax="100" style="height: 6px; border-radius: 6px; background: #EEF0F4"><div style="width: 32%; height: 6px; border-radius: 6px; background: {{accent}}"></div></div>
+<span style="font-size: 13px; color: #646B78">12 月 1 日重置</span>
+</div>
+</section>
+
+<section aria-labelledby="plans" style="display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+<h2 id="plans" style="margin: 0; font-size: 18px; font-weight: 600">套餐</h2>
+<div style="flex: 1"></div>
+<div role="radiogroup" aria-label="时长" style="display: flex; padding: 3px; border-radius: 10px; background: #ECEFF3">
+<sc-for list="{{durations}}" as="d" hint-placeholder-count="2">
+<button type="button" role="radio" aria-checked="{{d.on}}" onClick="{{d.pick}}" style="{{d.style}}">{{d.label}}</button>
+</sc-for>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px">
+<sc-for list="{{plans}}" as="p" hint-placeholder-count="4">
+<div class="fb-plan" style="{{p.card}}">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<h3 style="margin: 0; font-size: 15px; font-weight: 600">{{p.name}}</h3>
+<sc-if value="{{p.current}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #646B78">当前</span></sc-if>
+</div>
+<div style="display: flex; align-items: baseline; gap: 4px">
+<span style="font-size: 28px; font-weight: 600; letter-spacing: -0.02em">{{p.price}}</span>
+<span style="color: #646B78">{{p.per}}</span>
+</div>
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; color: #4B5361">
+<li><strong style="color: #171A1F; font-weight: 600">{{p.traffic}}</strong> / 月</li>
+<li>{{p.tunnels}} 个连接</li>
+<li>{{p.names}} 个保留名</li>
+</ul>
+<div style="flex: 1"></div>
+<sc-if value="{{p.buyable}}" hint-placeholder-val="{{true}}">
+<button type="button" onClick="{{p.pick}}" aria-pressed="{{p.selected}}" style="{{p.button}}">{{p.action}}</button>
+</sc-if>
+</div>
+</sc-for>
+</div>
+
+<sc-if value="{{hasPick}}" hint-placeholder-val="{{true}}">
+<form action="Pay.dc.html" style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; padding: 18px 22px; border-radius: 14px; background: #FFFFFF; box-shadow: 0 0 0 1.5px {{accent}}">
+<div style="flex: 1 1 200px; display: flex; flex-direction: column">
+<span style="font-weight: 600">{{pick.name}} · {{pick.months}}</span>
+<span style="color: #646B78; font-size: 13px">有效期至 {{pick.until}}</span>
+</div>
+<fieldset style="display: flex; gap: 8px; margin: 0; padding: 0; border: 0">
+<legend style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">支付方式</legend>
+<sc-for list="{{methods}}" as="m" hint-placeholder-count="2">
+<label style="{{m.style}}">
+<input type="radio" name="method" value="{{m.id}}" checked="{{m.on}}" onChange="{{m.pick}}" style="accent-color: {{accent}}; margin: 0">
+<span>{{m.label}}</span>
+</label>
+</sc-for>
+</fieldset>
+<a href="{{payHref}}" style="display: flex; align-items: center; height: 44px; padding: 0 22px; border-radius: 10px; background: {{accent}}; color: #FFFFFF; font-weight: 600">支付 {{pick.amount}}</a>
+</form>
+</sc-if>
+</section>
+
+<section aria-labelledby="orders" style="display: flex; flex-direction: column; gap: 12px">
+<h2 id="orders" style="margin: 0; font-size: 18px; font-weight: 600">订单</h2>
+<div style="overflow-x: auto; border-radius: 14px; background: #FFFFFF; box-shadow: 0 0 0 1px #E6E9EE">
+<table style="width: 100%; min-width: 600px; border-collapse: collapse; font-size: 13px">
+<thead><tr style="color: #646B78; text-align: left">
+<th style="padding: 10px 20px; font-weight: 500">时间</th><th style="padding: 10px 12px; font-weight: 500">套餐</th><th style="padding: 10px 12px; font-weight: 500; text-align: right">金额</th><th style="padding: 10px 12px; font-weight: 500">方式</th><th style="padding: 10px 20px; font-weight: 500">状态</th>
+</tr></thead>
+<tbody>
+<tr style="border-top: 1px solid #ECEEF2"><td style="padding: 12px 20px; font-family: 'JetBrains Mono', ui-monospace, monospace">2026-10-02 21:14</td><td style="padding: 12px">基础 · 1 个月</td><td style="padding: 12px; text-align: right">¥9.00</td><td style="padding: 12px">微信支付</td><td style="padding: 12px 20px; color: #17804A">已支付</td></tr>
+<tr style="border-top: 1px solid #ECEEF2"><td style="padding: 12px 20px; font-family: 'JetBrains Mono', ui-monospace, monospace">2026-10-02 21:09</td><td style="padding: 12px">基础 · 1 个月</td><td style="padding: 12px; text-align: right">¥9.00</td><td style="padding: 12px">支付宝</td><td style="padding: 12px 20px; color: #646B78">已关闭</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#3B5BDB","options":["#3B5BDB","#6B4FD8","#0B7F74","#1B7F45"]},"$preview":{"width":1280,"height":1500}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { months: 1, plan: 'pro', method: 'wechat' };
+}
+renderVals() {
+const accent = this.props.accent ?? '#3B5BDB';
+const { months, plan, method } = this.state;
+// 年付按 10 个月收费
+const mul = months === 12 ? 10 : 1;
+const catalog = [
+{ id: 'free', name: '免费', monthly: 0, traffic: '5 GB', tunnels: 1, names: 1 },
+{ id: 'basic', name: '基础', monthly: 9, traffic: '50 GB', tunnels: 5, names: 3 },
+{ id: 'pro', name: '专业', monthly: 29, traffic: '200 GB', tunnels: 5, names: 3 },
+{ id: 'max', name: '高级', monthly: 99, traffic: '1 TB', tunnels: 5, names: 3 }
+];
+const seg = (on) => 'height: 32px; padding: 0 14px; border: 0; border-radius: 8px; ' + (on ? 'background: #FFFFFF; color: #171A1F; font-weight: 500; box-shadow: 0 1px 2px rgba(16,24,40,0.1)' : 'background: transparent; color: #4B5361');
+const durations = [
+{ label: '1 个月', on: months === 1, style: seg(months === 1), pick: () => this.setState({ months: 1 }) },
+{ label: '12 个月 · 付 10 个月', on: months === 12, style: seg(months === 12), pick: () => this.setState({ months: 12 }) }
+];
+const plans = catalog.map((c) => {
+const current = c.id === 'free';
+const selected = c.id === plan;
+return {
+...c,
+current,
+selected,
+buyable: !current,
+price: c.monthly === 0 ? '¥0' : '¥' + c.monthly * mul,
+per: c.monthly === 0 ? '' : (months === 12 ? '/ 年' : '/ 月'),
+action: selected ? '已选择' : '选择',
+card: 'display: flex; flex-direction: column; gap: 14px; min-height: 250px; padding: 20px; border-radius: 14px; background: #FFFFFF; box-shadow: ' + (selected ? '0 0 0 1.5px ' + accent : '0 0 0 1px #E6E9EE'),
+button: 'height: 40px; border: 0; border-radius: 9px; font-weight: 500; ' + (selected ? 'background: ' + accent + '; color: #FFFFFF' : 'background: #F2F4F7; color: #171A1F'),
+pick: () => this.setState({ plan: c.id })
+};
+});
+const chosen = catalog.find((c) => c.id === plan);
+const methodStyle = (on) => 'display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-radius: 10px; cursor: pointer; box-shadow: inset 0 0 0 ' + (on ? '1.5px ' + accent : '1px #E2E5EA');
+const methods = [
+{ id: 'alipay', label: '支付宝', on: method === 'alipay', style: methodStyle(method === 'alipay'), pick: () => this.setState({ method: 'alipay' }) },
+{ id: 'wechat', label: '微信支付', on: method === 'wechat', style: methodStyle(method === 'wechat'), pick: () => this.setState({ method: 'wechat' }) }
+];
+return {
+accent, durations, plans, methods,
+hasPick: !!chosen && chosen.monthly > 0,
+pick: chosen ? { name: chosen.name, months: months === 12 ? '12 个月' : '1 个月', amount: '¥' + chosen.monthly * mul, until: months === 12 ? '2027-11-15' : '2026-12-15' } : {},
+// 微信进入扫码页，支付宝跳收银台后回到结果页
+payHref: method === 'wechat' ? 'Pay.dc.html' : 'PayResult.dc.html'
+};
+}
+}
+</script>
+</body>
+</html>

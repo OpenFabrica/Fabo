@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Fabo 共享 · 微信扫码支付</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F6F9}
+a{color:#3B5BDB;text-decoration:none}a:hover{color:#2B48B8}
+</style>
+</helmet>
+<div style="min-height: 900px; display: flex; flex-direction: column; background: #F4F6F9; color: #171A1F; font-family: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; font-size: 14px; line-height: 1.5">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 32px; background: #FFFFFF; box-shadow: 0 1px 0 #E6E9EE">
+<img src="/_blob/761f36e4c12f8d6ad4e7c472db30e4eb" alt="" style="width: 26px; height: 26px; object-fit: contain">
+<span style="font-size: 15px; font-weight: 600">Fabo 共享</span>
+<div style="flex: 1"></div>
+<span style="color: #4B5361">octo</span>
+</header>
+
+<div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px">
+<main style="width: 400px; max-width: 100%; box-sizing: border-box; padding: 32px 32px 26px; border-radius: 16px; background: #FFFFFF; box-shadow: 0 0 0 1px #E6E9EE, 0 8px 24px rgba(16,24,40,0.06); display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="color: #646B78">专业 · 12 个月</span>
+<h1 style="margin: 0; font-size: 34px; font-weight: 600; letter-spacing: -0.02em">¥290.00</h1>
+</div>
+<div role="img" aria-label="微信付款二维码" style="width: 220px; height: 220px; box-sizing: border-box; padding: 12px; border-radius: 12px; box-shadow: 0 0 0 1px #E6E9EE; display: flex; align-items: center; justify-content: center">
+<svg width="196" height="196" viewBox="0 0 29 29" aria-hidden="true" shape-rendering="crispEdges"><g fill="#171A1F"><path d="M0 0h7v7H0zM22 0h7v7h-7zM0 22h7v7H0z"/></g><g fill="#FFFFFF"><path d="M1 1h5v5H1zM23 1h5v5h-5zM1 23h5v5H1z"/></g><g fill="#171A1F"><path d="M2 2h3v3H2zM24 2h3v3h-3zM2 24h3v3H2z"/><path d="M9 1h2v2H9zM13 0h1v3h-1zM16 2h3v1h-3zM9 5h4v1H9zM15 4h2v3h-2zM19 5h1v2h-1zM8 8h3v2H8zM13 8h2v1h-2zM17 9h4v1h-4zM23 8h2v3h-2zM27 9h2v1h-2zM0 9h2v2H0zM4 10h3v1H4zM9 12h1v4H9zM12 11h3v3h-3zM17 12h2v2h-2zM21 12h3v1h-3zM26 12h3v2h-3zM1 14h4v1H1zM6 13h1v3H6zM14 15h5v1h-5zM20 15h2v3h-2zM24 16h4v1h-4zM0 18h3v2H0zM5 18h3v1H5zM10 18h3v2h-3zM15 18h3v1h-3zM23 19h2v2h-2zM27 19h2v3h-2zM9 22h2v2H9zM13 21h4v1h-4zM18 22h3v3h-3zM23 23h3v1h-3zM10 26h3v2h-3zM15 25h2v4h-2zM22 26h2v3h-2zM25 26h4v1h-4z"/></g></svg>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-weight: 500">用微信扫一扫</span>
+<span role="status" style="display: flex; align-items: center; justify-content: center; gap: 8px; color: #646B78; font-size: 13px">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #B7791F; box-shadow: 0 0 0 3px #FBF0D9"></span>
+等待付款 · <span style="font-family: 'JetBrains Mono', ui-monospace, monospace">1:58:42</span> 后失效
+</span>
+</div>
+<div style="display: flex; gap: 20px; font-size: 13px">
+<a href="PayResult.dc.html">改用支付宝</a>
+<a href="Account.dc.html" style="color: #646B78">返回</a>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

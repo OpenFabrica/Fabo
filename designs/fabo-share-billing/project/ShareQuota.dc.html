@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Fabo · 共享 · 流量用完</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F6F9}
+a{color:#3B5BDB;text-decoration:none}a:hover{color:#2B48B8}
+button{font:inherit;cursor:pointer}
+.fb-row:hover{background:#F8F9FB}
+.fb-icon:hover{background:#EEF0F4;color:#171A1F}
+.fb-nav:hover{background:#ECEFF3}
+.fb-ghost:hover{background:#F1F3F6}
+</style>
+</helmet>
+<div style="min-height: 900px; display: flex; flex-wrap: wrap; background: #F4F6F9; color: #171A1F; font-family: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; font-size: 13px; line-height: 1.45">
+
+<aside style="flex: 1 1 208px; box-sizing: border-box; padding: 18px 12px 14px; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 8px">
+<img src="/_blob/761f36e4c12f8d6ad4e7c472db30e4eb" alt="Fabo" style="width: 28px; height: 28px; object-fit: contain">
+<span style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em">Fabo</span>
+</div>
+<nav aria-label="主导航" style="display: flex; flex-direction: column; gap: 2px">
+<a class="fb-nav" href="#overview" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+<span>概览</span>
+</a>
+<a class="fb-nav" href="#containers" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>
+<span>容器</span>
+</a>
+<a class="fb-nav" href="#images" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg>
+<span>镜像</span>
+</a>
+<a href="Main.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; background: #FFFFFF; color: #171A1F; font-weight: 500; box-shadow: 0 0 0 1px #E6E9EE, 0 1px 2px rgba(16,24,40,0.05)">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 3.5 5.4 3.5 8.5s-1 5.9-3.5 8.5c-2.5-2.6-3.5-5.4-3.5-8.5s1-5.9 3.5-8.5z"/></svg>
+<span style="flex: 1">共享</span>
+<span style="font-size: 12px; color: #646B78">1</span>
+</a>
+<a class="fb-nav" href="#terminal" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="m7 9.5 3 2.5-3 2.5M12.5 15H17"/></svg>
+<span>终端</span>
+</a>
+</nav>
+<div style="flex: 1"></div>
+<a class="fb-nav" href="#settings" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; color: #4B5361">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+<span>设置</span>
+</a>
+</aside>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; margin: 8px 8px 8px 0; min-height: 884px; background: #FFFFFF; border-radius: 14px; box-shadow: 0 0 0 1px #E6E9EE, 0 1px 3px rgba(16,24,40,0.04); display: flex; flex-direction: column; overflow: hidden">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 22px 28px 18px">
+<h1 style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.015em">共享</h1>
+<div style="display: flex; align-items: center; gap: 8px; margin-left: 6px">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: #1E9E5A; box-shadow: 0 0 0 3px #DDF3E6"></span>
+<span style="font-weight: 500">octo</span>
+<span style="padding: 1px 8px; border-radius: 6px; background: {{planBg}}; color: {{planInk}}; font-size: 12px; font-weight: 500">{{planName}}</span>
+</div>
+<div title="本月流量，{{resets}} 重置" style="display: flex; align-items: center; gap: 10px">
+<div role="meter" aria-label="本月流量" aria-valuenow="{{pct}}" aria-valuemin="0" aria-valuemax="100" style="width: 120px; height: 4px; border-radius: 4px; background: #EEF0F4">
+<div style="width: {{pct}}%; height: 4px; border-radius: 4px; background: {{meterInk}}"></div>
+</div>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: {{usageInk}}">{{usage}}</span>
+</div>
+<div style="flex: 1"></div>
+<button type="button" class="fb-ghost" style="height: 36px; padding: 0 14px; border: 0; border-radius: 9px; background: transparent; color: {{accent}}; font-weight: 500; box-shadow: inset 0 0 0 1px #E2E5EA">{{upgradeLabel}}</button>
+<button type="button" style="display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border: 0; border-radius: 9px; background: {{accent}}; color: #FFFFFF; font-weight: 500; box-shadow: 0 1px 2px rgba(16,24,40,0.12)">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+<span>新建链接</span>
+</button>
+<button type="button" class="fb-icon" aria-label="共享账号" style="width: 36px; height: 36px; border: 0; border-radius: 9px; background: transparent; color: #646B78; display: flex; align-items: center; justify-content: center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/></svg>
+</button>
+</header>
+
+<div role="status" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 28px 16px; padding: 12px 14px 12px 16px; border-radius: 10px; background: #FDF0EF; color: #8E241D">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.3v.2"/></svg>
+<span style="flex: 1 1 260px; font-weight: 500">本月流量已用完，12 月 1 日重置</span>
+<button type="button" style="height: 32px; padding: 0 14px; border: 0; border-radius: 8px; background: #C2352C; color: #FFFFFF; font-weight: 500">升级</button>
+</div>
+<div style="overflow-x: auto">
+<div role="table" aria-label="公开链接" style="min-width: 760px">
+<div role="row" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 110px 80px 108px; gap: 12px; padding: 8px 28px; border-top: 1px solid #ECEEF2; border-bottom: 1px solid #ECEEF2; color: #646B78; font-size: 12px">
+<span role="columnheader">目标</span><span role="columnheader">地址</span><span role="columnheader">状态</span><span role="columnheader" style="text-align: right">请求</span><span></span>
+</div>
+<sc-for list="{{links}}" as="l" hint-placeholder-count="2">
+<div role="row" class="fb-row" style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 110px 80px 108px; gap: 12px; align-items: center; height: 48px; padding: 0 28px; border-bottom: 1px solid #ECEEF2">
+<span role="cell" style="display: flex; align-items: center; gap: 10px; font-weight: 500"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#646B78" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 3.5 5.4 3.5 8.5s-1 5.9-3.5 8.5c-2.5-2.6-3.5-5.4-3.5-8.5s1-5.9 3.5-8.5z"/></svg>{{l.target}}</span>
+<span role="cell" style="color: #646B78; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: line-through">{{l.url}}</span>
+<span role="cell" style="display: flex; align-items: center; gap: 7px; color: #C2352C"><span style="width: 8px; height: 8px; border-radius: 50%; background: #C2352C"></span>等待额度</span>
+<span role="cell" style="text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace">{{l.requests}}</span>
+<span role="cell" style="display: flex; justify-content: flex-end; gap: 2px">
+<button type="button" class="fb-icon" aria-label="复制地址" style="width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: #646B78"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg></button>
+<button type="button" class="fb-icon" aria-label="在浏览器打开" style="width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: #646B78"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></svg></button>
+<button type="button" class="fb-icon" aria-label="停止共享" style="width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: #646B78"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg></button>
+</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#3B5BDB","options":["#3B5BDB","#6B4FD8","#0B7F74","#1B7F45"]},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+const accent = this.props.accent ?? '#3B5BDB';
+// 流量用完：用量封顶 100%，链接进入 waiting，额度恢复后自动重连
+return {
+accent,
+planName: '免费', planBg: '#F2F4F7', planInk: '#4B5361',
+usage: '5 / 5 GB', pct: 100, meterInk: '#C2352C', usageInk: '#C2352C',
+resets: '12 月 1 日', upgradeLabel: '升级',
+links: [{ target: 'web', url: 'https://demo.share.talkwork.vip', requests: '1,204' }]
+};
+}
+}
+</script>
+</body>
+</html>
