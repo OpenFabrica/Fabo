@@ -266,7 +266,9 @@ func (p *PublicShares) create(ctx context.Context, in shareRequest, owner string
 	// Reserving NAME first makes it the exact address; it never fails
 	// the share.
 	if in.Name != "" && !in.NoReserve {
-		rctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		// Two relay calls; a slow cross-border link can take several
+		// seconds per TLS handshake.
+		rctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		r := api.AutoReserve(rctx, in.Name)
 		cancel()
 		s.Reservation = &r

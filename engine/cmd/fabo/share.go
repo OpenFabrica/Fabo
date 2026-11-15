@@ -252,6 +252,8 @@ func reservationNote(r sharetunnel.Reservation) string {
 		return fmt.Sprintf("Your plan's %d reserved name(s) are in use; this link gets a random address. See `fabo share names`.", r.Limit)
 	case "unavailable":
 		return "That name isn't available; the relay picks the address."
+	case "failed":
+		return fmt.Sprintf("Couldn't reserve that name (%s); the relay picks the address.", r.Error)
 	}
 	return ""
 }

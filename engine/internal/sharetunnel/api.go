@@ -328,10 +328,12 @@ func (a *API) CloseTunnel(ctx context.Context, name, host string) error {
 
 // Reservation is what AutoReserve did about a requested name.
 type Reservation struct {
-	// Kind is mine, waiting, reserved, requested, full or unavailable.
+	// Kind is mine, waiting, reserved, requested, full, unavailable, or
+	// failed when the relay couldn't be asked (Error says why).
 	Kind  string `json:"kind"`
 	URL   string `json:"url,omitempty"`
 	Limit uint64 `json:"limit,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 // AutoReserve reserves name when it's free and a slot is left, so the
@@ -341,7 +343,8 @@ func (a *API) AutoReserve(ctx context.Context, name string) Reservation {
 	name = strings.ToLower(name)
 	mine, err := a.Names(ctx)
 	if err != nil {
-		return Reservation{Kind: "unavailable"}
+		// A slow or broken link is not a taken name; say which it was.
+		return Reservation{Kind: "failed", Error: err.Error()}
 	}
 	for _, n := range mine.Items {
 		if n.Name == name {
@@ -355,6 +358,9 @@ func (a *API) AutoReserve(ctx context.Context, name string) Reservation {
 		return Reservation{Kind: "full", Limit: *mine.Limit}
 	}
 	if !a.Available(ctx, name) {
+		if ctx.Err() != nil {
+			return Reservation{Kind: "failed", Error: ctx.Err().Error()}
+		}
 		return Reservation{Kind: "unavailable"}
 	}
 	r, err := a.Reserve(ctx, name)
