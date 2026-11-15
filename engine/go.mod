@@ -14,6 +14,7 @@ require (
 	golang.org/x/net v0.59.0
 	golang.org/x/sys v0.48.0
 	gvisor.dev/gvisor v0.0.0-20260413194555-9680d69bf798
+	rsc.io/qr v0.2.0
 )
 
 require (
