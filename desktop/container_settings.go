@@ -31,13 +31,21 @@ type containerSettings struct {
 	problem    string
 	env        []envEntry
 	ports      []portEntry
+	// domain is the dev.fabo.domain label: the names, comma-separated, the
+	// container answers to under fabo.local; saved is what the engine holds.
+	// Without the label both are the name the container already answers to,
+	// so the field shows the address in use.
+	domain, savedDomain string
 }
 
 // Read the configured bindings, including port zero and stopped containers.
 // Runtime NetworkSettings describes allocated ports and cannot serve as a draft.
 func (e engineClient) containerSettings(ctx context.Context, id string) (containerSettings, error) {
 	var info struct {
-		Config     struct{ Env []string }
+		Config struct {
+			Env    []string
+			Labels map[string]string
+		}
 		HostConfig struct {
 			PortBindings map[string][]struct{ HostIP, HostPort string }
 		}
@@ -47,6 +55,8 @@ func (e engineClient) containerSettings(ctx context.Context, id string) (contain
 		return draft, err
 	}
 	draft.loaded = true
+	draft.domain = info.Config.Labels["dev.fabo.domain"]
+	draft.savedDomain = draft.domain
 	for _, text := range info.Config.Env {
 		k, v, _ := strings.Cut(text, "=")
 		draft.env = append(draft.env, envEntry{k, v})
@@ -107,6 +117,10 @@ func (s *desktop) loadContainerSettings(id string) {
 				draft.problem = err.Error()
 			}
 			draft.generation = generation
+			if x, ok := s.container(id); ok && draft.loaded && draft.domain == "" {
+				draft.domain = x.domainName()
+				draft.savedDomain = draft.domain
+			}
 			s.containerDraft = draft
 		}
 	})
@@ -130,6 +144,8 @@ func (s *desktop) saveContainerSettings(kind string) {
 			return
 		}
 		body = map[string]any{"ports": ports}
+	case "domain":
+		body = map[string]any{"domain": d.domain}
 	default:
 		return
 	}
@@ -178,6 +194,14 @@ func (s *desktop) containerSettingsTab(c *ui.Context, p palette, x container) {
 					s.loadContainerSettings(x.ID)
 				}
 			}
+			heading(c, p, tr("域名", "Domain"))
+			remark(c, p, fmt.Sprintf(tr("容器还可以用这些名字访问：<名字>.%s，多个用逗号分隔。保存立即生效。", "The container also answers at <name>.%s; separate several with commas. Changes apply immediately."), s.domainSuffix()))
+			ui.Row(c).FillWidth().Gap(8).Children(func() {
+				ui.TextInput(c.Key("domain"), &d.domain).Label(tr("域名", "Domain")).Placeholder("api.myapp").Grow(1).Width(0).Height(28).Font(mono).FontSize(12).Disabled(busy)
+				if button(c.Key("save-domain"), p, tr("保存域名", "Save domain"), "", primaryButton, busy || !s.connected || d.domain == d.savedDomain) {
+					s.saveContainerSettings("domain")
+				}
+			})
 			heading(c, p, tr("环境变量", "Environment"))
 			remark(c, p, tr("保存会重启正在运行的容器，保留文件和挂载。", "Saving restarts a running container and keeps its files and mounts."))
 			removeEnv := -1

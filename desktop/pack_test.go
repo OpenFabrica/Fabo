@@ -40,7 +40,7 @@ func TestPackAndImportUseLauncher(t *testing.T) {
 	tt := ui.NewTester(s.view, 1180, 760)
 
 	click(t, tt, "More actions for redis-cache")
-	if err := tt.ChooseMenuItem("Pack…"); err != nil {
+	if err := tt.Click("Pack…"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

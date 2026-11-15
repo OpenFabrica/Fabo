@@ -60,13 +60,15 @@ func (c container) bucket() string {
 }
 
 // status is the sentence of the status column, in the window's language.
+// A running container shows how long it has run, in a word less than
+// Docker's "Up …" in Chinese, so the column stays narrow.
 func (c container) status(now int64) string {
 	switch c.State {
 	case "running":
 		if c.Started <= 0 {
 			return tr("运行中", "Running")
 		}
-		return tr("已运行 ", "Up ") + ago(now-c.Started)
+		return fmt.Sprintf(tr("运行 %s", "Up %s"), ago(now-c.Started))
 	case "paused":
 		return tr("已暂停", "Paused")
 	case "restarting":

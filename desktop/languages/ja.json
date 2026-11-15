@@ -425,7 +425,6 @@
   "Unused images removed": "未使用イメージを削除しました",
   "Unused volumes removed": "未使用ボリュームを削除しました",
   "Up": "稼働",
-  "Up ": "稼働 ",
   "Use ": "使用: ",
   "Used by": "使用元",
   "Used by %d": "%[1]d が使用中",
@@ -587,5 +586,16 @@
   "VPN-friendly": "VPN 対応",
   "System NAT": "システム NAT",
   "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "コンテナの接続は Fabo が %s 上で代わりに開くため、VPN・Tailscale・プロキシアプリがコンテナにも効きます。スループットの上限は NAT より低め（約 500 MB/s）ですが、通常のダウンロードには十分です。",
-  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "最速ですが、VPN・Tailscale・プロキシアプリの拡張モードがコンテナに届かない場合があります。"
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "最速ですが、VPN・Tailscale・プロキシアプリの拡張モードがコンテナに届かない場合があります。",
+  ": ": "：",
+  "Started %d containers": "%d 個のコンテナを起動しました",
+  "Stopped %d containers": "%d 個のコンテナを停止しました",
+  "Restarted %d containers": "%d 個のコンテナを再起動しました",
+  "Up %s": "稼働 %s",
+  "Started %s": "%s を起動しました",
+  "Stopped %s": "%s を停止しました",
+  "Restarted %s": "%s を再起動しました",
+  "Domain": "ドメイン",
+  "Save domain": "ドメインを保存",
+  "The container also answers at <name>.%s; separate several with commas. Changes apply immediately.": "コンテナはこれらの名前でもアクセスできます：<名前>.%s。複数はカンマで区切ります。保存するとすぐに反映されます。"
 }

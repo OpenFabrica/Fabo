@@ -80,7 +80,7 @@ func TestMachinesPage(t *testing.T) {
 	s.form = form{}
 	tt.Frame()
 	click(t, tt, "More actions for dev")
-	if err := tt.ChooseMenuItem("Delete…"); err != nil {
+	if err := tt.Click("Delete…"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -99,7 +99,7 @@ func TestDebugShellOpensFromTheContainerMenu(t *testing.T) {
 	s.openTerminal = func(o terminal.Options) { commands = append(commands, o.Command) }
 	tt := ui.NewTester(s.view, 1180, 760)
 	click(t, tt, "More actions for redis-cache")
-	if err := tt.ChooseMenuItem("Debug Shell"); err != nil {
+	if err := tt.Click("Debug Shell"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

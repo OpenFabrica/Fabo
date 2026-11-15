@@ -45,17 +45,8 @@ func (s *desktop) localURL(x container) string {
 	if x.State != "running" || len(x.Ports) == 0 {
 		return ""
 	}
-	name := x.Name
-	if x.Project != "" && x.Service != "" {
-		name = x.Service + "." + x.Project
-	}
-	if chosen := strings.TrimSpace(strings.Split(x.Domain, ",")[0]); chosen != "" {
-		name = strings.TrimSuffix(strings.TrimSuffix(chosen, ".fabo.localhost"), ".fabo.local")
-	}
-	suffix, scheme, port, standard := "fabo.localhost", "http", s.domains.HTTP.Port, 80
-	if s.namesOK && s.names.On && s.names.Suffix != "" {
-		suffix = s.names.Suffix
-	}
+	name := x.domainName()
+	suffix, scheme, port, standard := s.domainSuffix(), "http", s.domains.HTTP.Port, 80
 	if s.namesOK && s.names.HTTPS {
 		scheme, port, standard = "https", s.domains.HTTPS.Port, 443
 	}
@@ -64,6 +55,27 @@ func (s *desktop) localURL(x container) string {
 		addr += fmt.Sprintf(":%d", port)
 	}
 	return addr
+}
+
+// domainName is the name a container's address shows: the first name of
+// its dev.fabo.domain label, else its Compose service.project, else its name.
+func (x container) domainName() string {
+	if chosen := strings.TrimSpace(strings.Split(x.Domain, ",")[0]); chosen != "" {
+		return strings.TrimSuffix(strings.TrimSuffix(chosen, ".fabo.localhost"), ".fabo.local")
+	}
+	if x.Project != "" && x.Service != "" {
+		return x.Service + "." + x.Project
+	}
+	return x.Name
+}
+
+// domainSuffix is where container names live: fabo.local once the
+// machine's names are on, else fabo.localhost, which needs no setup.
+func (s *desktop) domainSuffix() string {
+	if s.namesOK && s.names.On && s.names.Suffix != "" {
+		return s.names.Suffix
+	}
+	return "fabo.localhost"
 }
 
 // projectKey is the selection key of a Compose project's row.
@@ -329,18 +341,22 @@ func (s *desktop) pickedBar(c *ui.Context, p palette, shown []container) {
 	}
 	ui.Box(c).Grow(1)
 	if button(c.Key("start-picked"), p, tr("启动", "Start"), "play", plainButton, running == len(picked)) {
+		var list []container
 		for _, x := range picked {
 			if x.bucket() != "running" {
-				s.startContainer(x)
+				list = append(list, x)
 			}
 		}
+		s.changeContainers(list, "start")
 	}
 	if button(c.Key("stop-picked"), p, tr("停止", "Stop"), "stop", plainButton, running == 0) {
+		var list []container
 		for _, x := range picked {
 			if x.bucket() == "running" {
-				s.stopContainer(x)
+				list = append(list, x)
 			}
 		}
+		s.changeContainers(list, "stop")
 	}
 	if s.launcher != nil && button(c.Key("pack-picked"), p, tr("打包", "Pack"), "archive", plainButton, s.working["pack"]) {
 		s.pack(containerNames(picked), "", packName(picked))
@@ -452,21 +468,24 @@ func (s *desktop) projectRow(c *ui.Context, p palette, row containerRow) {
 			s.selectRow(key)
 		}
 		ui.Row(c.Key("actions")).Shrink(0).Margin(0, 14, 0, 12).Gap(2).Children(func() {
-			each := func(want bool, act func(container)) {
+			// members are the project's running (or stopped) containers.
+			members := func(running bool) []container {
+				var list []container
 				for _, m := range row.members {
-					if (m.bucket() == "running") == want {
-						act(m)
+					if (m.bucket() == "running") == running {
+						list = append(list, m)
 					}
 				}
+				return list
 			}
 			if stopped > 0 && iconButton(c.Key("start-all"), p, "play", tr("全部启动 ", "Start all in ")+row.project, false).Clicked() {
-				each(false, s.startContainer)
+				s.changeContainers(members(false), "start")
 			}
 			if running > 0 && iconButton(c.Key("restart-all"), p, "restart", tr("全部重启 ", "Restart all in ")+row.project, false).Clicked() {
-				each(true, s.restartContainer)
+				s.changeContainers(members(true), "restart")
 			}
 			if running > 0 && iconButton(c.Key("stop-all"), p, "stop", tr("全部停止 ", "Stop all in ")+row.project, false).Clicked() {
-				each(true, s.stopContainer)
+				s.changeContainers(members(true), "stop")
 			}
 		})
 	})
@@ -520,7 +539,7 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 		if tight {
 			return
 		}
-		cell(c, cols[1].width, 0).Children(func() { label(c, x.status(s.now), stateColor(p, x.bucket())) })
+		cell(c, cols[1].width, 0).Children(func() { s.containerStatus(c, p, x) })
 		if !narrow {
 			cell(c, cols[2].width, 0).Children(func() {
 				if len(x.Ports) == 0 {
@@ -561,38 +580,34 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 		cell(c, cols[6].width, 0).Children(func() { label(c, since(s.now, x.Created), p.muted) })
 	}, func() {
 		s.containerActions(c, p, x)
-		iconButton(c.Key("more"), p, "more", tr("更多操作 ", "More actions for ")+x.Name, false).PopoverMenuButton(func(m *ui.Menu) {
-			show := func(tab int) {
+		show := func(tab int) func() {
+			return func() {
 				s.selectRow(x.ID)
 				s.tab[containersPage] = tab
 			}
-			if addr := s.localURL(x); addr != "" && m.Item(fmt.Sprintf(tr("打开 %s", "Open %s"), addr)).Chosen() {
-				c.OpenURL(addr)
-			}
-			if m.Item(tr("日志", "Logs")).Chosen() {
-				show(1)
-			}
-			if m.Item(tr("终端", "Terminal")).Chosen() {
-				show(2)
-			}
-			if m.Item(tr("文件", "Files")).Chosen() {
-				show(3)
-			}
-			if s.launcherPath != "" && m.Item(tr("调试终端", "Debug Shell")).Disabled(x.bucket() != "running").Chosen() {
-				s.openDebugShell(x)
-			}
-			if s.launcher != nil && m.Item(tr("打包…", "Pack…")).Disabled(s.working["pack"]).Chosen() {
-				s.pack([]string{x.Name}, "", x.Name)
-			}
-			if m.Item(tr("复制 ID", "Copy ID")).Chosen() {
+		}
+		var entries []menuEntry
+		if addr := s.localURL(x); addr != "" {
+			entries = append(entries, menuEntry{label: fmt.Sprintf(tr("打开 %s", "Open %s"), addr), run: func() { c.OpenURL(addr) }})
+		}
+		entries = append(entries,
+			menuEntry{label: tr("日志", "Logs"), run: show(1)},
+			menuEntry{label: tr("终端", "Terminal"), run: show(2)},
+			menuEntry{label: tr("文件", "Files"), run: show(3)})
+		if s.launcherPath != "" {
+			entries = append(entries, menuEntry{label: tr("调试终端", "Debug Shell"), disabled: x.bucket() != "running", run: func() { s.openDebugShell(x) }})
+		}
+		if s.launcher != nil {
+			entries = append(entries, menuEntry{label: tr("打包…", "Pack…"), disabled: s.working["pack"], run: func() { s.pack([]string{x.Name}, "", x.Name) }})
+		}
+		entries = append(entries,
+			menuEntry{label: tr("复制 ID", "Copy ID"), run: func() {
 				c.WriteClipboard(x.ID)
 				s.notices = append(s.notices, tr("已复制", "Copied"))
-			}
-			m.Separator()
-			if m.Item(tr("删除…", "Delete…")).Danger().Chosen() {
-				s.removeContainer(x)
-			}
-		})
+			}},
+			menuEntry{},
+			menuEntry{label: tr("删除…", "Delete…"), danger: true, run: func() { s.removeContainer(x) }})
+		s.moreMenu(c.Key("more"), p, tr("更多操作 ", "More actions for ")+x.Name, entries)
 	})
 }
 
@@ -606,7 +621,7 @@ func (s *desktop) containerDock(c *ui.Context, p palette, x container) {
 	}
 	tabs := []string{tr("信息", "Info"), tr("日志", "Logs"), tr("终端", "Terminal"), tr("文件", "Files"), tr("设置", "Container settings")}
 	s.dock(c, p, x.Name, func() {
-		label(c, x.status(s.now), stateColor(p, x.bucket())).Shrink(0)
+		s.containerStatus(c, p, x).Shrink(0)
 		if addr := s.localURL(x); addr != "" {
 			link := clickable(c.Key("address")).Label(fmt.Sprintf(tr("打开 %s", "Open %s"), addr)).Tooltip(addr).Height(22).PaddingX(7).Gap(4).
 				Radius(6).AlignItems(ui.Center).MinWidth(0).Shrink(1).Background(p.accent.Alpha(0.1))

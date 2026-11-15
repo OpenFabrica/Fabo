@@ -857,6 +857,20 @@ func keyValues(c *ui.Context, p palette, fields []field) {
 			for i, f := range fields {
 				ui.Row(c.Key(i)).FillWidth().Gap(12).AlignItems(ui.Start).Children(func() {
 					ui.Text(c, f.label).Width(96).Shrink(0).FontSize(12).TextColor(p.muted)
+					// A web address opens in the browser.
+					if strings.HasPrefix(f.value, "http://") || strings.HasPrefix(f.value, "https://") {
+						link := clickable(c.Key("open")).Label(fmt.Sprintf(tr("打开 %s", "Open %s"), f.value)).Tooltip(f.value).MinWidth(0).Shrink(1)
+						link.Children(func() {
+							text := ui.Text(c, f.value).Font(mono).FontSize(11.5).TextColor(p.link)
+							if link.Hovered() {
+								text.Underline()
+							}
+						})
+						if link.Clicked() {
+							c.OpenURL(f.value)
+						}
+						return
+					}
 					ui.Text(c, f.value).Width(0).Grow(1).MinWidth(0).Font(mono).FontSize(11.5).TextColor(p.text).Selectable()
 				})
 			}
@@ -889,7 +903,7 @@ func (s *desktop) users(c *ui.Context, p palette, list []container) {
 				dot(c, p, x.bucket())
 				cell(c, 0, 1).Children(func() { label(c, x.Name, p.text) })
 				cell(c, 0, 1).Children(func() { label(c, x.Image, p.muted) })
-				cell(c, 170, 0).Children(func() { label(c, x.status(s.now), stateColor(p, x.bucket())) })
+				cell(c, 170, 0).Children(func() { s.containerStatus(c, p, x) })
 			})
 			if b.Clicked() {
 				s.open(containersPage, x.ID)

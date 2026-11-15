@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -239,6 +240,95 @@ func iconButton(c *ui.Context, p palette, icon, label string, disabled bool) ui.
 	}
 	b.Children(func() { ui.Icon(c, icons[icon]).Size(15, 15).TextColor(ink) })
 	return b
+}
+
+// menuEntry is one row of a moreMenu: a choice, or a separator when label
+// is empty.
+type menuEntry struct {
+	label            string
+	disabled, danger bool
+	run              func()
+}
+
+// moreMenuState is whether a moreMenu shows and where the pointer has been
+// since it opened.
+type moreMenuState struct {
+	open bool
+	// armed: the pointer has been on the button or the menu since it opened.
+	// A menu the keyboard opened with the pointer elsewhere never closes by
+	// itself, as the pointer never left it.
+	armed bool
+	// leftAt is when the pointer left the button and the menu, zero while on
+	// either.
+	leftAt time.Time
+}
+
+// moreMenuGrace is how long the pointer may be off the button and the menu
+// before it closes: long enough to cross the gap between them, or to
+// overshoot an edge, without losing the menu.
+const moreMenuGrace = 300 * time.Millisecond
+
+// moreMenu is the "more actions" button of a row, with a menu that also
+// closes once the pointer has left both the button and the menu for a
+// moment, besides Escape, Tab and a press elsewhere. label names the button
+// and keys its state, so it must be unique among the rows shown.
+func (s *desktop) moreMenu(c *ui.Context, p palette, label string, entries []menuEntry) {
+	st := s.menus[label]
+	if st == nil {
+		st = &moreMenuState{}
+		s.menus[label] = st
+	}
+	m := ui.MenuBase(c, &st.open)
+	b := m.Trigger.Label(label).Tooltip(label).Size(28, 28).Shrink(0).Center().Radius(7).Cursor(ui.CursorPointer)
+	ink := p.muted
+	if b.Hovered() || st.open {
+		b.Background(p.raised)
+		ink = p.text
+	}
+	b.Children(func() { ui.Icon(c, icons["more"]).Size(15, 15).TextColor(ink) })
+
+	// Close before building the menu once the pointer has stayed away long
+	// enough; whether it is away is known only after the menu is built.
+	if !st.open || !st.leftAt.IsZero() && c.Now().Sub(st.leftAt) >= moreMenuGrace {
+		*st = moreMenuState{}
+	}
+
+	panel := m.Popup(func(panel ui.Element) {
+		panel.Padding(5).Radius(10).MinWidth(180).Background(p.panel).Border(1, p.line).Shadow(0, 6, 18, 0, ui.Hex("#000000").Alpha(0.14))
+		for i, e := range entries {
+			if e.label == "" {
+				ui.Box(c.Key(i)).Height(1).FillWidth().Margin(5, 8).Background(p.line)
+				continue
+			}
+			item := m.Item().Padding(6, 10).Radius(6).Disabled(e.disabled).Cursor(pointerFor(e.disabled))
+			text := p.text
+			switch {
+			case e.disabled:
+				text = p.muted.Alpha(0.5)
+			case item.Highlighted():
+				item.Background(p.accent)
+				text = p.onAccent
+			case e.danger:
+				text = p.err
+			}
+			item.Children(func() { ui.Text(c, e.label).FontSize(13).TextColor(text) })
+			if item.Clicked() && e.run != nil {
+				e.run()
+			}
+		}
+	})
+	switch {
+	case !st.open:
+	case b.Hovered() || panel.Hovered():
+		st.armed, st.leftAt = true, time.Time{}
+	case !st.armed:
+	case st.leftAt.IsZero():
+		st.leftAt = c.Now()
+		c.After(moreMenuGrace)
+	default:
+		// A frame came in between; keep the one that closes the menu due.
+		c.After(moreMenuGrace - c.Now().Sub(st.leftAt))
+	}
 }
 
 const (

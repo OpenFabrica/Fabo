@@ -299,11 +299,21 @@ func has(tt *ui.Tester, labels ...string) (missing string) {
 	return ""
 }
 
-// Compose members sit under their project's heading, and folding the
-// heading hides them without touching the other rows.
+// The page opens on the running containers, whose status is only how long
+// they have run. Compose members sit under their project's heading, and
+// folding the heading hides them without touching the other rows.
 func TestContainersGroupUnderTheirComposeProject(t *testing.T) {
 	_, s := newFakeEngine(t)
 	tt := ui.NewTester(s.view, 1180, 760)
+	if m := has(tt, "Details for shop-api-1", "Up 4 min"); m != "" {
+		t.Fatalf("missing %q in %q", m, tt.Texts())
+	}
+	if _, found := tt.Find("Exited (1) · 6 min ago"); found {
+		t.Fatal("a stopped container shown before choosing All")
+	}
+	if err := tt.Click("All"); err != nil {
+		t.Fatal(err)
+	}
 	if m := has(tt, "shop", "Compose · 2/2 running", "Details for shop-api-1", "Details for redis-cache", "Exited (1) · 6 min ago"); m != "" {
 		t.Fatalf("missing %q in %q", m, tt.Texts())
 	}
@@ -323,6 +333,9 @@ func TestContainersGroupUnderTheirComposeProject(t *testing.T) {
 func TestPickedContainersAreActedOnTogether(t *testing.T) {
 	f, s := newFakeEngine(t)
 	tt := ui.NewTester(s.view, 1180, 760)
+	if err := tt.Click("All"); err != nil {
+		t.Fatal(err)
+	}
 	if err := tt.Click("Select shop"); err != nil {
 		t.Fatal(err)
 	}
@@ -572,6 +585,39 @@ func TestContainersShowTheirLocalAddress(t *testing.T) {
 	}
 }
 
+// Restarting and stopping answer twice: the row says what is under way,
+// and a notice reports the outcome, once for a whole project.
+func TestContainerChangesGiveFeedback(t *testing.T) {
+	f, s := newFakeEngine(t)
+	tt := ui.NewTester(s.view, 1180, 760)
+	s.changing["c-api"] = "restart"
+	tt.Frame()
+	if m := has(tt, "Restarting…"); m != "" {
+		t.Fatalf("missing %q in %q", m, tt.Texts())
+	}
+	delete(s.changing, "c-api")
+
+	var notices []string
+	record := func() {
+		notices = append(notices, s.notices...)
+		s.notices = nil
+	}
+	s.restartContainer(container{ID: "c-api", Name: "shop-api-1"})
+	record()
+	s.changeContainers([]container{{ID: "c-api", Name: "shop-api-1"}, {ID: "c-web", Name: "shop-web-1"}}, "stop")
+	record()
+	if strings.Join(notices, "|") != "Restarted shop-api-1|Stopped 2 containers" {
+		t.Fatalf("notices %q", notices)
+	}
+	if len(s.changing) != 0 || len(s.working) != 0 {
+		t.Fatalf("left busy: %v %v", s.changing, s.working)
+	}
+	if got := strings.Join(f.changed(), ", "); !strings.Contains(got, "POST /containers/c-api/restart") ||
+		!strings.Contains(got, "POST /containers/c-api/stop") || !strings.Contains(got, "POST /containers/c-web/stop") {
+		t.Fatalf("requests: %s", got)
+	}
+}
+
 // A port published on IPv4 and IPv6 arrives twice and is shown once.
 func TestContainerPortsAreListedOnce(t *testing.T) {
 	_, s := newFakeEngine(t)
@@ -583,6 +629,9 @@ func TestContainerPortsAreListedOnce(t *testing.T) {
 func TestStopAndStartReachTheEngine(t *testing.T) {
 	f, s := newFakeEngine(t)
 	tt := ui.NewTester(s.view, 1180, 760)
+	if err := tt.Click("All"); err != nil {
+		t.Fatal(err)
+	}
 	if err := tt.Click("Stop shop-web-1"); err != nil {
 		t.Fatal(err)
 	}
@@ -603,7 +652,7 @@ func TestDeleteNeedsConfirmation(t *testing.T) {
 	if err := tt.Click("More actions for redis-cache"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("Delete…"); err != nil {
+	if err := tt.Click("Delete…"); err != nil {
 		t.Fatal(err)
 	}
 	if m := has(tt, "Delete container redis-cache?", "The container is running and will be force-stopped."); m != "" {
@@ -1290,5 +1339,76 @@ func TestClickableElementsShowThePointingHand(t *testing.T) {
 	// nginx is in use, so its delete button is disabled.
 	if got := over("Delete nginx:1.27-alpine"); got == ui.CursorPointer {
 		t.Error("a disabled button shows the pointing hand")
+	}
+}
+
+// A row's more-actions menu stays while the pointer is on its button or on
+// the menu, survives a brief trip off them, and closes once the pointer has
+// been away for the grace period.
+func TestMoreMenuClosesWhenThePointerLeaves(t *testing.T) {
+	_, s := newFakeEngine(t)
+	tt := ui.NewTester(s.view, 1180, 760)
+	button, ok := tt.Find("More actions for shop-api-1")
+	if !ok {
+		t.Fatalf("no menu button in %q", tt.Texts())
+	}
+	tt.Move(button.X+button.W/2, button.Y+button.H/2)
+	click(t, tt, "More actions for shop-api-1")
+	logs, ok := tt.Find("Copy ID")
+	if !ok {
+		t.Fatal("menu did not open")
+	}
+	tt.Move(logs.X+logs.W/2, logs.Y+logs.H/2)
+	tt.Advance(time.Second)
+	if !tt.HasText("Copy ID") {
+		t.Fatal("menu closed with the pointer on it")
+	}
+	tt.Move(20, 700)
+	tt.Advance(moreMenuGrace / 3)
+	if !tt.HasText("Copy ID") {
+		t.Fatal("menu closed before the grace period")
+	}
+	tt.Advance(moreMenuGrace)
+	if tt.HasText("Copy ID") {
+		t.Fatalf("menu still open after the pointer left: %+v", *s.menus["More actions for shop-api-1"])
+	}
+}
+
+// In the info tab a web address is a link that opens it; other values stay
+// plain, selectable text.
+func TestInfoAddressOpens(t *testing.T) {
+	p := colors(false, "")
+	tt := ui.NewTester(func(c *ui.Context) {
+		keyValues(c, p, []field{{"Local address", "https://web.shop.fabo.local"}, {"ID", "c-api"}})
+	}, 600, 200)
+	if err := tt.Click("Open https://web.shop.fabo.local"); err != nil {
+		t.Fatal(err)
+	}
+	if _, found := tt.Find("Open c-api"); found {
+		t.Fatal("a plain value became a link")
+	}
+	if opened := tt.OpenedURLs(); !slices.Equal(opened, []string{"https://web.shop.fabo.local"}) {
+		t.Fatalf("opened %v", opened)
+	}
+}
+
+// Settings starts from the name the container already answers to, saves
+// its names through the engine, and only once they differ from that.
+func TestContainerDomainIsSavedFromSettings(t *testing.T) {
+	f, s := newFakeEngine(t)
+	s.open(containersPage, "c-api")
+	s.tab[containersPage] = 4
+	tt := ui.NewTester(s.view, 1180, 760)
+	d := &s.containerDraft
+	if !d.loaded || d.domain != "api.shop" || d.savedDomain != "api.shop" {
+		t.Fatalf("draft %+v", *d)
+	}
+	if err := tt.Click("Save domain"); err == nil && len(f.changed()) != 0 {
+		t.Fatalf("an unchanged domain was saved: %v", f.changed())
+	}
+	d.domain = "api.shop, admin.shop"
+	s.saveContainerSettings("domain")
+	if got := f.changed(); len(got) != 1 || got[0] != "POST /fabo/containers/c-api/domain" || !strings.Contains(f.body(), `"domain":"api.shop, admin.shop"`) {
+		t.Fatalf("requests: %v %s", got, f.body())
 	}
 }

@@ -425,7 +425,6 @@
   "Unused images removed": "Image yang tidak digunakan dihapus",
   "Unused volumes removed": "Volume yang tidak digunakan dihapus",
   "Up": "aktif",
-  "Up ": "aktif ",
   "Use ": "Gunakan ",
   "Used by": "Dipakai oleh",
   "Used by %d": "dipakai oleh %[1]d",
@@ -587,5 +586,16 @@
   "VPN-friendly": "Kompatibel VPN",
   "System NAT": "NAT sistem",
   "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "Fabo membuka koneksi kontainer di %s, jadi VPN, Tailscale, dan aplikasi proxy juga berlaku untuk kontainer. Throughput maksimum lebih rendah daripada NAT (sekitar 500 MB/s), lebih dari cukup untuk unduhan biasa.",
-  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "Paling cepat, tetapi VPN, Tailscale, dan mode lanjutan aplikasi proxy mungkin tidak menjangkau kontainer."
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "Paling cepat, tetapi VPN, Tailscale, dan mode lanjutan aplikasi proxy mungkin tidak menjangkau kontainer.",
+  ": ": ": ",
+  "Started %d containers": "%d kontainer dimulai",
+  "Stopped %d containers": "%d kontainer dihentikan",
+  "Restarted %d containers": "%d kontainer dimulai ulang",
+  "Up %s": "aktif %s",
+  "Started %s": "%s dimulai",
+  "Stopped %s": "%s dihentikan",
+  "Restarted %s": "%s dimulai ulang",
+  "Domain": "Domain",
+  "Save domain": "Simpan domain",
+  "The container also answers at <name>.%s; separate several with commas. Changes apply immediately.": "Kontainer juga dapat diakses di <nama>.%s; pisahkan beberapa nama dengan koma. Perubahan langsung berlaku."
 }

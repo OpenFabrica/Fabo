@@ -425,7 +425,6 @@
   "Unused images removed": "Неиспользуемые образы удалены",
   "Unused volumes removed": "Неиспользуемые тома удалены",
   "Up": "работает",
-  "Up ": "работает ",
   "Use ": "Использовать ",
   "Used by": "Используется",
   "Used by %d": "используется: %[1]d",
@@ -587,5 +586,16 @@
   "VPN-friendly": "Совместимо с VPN",
   "System NAT": "Системный NAT",
   "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "Fabo открывает соединения контейнеров в %s, поэтому VPN, Tailscale и прокси-приложения действуют и для контейнеров. Предельная скорость ниже, чем через NAT (около 500 МБ/с), но обычным загрузкам этого с запасом хватает.",
-  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "Быстрее всего, но VPN, Tailscale и расширенные режимы прокси-приложений могут не работать в контейнерах."
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "Быстрее всего, но VPN, Tailscale и расширенные режимы прокси-приложений могут не работать в контейнерах.",
+  ": ": ": ",
+  "Started %d containers": "Запущено контейнеров: %d",
+  "Stopped %d containers": "Остановлено контейнеров: %d",
+  "Restarted %d containers": "Перезапущено контейнеров: %d",
+  "Up %s": "работает %s",
+  "Started %s": "%s запущен",
+  "Stopped %s": "%s остановлен",
+  "Restarted %s": "%s перезапущен",
+  "Domain": "Домен",
+  "Save domain": "Сохранить домен",
+  "The container also answers at <name>.%s; separate several with commas. Changes apply immediately.": "Контейнер также доступен по адресу <имя>.%s; несколько имён разделяйте запятыми. Изменения применяются сразу."
 }

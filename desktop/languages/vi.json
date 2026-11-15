@@ -425,7 +425,6 @@
   "Unused images removed": "Đã xóa ảnh chưa dùng",
   "Unused volumes removed": "Đã xóa ổ đĩa chưa dùng",
   "Up": "trực tuyến",
-  "Up ": "trực tuyến ",
   "Use ": "Dùng ",
   "Used by": "Được dùng bởi",
   "Used by %d": "được dùng bởi %[1]d",
@@ -587,5 +586,16 @@
   "VPN-friendly": "Tương thích VPN",
   "System NAT": "NAT hệ thống",
   "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "Fabo mở kết nối của container trên %s, nên VPN, Tailscale và ứng dụng proxy cũng áp dụng cho container. Thông lượng tối đa thấp hơn NAT (khoảng 500 MB/s), vẫn dư cho các lượt tải thông thường.",
-  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "Nhanh nhất, nhưng VPN, Tailscale và chế độ nâng cao của ứng dụng proxy có thể không tới được container."
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "Nhanh nhất, nhưng VPN, Tailscale và chế độ nâng cao của ứng dụng proxy có thể không tới được container.",
+  ": ": ": ",
+  "Started %d containers": "Đã khởi động %d container",
+  "Stopped %d containers": "Đã dừng %d container",
+  "Restarted %d containers": "Đã khởi động lại %d container",
+  "Up %s": "trực tuyến %s",
+  "Started %s": "Đã khởi động %s",
+  "Stopped %s": "Đã dừng %s",
+  "Restarted %s": "Đã khởi động lại %s",
+  "Domain": "Tên miền",
+  "Save domain": "Lưu tên miền",
+  "The container also answers at <name>.%s; separate several with commas. Changes apply immediately.": "Container cũng truy cập được qua <tên>.%s; ngăn cách nhiều tên bằng dấu phẩy. Thay đổi có hiệu lực ngay."
 }

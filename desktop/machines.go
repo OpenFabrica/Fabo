@@ -169,19 +169,18 @@ func (s *desktop) machineActions(c *ui.Context, p palette, x container, running 
 	} else if iconButton(c.Key("start"), p, "play", tr("启动 ", "Start ")+x.Machine, busy).Clicked() {
 		s.startContainer(x)
 	}
-	iconButton(c.Key("more"), p, "more", tr("更多操作 ", "More actions for ")+x.Machine, false).PopoverMenuButton(func(m *ui.Menu) {
-		if running && m.Item(tr("重启", "Restart")).Chosen() {
-			s.restartContainer(x)
-		}
-		if m.Item(tr("复制终端命令", "Copy the shell command")).Chosen() {
+	var entries []menuEntry
+	if running {
+		entries = append(entries, menuEntry{label: tr("重启", "Restart"), run: func() { s.restartContainer(x) }})
+	}
+	entries = append(entries,
+		menuEntry{label: tr("复制终端命令", "Copy the shell command"), run: func() {
 			c.WriteClipboard("fabo machine shell " + x.Machine)
 			s.notices = append(s.notices, tr("已复制", "Copied"))
-		}
-		m.Separator()
-		if m.Item(tr("删除…", "Delete…")).Danger().Chosen() {
-			s.removeMachine(x)
-		}
-	})
+		}},
+		menuEntry{},
+		menuEntry{label: tr("删除…", "Delete…"), danger: true, run: func() { s.removeMachine(x) }})
+	s.moreMenu(c.Key("more"), p, tr("更多操作 ", "More actions for ")+x.Machine, entries)
 }
 
 // machineDock shows a machine: what it runs and how to reach it.

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -80,6 +81,99 @@ func (e *Engine) setEnvironment(key string, env []string) error {
 	if err := e.startContainer(c, false); err != nil {
 		return fmt.Errorf("environment saved but restart failed: %w", err)
 	}
+	return nil
+}
+
+// setDomainHTTP sets the names a container answers to under fabo.local
+// (its dev.fabo.domain label); an empty domain removes them.
+func (e *Engine) setDomainHTTP(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Domain *string `json:"domain"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&input); err != nil || input.Domain == nil {
+		writeError(w, fmt.Errorf("%w: domain must be a string of comma-separated names", errInvalid))
+		return
+	}
+	names, err := domainNames(*input.Domain)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	if err := e.setDomain(r.PathValue("id"), names); err != nil {
+		writeError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// domainNames reads comma-separated names as the router matches them: a
+// prefix such as "api.shop", or a full name under fabo.local or
+// fabo.localhost, which is cut to its prefix. Each comes out lower case,
+// once.
+func domainNames(text string) ([]string, error) {
+	var names []string
+	for raw := range strings.SplitSeq(text, ",") {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		name := strings.ToLower(strings.TrimSuffix(raw, "."))
+		for _, suffix := range domainSuffixes {
+			name = strings.TrimSuffix(name, "."+suffix)
+		}
+		if _, base := domainHost(name + "." + domainSuffixes[0]); base != name {
+			return nil, fmt.Errorf("%w: %q is not a valid name: use letters, digits, hyphens and dots", errInvalid, raw)
+		}
+		if !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+	}
+	return names, nil
+}
+
+// setDomain saves names as the container's dev.fabo.domain label. The
+// router reads labels on every request, so the names answer at once,
+// without a restart. A name another container already answers to is
+// refused: the router would pick only one of them.
+func (e *Engine) setDomain(key string, names []string) error {
+	c, err := e.lockOperation(key)
+	if err != nil {
+		return err
+	}
+	defer c.operation.Unlock()
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.closed || c.removing {
+		return fmt.Errorf("%w: cannot change the domain in the container's current state", errConflict)
+	}
+	for _, name := range names {
+		for _, other := range e.containers {
+			if other != c && matchesDomain(other, name) {
+				return fmt.Errorf("%w: %s.%s already belongs to %s", errConflict, name, domainSuffixes[0], other.name)
+			}
+		}
+	}
+	// A new map: readers that took the old one outside the lock keep a
+	// consistent copy.
+	labels := maps.Clone(c.labels)
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	if len(names) == 0 {
+		delete(labels, domainLabel)
+	} else {
+		labels[domainLabel] = strings.Join(names, ",")
+	}
+	if maps.Equal(labels, c.labels) {
+		return nil
+	}
+	old := c.labels
+	c.labels = labels
+	if err := e.save(c); err != nil {
+		c.labels = old
+		return err
+	}
+	e.emitContainer(c, "update", nil)
 	return nil
 }
 

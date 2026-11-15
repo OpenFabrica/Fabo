@@ -425,7 +425,6 @@
   "Unused images removed": "Ungenutzte Images entfernt",
   "Unused volumes removed": "Ungenutzte Volumes entfernt",
   "Up": "aktiv",
-  "Up ": "aktiv ",
   "Use ": "Verwenden: ",
   "Used by": "Nutzer",
   "Used by %d": "genutzt von %[1]d",
@@ -587,5 +586,16 @@
   "VPN-friendly": "VPN-kompatibel",
   "System NAT": "System-NAT",
   "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "Fabo öffnet Container-Verbindungen auf %s, daher gelten VPNs, Tailscale und Proxy-Apps auch für Container. Der Durchsatz ist niedriger begrenzt als mit NAT (etwa 500 MB/s), was für normale Downloads mehr als genug ist.",
-  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "Am schnellsten, aber VPNs, Tailscale und erweiterte Modi von Proxy-Apps erreichen Container möglicherweise nicht."
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "Am schnellsten, aber VPNs, Tailscale und erweiterte Modi von Proxy-Apps erreichen Container möglicherweise nicht.",
+  ": ": ": ",
+  "Started %d containers": "%d Container gestartet",
+  "Stopped %d containers": "%d Container gestoppt",
+  "Restarted %d containers": "%d Container neu gestartet",
+  "Up %s": "aktiv %s",
+  "Started %s": "%s gestartet",
+  "Stopped %s": "%s gestoppt",
+  "Restarted %s": "%s neu gestartet",
+  "Domain": "Domain",
+  "Save domain": "Domain speichern",
+  "The container also answers at <name>.%s; separate several with commas. Changes apply immediately.": "Der Container ist auch unter <name>.%s erreichbar; mehrere Namen durch Kommas trennen. Änderungen gelten sofort."
 }

@@ -425,7 +425,6 @@
   "Unused images removed": "已清理未使用的鏡像",
   "Unused volumes removed": "已清理未使用的卷",
   "Up": "已執行",
-  "Up ": "已執行 ",
   "Use ": "使用 ",
   "Used by": "使用者",
   "Used by %d": "由 %[1]d 使用",
@@ -587,5 +586,16 @@
   "VPN-friendly": "相容 VPN",
   "System NAT": "系統 NAT",
   "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "容器的連線由 Fabo 在 %s 上代為發出，VPN、Tailscale 和代理軟體對容器同樣生效。吞吐上限比 NAT 低（約 500 MB/s），一般下載用不到這麼快。",
-  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "傳輸最快，但 VPN、Tailscale 和代理軟體的增強模式在容器內可能不生效。"
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "傳輸最快，但 VPN、Tailscale 和代理軟體的增強模式在容器內可能不生效。",
+  ": ": "：",
+  "Started %d containers": "已啟動 %d 個容器",
+  "Stopped %d containers": "已停止 %d 個容器",
+  "Restarted %d containers": "已重新啟動 %d 個容器",
+  "Up %s": "執行 %s",
+  "Started %s": "已啟動 %s",
+  "Stopped %s": "已停止 %s",
+  "Restarted %s": "已重新啟動 %s",
+  "Domain": "網域",
+  "Save domain": "儲存網域",
+  "The container also answers at <name>.%s; separate several with commas. Changes apply immediately.": "容器也可以用這些名稱存取：<名稱>.%s，多個以逗號分隔。儲存後立即生效。"
 }

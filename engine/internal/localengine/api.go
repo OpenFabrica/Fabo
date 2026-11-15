@@ -118,6 +118,7 @@ func (e *Engine) Handler() http.Handler {
 	mux.HandleFunc("POST /containers/{id}/restart", e.restartHTTP)
 	mux.HandleFunc("POST /fabo/containers/{id}/env", e.setEnvironmentHTTP)
 	mux.HandleFunc("POST /fabo/containers/{id}/ports", e.setPortsHTTP)
+	mux.HandleFunc("POST /fabo/containers/{id}/domain", e.setDomainHTTP)
 	mux.HandleFunc("GET /fabo/containers/{id}/listening", e.listeningHTTP)
 	mux.HandleFunc("POST /fabo/k8s/forward", e.forwardKubernetesHTTP)
 	mux.HandleFunc("DELETE /fabo/k8s/forward/{port}", e.unforwardKubernetesHTTP)

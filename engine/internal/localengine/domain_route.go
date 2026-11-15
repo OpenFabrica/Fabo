@@ -17,6 +17,9 @@ import (
 
 var domainSuffixes = []string{"fabo.local", "fabo.localhost"}
 
+// domainLabel holds the extra names a container answers to, comma-separated.
+const domainLabel = "dev.fabo.domain"
+
 func domainHost(host string) (string, string) {
 	if name, _, err := net.SplitHostPort(host); err == nil {
 		host = name
@@ -51,7 +54,7 @@ func matchesDomain(c *container, name string) bool {
 	if service != "" && project != "" && strings.EqualFold(service+"."+project, name) {
 		return true
 	}
-	for label := range strings.SplitSeq(c.labels["dev.fabo.domain"], ",") {
+	for label := range strings.SplitSeq(c.labels[domainLabel], ",") {
 		label = strings.TrimSpace(label)
 		if _, base := domainHost(label); base != "" {
 			label = base

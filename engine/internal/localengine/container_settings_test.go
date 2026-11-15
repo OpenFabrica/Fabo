@@ -72,3 +72,41 @@ func TestListeningPortsDistinguishLoopbackAndIPv6(t *testing.T) {
 		t.Fatalf("isolated listeners: tcp %v, local %v", tcp, local)
 	}
 }
+
+// Names typed in Settings are normalized, take effect for the router at
+// once, refuse a name another container answers to, and clear when empty.
+func TestSetDomainUpdatesTheRouterAndRefusesTakenNames(t *testing.T) {
+	web := &container{id: "web0123456789", name: "web", labels: map[string]string{"com.docker.compose.project": "shop"}}
+	db := &container{id: "db0123456789", name: "db"}
+	e := &Engine{containers: map[string]*container{web.id: web, db.id: db}}
+
+	names, err := domainNames(" Shop.fabo.local, api.shop ,shop ")
+	if err != nil || !slices.Equal(names, []string{"shop", "api.shop"}) {
+		t.Fatalf("names %v, %v", names, err)
+	}
+	if _, err := domainNames("bad name"); err == nil {
+		t.Fatal("a name with a space was accepted")
+	}
+	before := web.labels
+	if err := e.setDomain("web", names); err != nil {
+		t.Fatal(err)
+	}
+	if web.labels[domainLabel] != "shop,api.shop" || before[domainLabel] != "" || web.labels["com.docker.compose.project"] != "shop" {
+		t.Fatalf("labels %v (old map %v)", web.labels, before)
+	}
+	if !matchesDomain(web, "api.shop") {
+		t.Fatal("router does not see the new name")
+	}
+	if err := e.setDomain("db", []string{"api.shop"}); err == nil {
+		t.Fatal("a name of another container was accepted")
+	}
+	if err := e.setDomain("db", []string{"web"}); err == nil {
+		t.Fatal("another container's own name was accepted")
+	}
+	if err := e.setDomain("web", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := web.labels[domainLabel]; ok || matchesDomain(web, "api.shop") {
+		t.Fatalf("names not cleared: %v", web.labels)
+	}
+}

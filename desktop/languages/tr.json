@@ -425,7 +425,6 @@
   "Unused images removed": "Kullanılmayan imajlar kaldırıldı",
   "Unused volumes removed": "Kullanılmayan birimler kaldırıldı",
   "Up": "çalışma süresi",
-  "Up ": "çalışma süresi ",
   "Use ": "Kullan: ",
   "Used by": "Kullanan",
   "Used by %d": "kullanan: %[1]d",
@@ -587,5 +586,16 @@
   "VPN-friendly": "VPN uyumlu",
   "System NAT": "Sistem NAT",
   "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "Fabo kapsayıcı bağlantılarını %s üzerinde açar; bu yüzden VPN'ler, Tailscale ve proxy uygulamaları kapsayıcılarda da geçerlidir. Azami aktarım hızı NAT'tan düşüktür (yaklaşık 500 MB/s), ama sıradan indirmeler için fazlasıyla yeterlidir.",
-  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "En hızlısı, ancak VPN'ler, Tailscale ve proxy uygulamalarının gelişmiş modları kapsayıcılara ulaşmayabilir."
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "En hızlısı, ancak VPN'ler, Tailscale ve proxy uygulamalarının gelişmiş modları kapsayıcılara ulaşmayabilir.",
+  ": ": ": ",
+  "Started %d containers": "%d kapsayıcı başlatıldı",
+  "Stopped %d containers": "%d kapsayıcı durduruldu",
+  "Restarted %d containers": "%d kapsayıcı yeniden başlatıldı",
+  "Up %s": "çalışma süresi %s",
+  "Started %s": "%s başlatıldı",
+  "Stopped %s": "%s durduruldu",
+  "Restarted %s": "%s yeniden başlatıldı",
+  "Domain": "Alan adı",
+  "Save domain": "Alan adını kaydet",
+  "The container also answers at <name>.%s; separate several with commas. Changes apply immediately.": "Kapsayıcıya <ad>.%s ile de erişilebilir; birden fazlasını virgülle ayırın. Değişiklikler hemen uygulanır."
 }

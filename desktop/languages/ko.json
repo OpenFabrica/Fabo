@@ -425,7 +425,6 @@
   "Unused images removed": "사용하지 않는 이미지 제거됨",
   "Unused volumes removed": "사용하지 않는 볼륨 제거됨",
   "Up": "가동",
-  "Up ": "가동 ",
   "Use ": "사용: ",
   "Used by": "사용처",
   "Used by %d": "사용처: %[1]d",
@@ -587,5 +586,16 @@
   "VPN-friendly": "VPN 호환",
   "System NAT": "시스템 NAT",
   "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "Fabo가 %s에서 컨테이너 연결을 대신 열기 때문에 VPN, Tailscale, 프록시 앱이 컨테이너에도 적용됩니다. 처리량 상한은 NAT보다 낮지만(약 500 MB/s) 일반 다운로드에는 충분합니다.",
-  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "가장 빠르지만 VPN, Tailscale, 프록시 앱의 향상 모드가 컨테이너에 적용되지 않을 수 있습니다."
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "가장 빠르지만 VPN, Tailscale, 프록시 앱의 향상 모드가 컨테이너에 적용되지 않을 수 있습니다.",
+  ": ": ": ",
+  "Started %d containers": "컨테이너 %d개를 시작함",
+  "Stopped %d containers": "컨테이너 %d개를 중지함",
+  "Restarted %d containers": "컨테이너 %d개를 다시 시작함",
+  "Up %s": "가동 %s",
+  "Started %s": "%s 시작함",
+  "Stopped %s": "%s 중지함",
+  "Restarted %s": "%s 다시 시작함",
+  "Domain": "도메인",
+  "Save domain": "도메인 저장",
+  "The container also answers at <name>.%s; separate several with commas. Changes apply immediately.": "컨테이너는 이 이름으로도 접속됩니다: <이름>.%s. 여러 개는 쉼표로 구분합니다. 저장하면 바로 적용됩니다."
 }

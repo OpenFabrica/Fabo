@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -182,6 +184,11 @@ type desktop struct {
 	form        form
 	notices     []string
 	working     map[string]bool
+	// changing is the start, stop or restart under way for a container,
+	// by ID, so its row can say so until the engine answers.
+	changing map[string]string
+	// menus are the rows' more-actions menus, by button label.
+	menus map[string]*moreMenuState
 	// staleLater hides the strip asking to restart an engine of another
 	// version, until the window is opened again.
 	staleLater  bool
@@ -192,13 +199,13 @@ type desktop struct {
 	memory      float64
 	// netMode is the network mode picked in Settings → Network, as an index
 	// into vmNetworkModes, until it is saved.
-	netMode int
-	cacheGB     string
-	resOK       bool
-	proxy       proxyInfo
-	proxyDraft  proxySettings
-	proxyOK     bool
-	domainsOK   bool
+	netMode    int
+	cacheGB    string
+	resOK      bool
+	proxy      proxyInfo
+	proxyDraft proxySettings
+	proxyOK    bool
+	domainsOK  bool
 	// domainsRead marks that the containers page asked for the domain
 	// settings once, so its rows can show their local addresses.
 	domainsRead    bool
@@ -233,9 +240,9 @@ func newDesktop(engine engineClient) *desktop {
 		engine: engine, ctx: context.Background(), page: containersPage, follow: true,
 		prefs: defaultPrefs(), credentials: newRegistryStore(), terminals: map[string]*terminalSession{},
 		usage: map[string]*usage{}, scans: map[string]*scanResult{}, scanning: map[string]float64{},
-		selected: map[string]string{}, tab: map[string]int{containersPage: 1}, filter: map[string]int{},
+		selected: map[string]string{}, tab: map[string]int{containersPage: 1}, filter: map[string]int{containersPage: 1},
 		collapsed: map[string]bool{}, picked: map[string]bool{}, lists: map[string]*ui.ListState{},
-		filePath: map[string]string{}, working: map[string]bool{}, now: time.Now().Unix(),
+		filePath: map[string]string{}, working: map[string]bool{}, changing: map[string]string{}, menus: map[string]*moreMenuState{}, now: time.Now().Unix(),
 		machineTabs: map[string][]string{}, machineActive: map[string]string{},
 		logsCleared: map[string]time.Time{},
 	}
@@ -641,16 +648,90 @@ func (s *desktop) open(page, id string) {
 // containerPath is the API path of a container.
 func containerPath(id string) string { return "/containers/" + url.PathEscape(id) }
 
-func (s *desktop) startContainer(c container) {
-	s.do(c.ID, engineAction{http.MethodPost, containerPath(c.ID) + "/start", nil}, "")
+func (s *desktop) startContainer(c container)   { s.changeContainers([]container{c}, "start") }
+func (s *desktop) stopContainer(c container)    { s.changeContainers([]container{c}, "stop") }
+func (s *desktop) restartContainer(c container) { s.changeContainers([]container{c}, "restart") }
+
+// changeContainers starts, stops or restarts containers together. Their rows
+// say what is under way, and one notice reports the outcome: the container's
+// name for one, a count for several, and each failure on its own.
+func (s *desktop) changeContainers(list []container, action string) {
+	if len(list) == 0 {
+		return
+	}
+	for _, x := range list {
+		s.working[x.ID], s.changing[x.ID] = true, action
+	}
+	s.run(2*time.Minute, func(ctx context.Context) func() {
+		errs := make([]error, len(list))
+		var wg sync.WaitGroup
+		for i, x := range list {
+			wg.Go(func() {
+				errs[i] = s.engine.request(ctx, http.MethodPost, containerPath(x.ID)+"/"+action, nil, nil)
+			})
+		}
+		wg.Wait()
+		return func() {
+			ok := 0
+			for i, x := range list {
+				delete(s.working, x.ID)
+				delete(s.changing, x.ID)
+				if errs[i] != nil {
+					s.notices = append(s.notices, x.Name+tr("：", ": ")+errs[i].Error())
+				} else {
+					ok++
+				}
+			}
+			done := ""
+			if ok == 1 && len(list) == 1 {
+				done = changedText(action, 0, list[0].Name)
+			} else if ok > 0 {
+				done = changedText(action, ok, "")
+			}
+			s.settle(nil, done)
+		}
+	})
+	if s.engine.http == nil {
+		for _, x := range list {
+			delete(s.working, x.ID)
+			delete(s.changing, x.ID)
+		}
+	}
 }
 
-func (s *desktop) stopContainer(c container) {
-	s.do(c.ID, engineAction{http.MethodPost, containerPath(c.ID) + "/stop", nil}, "")
+// changedText words a finished change: "Restarted web" for one named
+// container, or "Restarted 3 containers" when n counts several.
+func changedText(action string, n int, name string) string {
+	switch action {
+	case "start":
+		if n > 0 {
+			return fmt.Sprintf(tr("已启动 %d 个容器", "Started %d containers"), n)
+		}
+		return fmt.Sprintf(tr("已启动 %s", "Started %s"), name)
+	case "stop":
+		if n > 0 {
+			return fmt.Sprintf(tr("已停止 %d 个容器", "Stopped %d containers"), n)
+		}
+		return fmt.Sprintf(tr("已停止 %s", "Stopped %s"), name)
+	}
+	if n > 0 {
+		return fmt.Sprintf(tr("已重启 %d 个容器", "Restarted %d containers"), n)
+	}
+	return fmt.Sprintf(tr("已重启 %s", "Restarted %s"), name)
 }
 
-func (s *desktop) restartContainer(c container) {
-	s.do(c.ID, engineAction{http.MethodPost, containerPath(c.ID) + "/restart", nil}, "")
+// containerStatus is a container's status cell: the change under way while
+// one runs, else its state.
+func (s *desktop) containerStatus(c *ui.Context, p palette, x container) ui.Element {
+	switch s.changing[x.ID] {
+	case "start":
+		return label(c, tr("启动中…", "Starting…"), stateColor(p, "busy"))
+	case "stop":
+		return label(c, tr("停止中…", "Stopping…"), stateColor(p, "busy"))
+	case "restart":
+		return label(c, tr("重启中…", "Restarting…"), stateColor(p, "busy"))
+	}
+	return label(c, x.status(s.now), stateColor(p, x.bucket()))
 }
 
 // removeContainer asks first. A running container is removed by force.

@@ -62,14 +62,22 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   `DOCKER_HOST` set to the window's engine, through the Compose plugin
   itself when it is found, so no docker context is needed); and the members. Checkboxes pick containers, a
   project's box its members; while any are picked the filters give way to
-  start, stop and delete for all of them. Rows show state, the first
-  published port, CPU, memory and age. A running container with
+  start, stop and delete for all of them. The page opens on the Running
+  filter. Rows show state (a running container's uptime as `Up 3 min`,
+  `运行 3 分钟` in Chinese), the first published port, CPU, memory and age.
+  Start, stop and restart, of one container, a project or the picked
+  ones, turn the status to Starting…, Stopping… or Restarting… until the
+  engine answers, then show one notice: the container's name, or a count
+  for several, with each failure reported on its own. A running container with
   published ports shows its local address where the image would be, as
   Kiri does: the first name of `dev.fabo.domain`, else its Compose
   `service.project`, else its name, under `fabo.local` once the machine's
   names are on and `fabo.localhost` otherwise (which macOS resolves with no
   setup), over https once the certificate is trusted, with the router's
-  port when it is not the scheme's default. The ⋯ menu opens it first, and
+  port when it is not the scheme's default. The ⋯ menu (of containers and
+  machines) closes, besides Escape, Tab and a press elsewhere, once the
+  pointer has been off both the button and the menu for 0.3 s; a menu the
+  keyboard opened stays until the pointer has been on it. It opens the address first, and
   the detail panel shows it beside the state and in Info. The dock has Info (from
   inspect), Logs (a live subscription starting with the last 5,000 lines,
   numbered on a dark ground, warnings, errors and debug lines in their own
@@ -78,10 +86,11 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   folder through the container (folders first, with size, age and link
   marks), opens folders by their rows or the path's parts, previews text
   files up to 256 KB and saves any file to Downloads through the archive
-  endpoint. The Settings tab edits
-  the environment
+  endpoint. The Settings tab edits the container's domain names (its
+  `dev.fabo.domain` label, at once), the environment
   (with a confirmed restart) and live TCP/UDP port bindings while retaining
-  the existing container and its data.
+  the existing container and its data. In Info a web address, such as the
+  local address, is a link that opens it.
   - Terminal opens a persistent `/bin/sh` TTY with native terminal emulation,
     continuous input and resize. Navigation preserves the shell; Close terminal
     ends only its exec. See [Continuous terminals and logs](desktop-streams.md).
@@ -1744,6 +1753,17 @@ and reads it back from Docker inspect. A running container restarts
 using its existing ID, writable layer and mounts. For a stopped
 container the settings apply at its next start. If a restart fails
 after saving, the new environment remains available for the next start.
+
+The domain editor posts `{"domain": "api.shop, admin"}` to
+`/fabo/containers/{id}/domain`, which saves the names as the
+`dev.fabo.domain` label; an empty string removes it. Names are prefixes
+under `fabo.local` (a full `….fabo.local` or `….fabo.localhost` name is
+cut to its prefix), lower-cased, deduplicated and checked as DNS labels.
+A name another container already answers to (its name, Compose
+`service.project` or domain label) is refused, since the router would
+serve only one of them. The router reads labels on each request, so the
+change needs no restart. Compose does not see it: recreating the
+container from its Compose file restores the file's labels.
 
 The port editor replaces the requested host bindings for TCP or UDP.
 While the container runs, the host swaps its relays without restarting
