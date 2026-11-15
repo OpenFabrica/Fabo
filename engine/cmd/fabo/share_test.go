@@ -225,3 +225,82 @@ func TestRequestLineAndSizes(t *testing.T) {
 		}
 	}
 }
+
+// TestShareBillingCommands shows billing details and opens only the URL returned by the daemon.
+func TestShareBillingCommands(t *testing.T) {
+	var opened string
+	saved := openURL
+	openURL = func(link string) error { opened = link; return nil }
+	defer func() { openURL = saved }()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/fabo/share":
+			io.WriteString(w, `{"account":{"signedIn":true,"server":"edge.test","login":"a"},"shares":[{"target":"3000","state":"waiting","reason":"quota exhausted: traffic"}]}`)
+		case "/fabo/share/account":
+			io.WriteString(w, `{"billing":true,"plan":{"id":"pro","name":"Pro","expires":"2027-01-01T00:00:00+08:00"},"usage":{"used":1073741824,"cap":5368709120,"resets":"2026-12-01T00:00:00+08:00"}}`)
+		case "/fabo/share/billing":
+			if r.Method != "POST" {
+				t.Error("wrong billing method")
+			}
+			io.WriteString(w, `{"url":"https://edge.test/account?t=once"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	c := &commandClient{http: &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, server.Listener.Addr().String())
+	}}}}
+	var out bytes.Buffer
+	if err := runShare(context.Background(), c, []string{"status"}, &out, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Pro (pro)", "traffic", "2026-12-01", "2027-01-01", "waiting for quota"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("missing %s: %s", want, out.String())
+		}
+	}
+	out.Reset()
+	if err := runShare(context.Background(), c, []string{"status", "--json"}, &out, io.Discard); err != nil || !strings.Contains(out.String(), `"billing":true`) {
+		t.Fatalf("JSON: %s %v", out.String(), err)
+	}
+	out.Reset()
+	if err := runShare(context.Background(), c, []string{"upgrade"}, &out, io.Discard); err != nil || opened != "https://edge.test/account?t=once" || strings.TrimSpace(out.String()) != opened {
+		t.Fatalf("upgrade: %s %s %v", opened, out.String(), err)
+	}
+}
+
+// TestShareWaitingKeepsCLIStreamAlive verifies waiting is reported without ending the daemon lease.
+func TestShareWaitingKeepsCLIStreamAlive(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/x-ndjson")
+		io.WriteString(w, "{\"type\":\"waiting\",\"reason\":\"quota exhausted: traffic\"}\n")
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+	c := &commandClient{http: &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, server.Listener.Addr().String())
+	}}}}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	out := &syncBuffer{}
+	done := make(chan error, 1)
+	go func() { done <- runShare(ctx, c, []string{"3000"}, out, io.Discard) }()
+	waitOutput(t, out, "waiting for quota")
+	select {
+	case err := <-done:
+		t.Fatalf("waiting ended CLI: %v", err)
+	default:
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cancel did not end CLI")
+	}
+}

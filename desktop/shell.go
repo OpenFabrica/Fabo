@@ -55,6 +55,10 @@ func (s *desktop) list(name string) *ui.ListState {
 // view builds the whole window: title strip, sidebar, the page, status bar,
 // then the dialogs that float above them.
 func (s *desktop) view(c *ui.Context) {
+	if s.shares.billingURL != "" {
+		c.OpenURL(s.shares.billingURL)
+		s.shares.billingURL = ""
+	}
 	lang = s.prefs.language(s.locale)
 	mono = "monospace"
 	if s.prefs.Mono != "" {
@@ -984,6 +988,10 @@ func (s *desktop) dialog(c *ui.Context, p palette) {
 			title, ok = tr("新建公开链接", "New public link"), tr("共享", "Share")
 			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
 			submitted = s.shareForm(c, p)
+		case "share-limit":
+			dialog.Width(400).Padding(24).Gap(18).Radius(14)
+			ok = tr("升级", "Upgrade")
+			s.shareLimitForm(c, p)
 		case "share-login":
 			title, ok = tr("登录共享中继", "Sign in to the share relay"), tr("登录", "Sign in")
 			if s.shares.waiting {
@@ -1014,7 +1022,11 @@ func (s *desktop) dialog(c *ui.Context, p palette) {
 			if button(c.Key("cancel"), p, tr("取消", "Cancel"), "", plainButton, false) {
 				open = false
 			}
-			if button(c.Key("submit"), p, ok, "", primaryButton, false) {
+			submitLabel := ok
+			if f.kind == "share-limit" {
+				submitLabel = tr("升级连接额度", "Upgrade connection allowance")
+			}
+			if labeledButton(c.Key("submit"), p, ok, submitLabel, "", primaryButton, false) {
 				submitted = true
 			}
 		})
@@ -1037,6 +1049,9 @@ func (s *desktop) submit() bool {
 		return s.createMachine()
 	case "share":
 		return s.createShare()
+	case "share-limit":
+		s.openShareBilling()
+		return true
 	case "share-login":
 		return s.loginShare()
 	case "share-relay":

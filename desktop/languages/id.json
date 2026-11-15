@@ -641,5 +641,16 @@
   "Connecting": "Menghubungkan",
   "In": "Masuk",
   "Out": "Keluar",
-  "Sign in to publish a port or container": "Masuk untuk memublikasikan port atau kontainer"
+  "Sign in to publish a port or container": "Masuk untuk memublikasikan port atau kontainer",
+  "Waiting for quota": "Menunggu kuota",
+  "Free": "Gratis",
+  "Upgrade": "Tingkatkan",
+  "Renew": "Perpanjang",
+  "Plans and billing…": "Paket dan tagihan…",
+  "Monthly traffic exhausted": "Trafik bulanan habis",
+  "; resets %d/%d": "; direset pada %[2]d/%[1]d",
+  "Upgrade traffic allowance": "Tingkatkan kuota trafik",
+  "%s allows %d simultaneous links": "%s mengizinkan %d tautan bersamaan",
+  "Stop an existing link, or upgrade your plan to create more.": "Hentikan tautan yang ada atau tingkatkan paket untuk membuat lebih banyak.",
+  "Upgrade connection allowance": "Tingkatkan batas koneksi"
 }

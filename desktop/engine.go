@@ -46,6 +46,7 @@ func newEngineClient(dial func(context.Context) (net.Conn, error)) engineClient 
 	}}
 }
 
+// request performs a bounded engine request and decodes its response.
 func (e engineClient) request(ctx context.Context, method, path string, input any, out any) error {
 	var body io.Reader
 	if input != nil {
@@ -65,6 +66,9 @@ func (e engineClient) request(ctx context.Context, method, path string, input an
 	if method == http.MethodGet || ctx.Value(backgroundRead{}) == true {
 		// Browsing must not extend the lifetime of an idle VM.
 		req.Header.Set("X-Fabo-Background", "1")
+	}
+	if method == http.MethodGet && path == "/fabo/share/account" {
+		req.Header.Set("X-Kiri-Background", "1")
 	}
 	res, err := e.http.Do(req)
 	if err != nil {

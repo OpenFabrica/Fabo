@@ -73,7 +73,10 @@ type shareUI struct {
 	// signed-out state while it loads.
 	ok bool
 	// waiting is set while the sign-in dialog waits for GitHub approval.
-	waiting bool
+	waiting        bool
+	billing        shareAccount
+	billingChecked time.Time
+	billingURL     string
 }
 
 // shareState is a link's state as a dot and a word.
@@ -81,6 +84,8 @@ func shareState(l shareLink) (kind, word string) {
 	switch l.State {
 	case "live":
 		return "running", tr("在线", "Live")
+	case "waiting":
+		return "failed", tr("等待额度", "Waiting for quota")
 	case "connecting", "reconnecting":
 		return "busy", tr("连接中", "Connecting")
 	}
@@ -98,7 +103,11 @@ func (s *desktop) shareView(c *ui.Context, p palette) {
 		case a.SignedIn:
 			dot(c, p, "running")
 			ui.Text(c, a.Login).FontSize(12).FontWeight(500).TextColor(p.text)
-			ui.Text(c, a.Server).FontSize(12).TextColor(p.muted).SingleLine().MinWidth(0)
+			if s.shares.billing.Billing {
+				s.shareBillingToolbar(c, p)
+			} else {
+				ui.Text(c, a.Server).FontSize(12).TextColor(p.muted).SingleLine().MinWidth(0)
+			}
 		case a.Server != "":
 			ui.Text(c, a.Server).FontSize(12).TextColor(p.muted).SingleLine().MinWidth(0)
 		}
@@ -107,6 +116,15 @@ func (s *desktop) shareView(c *ui.Context, p palette) {
 			return
 		}
 		if a.SignedIn {
+			if s.shares.billing.Billing {
+				text := tr("升级", "Upgrade")
+				if s.shares.billing.Plan.ID != "free" {
+					text = tr("续费", "Renew")
+				}
+				if button(c.Key("share-upgrade"), p, text, "", plainButton, s.working["share-billing"]) {
+					s.openShareBilling()
+				}
+			}
 			if button(c.Key("new-share"), p, tr("新建链接", "New link"), "plus", primaryButton, s.working["share-create"]) {
 				s.openShareForm("")
 			}
@@ -117,6 +135,9 @@ func (s *desktop) shareView(c *ui.Context, p palette) {
 		}
 		entries := []menuEntry{{label: tr("更换中继…", "Change relay…"), run: func() { s.form = form{kind: "share-relay", host: a.Server} }}}
 		if a.SignedIn {
+			if s.shares.billing.Billing {
+				entries = append(entries, menuEntry{label: tr("套餐与账单…", "Plans and billing…"), run: s.openShareBilling})
+			}
 			entries = append(entries, menuEntry{}, menuEntry{label: tr("退出登录", "Sign out"), danger: true, run: s.signOutShare})
 		}
 		s.moreMenu(c.Key("share-more"), p, tr("共享账号", "Share account"), entries)
@@ -136,6 +157,7 @@ func (s *desktop) shareView(c *ui.Context, p palette) {
 		}
 		return
 	}
+	s.shareQuotaBanner(c, p)
 	links := s.shares.info.Shares
 	cols := []column{{tr("目标", "Target"), 0, 1, false}, {tr("地址", "Address"), 0, 1.4, false},
 		{tr("状态", "State"), 110, 0, false}, {tr("请求", "Requests"), 80, 0, true}}
@@ -162,12 +184,19 @@ func (s *desktop) shareView(c *ui.Context, p palette) {
 							if address == "" {
 								address = "—"
 							}
-							label(rc, address, p.sub)
+							text := label(rc, address, p.sub)
+							if l.State == "waiting" {
+								text.Strikethrough().TextColor(p.muted)
+							}
 						})
 						cell(rc, cols[2].width, 0).Gap(7).Children(func() {
 							kind, word := shareState(l)
 							dot(rc, p, kind)
-							label(rc, word, p.text)
+							ink := p.text
+							if l.State == "waiting" {
+								ink = p.err
+							}
+							label(rc, word, ink)
 						})
 						if !narrow {
 							cell(rc, cols[3].width, 0).Children(func() { number(rc, fmt.Sprint(l.Requests), p.text) })
@@ -256,6 +285,10 @@ func (s *desktop) shareDock(c *ui.Context, p palette, l shareLink) {
 
 // openShareForm opens New link, with target filled in when given.
 func (s *desktop) openShareForm(target string) {
+	if s.shareLimitReached() {
+		s.form = form{kind: "share-limit"}
+		return
+	}
 	s.form = form{kind: "share", image: target, named: target != ""}
 }
 

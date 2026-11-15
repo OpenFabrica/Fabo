@@ -40,7 +40,11 @@ type fakeEngine struct {
 	execCmd []string
 	// share is what GET /fabo/share answers; empty means the default
 	// signed-in account with two links.
-	share string
+	share             string
+	billing           string
+	billingError      bool
+	accountReads      int
+	accountBackground bool
 }
 
 // fakeShare is the default /fabo/share: signed in, one live link with
@@ -158,6 +162,17 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			f.last = string(sent)
 			f.changes = append(f.changes, r.Method+" "+r.URL.RequestURI())
 			f.mu.Unlock()
+			if path == "/fabo/share/billing" {
+				f.mu.Lock()
+				failed := f.billingError
+				f.mu.Unlock()
+				if failed {
+					http.Error(w, "billing unavailable", http.StatusServiceUnavailable)
+				} else {
+					fmt.Fprint(w, `{"url":"https://edge.fabo.dev/account?ticket=test-ticket"}`)
+				}
+				return
+			}
 			if path == "/containers/create" {
 				w.WriteHeader(http.StatusCreated)
 				fmt.Fprint(w, `{"Id":"c-new"}`)
@@ -280,6 +295,16 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			 {"id":"CVE-2026-2002","severity":"High","package":"openssl","version":"3.3.0","fixed":[]}]}`)
 		case path == "/fabo/builder":
 			fmt.Fprint(w, `{"cache_gb":20,"default_cache_gb":20,"cache_limit":21474836480,"idle_secs":600,"image":"moby/buildkit:v0.17.0","state":"running"}`)
+		case path == "/fabo/share/account":
+			f.mu.Lock()
+			f.accountReads++
+			f.accountBackground = r.Header.Get("X-Kiri-Background") == "1"
+			body := f.billing
+			f.mu.Unlock()
+			if body == "" {
+				body = `{"billing":false}`
+			}
+			fmt.Fprint(w, body)
 		case path == "/fabo/share":
 			f.mu.Lock()
 			body := f.share
@@ -1224,7 +1249,7 @@ func TestScreenshots(t *testing.T) {
 		}
 	}
 	for _, theme := range []string{"dark", "light"} {
-		_, s := newFakeEngine(t)
+		f, s := newFakeEngine(t)
 		s.prefs.Theme, s.prefs.Lang = theme, "zh"
 		s.launcher = (&fakeLauncher{state: nameState{On: true, HTTPS: true}}).run
 		s.selectRow("c-api")
@@ -1265,6 +1290,17 @@ func TestScreenshots(t *testing.T) {
 		shot("share-"+theme, s)
 		s.tab[sharePage] = 1
 		shot("share-requests-"+theme, s)
+		s.selectRow("")
+		for _, state := range []string{"free", "paid", "warning", "quota", "limit"} {
+			setShareBillingFixture(f, state)
+			s.shares.billingChecked = time.Time{}
+			s.refresh()
+			if state == "limit" {
+				s.openShareForm("")
+			}
+			shot("share-billing-"+state+"-"+theme, s)
+			s.form = form{}
+		}
 		s.selectRow("")
 		s.navigate(settingsPage)
 		for i, tab := range settingsTabs {

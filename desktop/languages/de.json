@@ -641,5 +641,16 @@
   "Connecting": "Verbinde",
   "In": "Eingehend",
   "Out": "Ausgehend",
-  "Sign in to publish a port or container": "Anmelden, um einen Port oder Container zu veröffentlichen"
+  "Sign in to publish a port or container": "Anmelden, um einen Port oder Container zu veröffentlichen",
+  "Waiting for quota": "Warten auf Kontingent",
+  "Free": "Kostenlos",
+  "Upgrade": "Upgrade",
+  "Renew": "Verlängern",
+  "Plans and billing…": "Tarife und Rechnungen…",
+  "Monthly traffic exhausted": "Monatliches Datenvolumen aufgebraucht",
+  "; resets %d/%d": "; Zurücksetzung am %[2]d.%[1]d.",
+  "Upgrade traffic allowance": "Datenvolumen erhöhen",
+  "%s allows %d simultaneous links": "%s erlaubt %d gleichzeitige Links",
+  "Stop an existing link, or upgrade your plan to create more.": "Beenden Sie einen bestehenden Link oder wechseln Sie zu einem höheren Tarif.",
+  "Upgrade connection allowance": "Verbindungslimit erhöhen"
 }

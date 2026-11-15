@@ -641,5 +641,16 @@
   "Connecting": "연결 중",
   "In": "수신",
   "Out": "송신",
-  "Sign in to publish a port or container": "로그인하여 포트나 컨테이너를 공개하세요"
+  "Sign in to publish a port or container": "로그인하여 포트나 컨테이너를 공개하세요",
+  "Waiting for quota": "한도 복구 대기 중",
+  "Free": "무료",
+  "Upgrade": "업그레이드",
+  "Renew": "갱신",
+  "Plans and billing…": "요금제 및 청구…",
+  "Monthly traffic exhausted": "월간 트래픽을 모두 사용했습니다",
+  "; resets %d/%d": "; %d월 %d일 초기화",
+  "Upgrade traffic allowance": "트래픽 한도 늘리기",
+  "%s allows %d simultaneous links": "%s 요금제는 동시에 %d개의 링크를 허용합니다",
+  "Stop an existing link, or upgrade your plan to create more.": "기존 링크를 중지하거나 요금제를 업그레이드하여 더 만드세요.",
+  "Upgrade connection allowance": "연결 한도 늘리기"
 }

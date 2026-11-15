@@ -641,5 +641,16 @@
   "Connecting": "Подключение",
   "In": "Входящий",
   "Out": "Исходящий",
-  "Sign in to publish a port or container": "Войдите, чтобы опубликовать порт или контейнер"
+  "Sign in to publish a port or container": "Войдите, чтобы опубликовать порт или контейнер",
+  "Waiting for quota": "Ожидание квоты",
+  "Free": "Бесплатный",
+  "Upgrade": "Улучшить тариф",
+  "Renew": "Продлить",
+  "Plans and billing…": "Тарифы и счета…",
+  "Monthly traffic exhausted": "Месячный трафик исчерпан",
+  "; resets %d/%d": "; сброс %[2]d.%[1]d",
+  "Upgrade traffic allowance": "Увеличить квоту трафика",
+  "%s allows %d simultaneous links": "%s: одновременно доступно %d ссылок",
+  "Stop an existing link, or upgrade your plan to create more.": "Остановите существующую ссылку или улучшите тариф, чтобы создать новые.",
+  "Upgrade connection allowance": "Увеличить лимит подключений"
 }

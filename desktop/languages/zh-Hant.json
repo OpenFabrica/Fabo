@@ -641,5 +641,16 @@
   "Connecting": "連線中",
   "In": "流入",
   "Out": "流出",
-  "Sign in to publish a port or container": "登入後把連接埠或容器發佈到公網"
+  "Sign in to publish a port or container": "登入後把連接埠或容器發佈到公網",
+  "Waiting for quota": "等待額度",
+  "Free": "免費版",
+  "Upgrade": "升級",
+  "Renew": "續費",
+  "Plans and billing…": "方案與帳單…",
+  "Monthly traffic exhausted": "本月流量已用完",
+  "; resets %d/%d": "，%d 月 %d 日重設",
+  "Upgrade traffic allowance": "升級流量額度",
+  "%s allows %d simultaneous links": "%s同時只能開 %d 個連結",
+  "Stop an existing link, or upgrade your plan to create more.": "先停止一個連結，或升級方案後再建立。",
+  "Upgrade connection allowance": "升級連線額度"
 }

@@ -641,5 +641,16 @@
   "Connecting": "Đang kết nối",
   "In": "Vào",
   "Out": "Ra",
-  "Sign in to publish a port or container": "Đăng nhập để công khai một cổng hoặc container"
+  "Sign in to publish a port or container": "Đăng nhập để công khai một cổng hoặc container",
+  "Waiting for quota": "Đang chờ hạn mức",
+  "Free": "Miễn phí",
+  "Upgrade": "Nâng cấp",
+  "Renew": "Gia hạn",
+  "Plans and billing…": "Gói và thanh toán…",
+  "Monthly traffic exhausted": "Đã hết lưu lượng tháng này",
+  "; resets %d/%d": "; đặt lại vào %[2]d/%[1]d",
+  "Upgrade traffic allowance": "Tăng hạn mức lưu lượng",
+  "%s allows %d simultaneous links": "%s cho phép %d liên kết đồng thời",
+  "Stop an existing link, or upgrade your plan to create more.": "Dừng một liên kết hiện có hoặc nâng cấp gói để tạo thêm.",
+  "Upgrade connection allowance": "Tăng giới hạn kết nối"
 }

@@ -641,5 +641,16 @@
   "Connecting": "接続中",
   "In": "受信",
   "Out": "送信",
-  "Sign in to publish a port or container": "ログインしてポートやコンテナを公開"
+  "Sign in to publish a port or container": "ログインしてポートやコンテナを公開",
+  "Waiting for quota": "利用枠の回復待ち",
+  "Free": "無料",
+  "Upgrade": "アップグレード",
+  "Renew": "更新",
+  "Plans and billing…": "プランと請求…",
+  "Monthly traffic exhausted": "今月の通信量を使い切りました",
+  "; resets %d/%d": "。%d月%d日にリセット",
+  "Upgrade traffic allowance": "通信量の上限を増やす",
+  "%s allows %d simultaneous links": "%sで同時に開けるリンクは%d個です",
+  "Stop an existing link, or upgrade your plan to create more.": "既存のリンクを停止するか、プランをアップグレードしてください。",
+  "Upgrade connection allowance": "同時接続数を増やす"
 }

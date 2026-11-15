@@ -641,5 +641,16 @@
   "Connecting": "连接中",
   "In": "流入",
   "Out": "流出",
-  "Sign in to publish a port or container": "登录后把端口或容器发布到公网"
+  "Sign in to publish a port or container": "登录后把端口或容器发布到公网",
+  "Waiting for quota": "等待额度",
+  "Free": "免费版",
+  "Upgrade": "升级",
+  "Renew": "续费",
+  "Plans and billing…": "套餐与账单…",
+  "Monthly traffic exhausted": "本月流量已用完",
+  "; resets %d/%d": "，%d 月 %d 日重置",
+  "Upgrade traffic allowance": "升级流量额度",
+  "%s allows %d simultaneous links": "%s同时只能开 %d 个链接",
+  "Stop an existing link, or upgrade your plan to create more.": "先停止一个链接，或升级套餐后再创建。",
+  "Upgrade connection allowance": "升级连接额度"
 }

@@ -641,5 +641,16 @@
   "Connecting": "Łączenie",
   "In": "Przychodzące",
   "Out": "Wychodzące",
-  "Sign in to publish a port or container": "Zaloguj się, aby opublikować port lub kontener"
+  "Sign in to publish a port or container": "Zaloguj się, aby opublikować port lub kontener",
+  "Waiting for quota": "Oczekiwanie na limit",
+  "Free": "Bezpłatny",
+  "Upgrade": "Zmień plan",
+  "Renew": "Odnów",
+  "Plans and billing…": "Plany i rozliczenia…",
+  "Monthly traffic exhausted": "Wyczerpano miesięczny transfer",
+  "; resets %d/%d": "; odnowienie %[2]d.%[1]d",
+  "Upgrade traffic allowance": "Zwiększ limit transferu",
+  "%s allows %d simultaneous links": "%s pozwala na %d jednoczesnych linków",
+  "Stop an existing link, or upgrade your plan to create more.": "Zatrzymaj istniejący link lub wybierz wyższy plan, aby utworzyć kolejne.",
+  "Upgrade connection allowance": "Zwiększ limit połączeń"
 }

@@ -25,7 +25,7 @@ import (
 const shareUsage = `usage: fabo share PORT|HOST:PORT|CONTAINER [NAME | --name NAME] [--no-reserve] [--json]
        fabo PORT [NAME]                  the same, for a port or host:port
        fabo share login [--server HOST] [--token TOKEN | --dev [LOGIN]]
-       fabo share logout | status [--json] | names | reserve NAME | release NAME`
+       fabo share logout | status [--json] | upgrade | names | reserve NAME | release NAME`
 
 // shareCommand is `fabo share …` and the `fabo PORT` shorthand; the daemon
 // hosts the tunnels and this command only drives them.
@@ -62,6 +62,11 @@ func runShare(ctx context.Context, c *commandClient, args []string, out, errOut 
 		return nil
 	case "status":
 		return shareStatus(c, args[1:], out)
+	case "upgrade":
+		if len(args) != 1 {
+			return errors.New(shareUsage)
+		}
+		return shareUpgrade(c, out)
 	case "names":
 		if len(args) != 1 {
 			return errors.New(shareUsage)
@@ -193,6 +198,7 @@ type sharePrinter struct {
 	connecting  bool
 }
 
+// print reports state changes while keeping quota-waiting CLI leases alive.
 func (p *sharePrinter) print(e shareEvent) {
 	switch e.Type {
 	case "created":
@@ -230,6 +236,8 @@ func (p *sharePrinter) print(e shareEvent) {
 		}
 	case sharetunnel.EventNotice:
 		fmt.Fprintf(p.out, "! %s\n", e.Text)
+	case sharetunnel.EventWaiting:
+		fmt.Fprintf(p.out, "◌ %s — waiting for quota; retrying every 5 minutes\n", e.Reason)
 	case sharetunnel.EventReconnecting:
 		fmt.Fprintf(p.out, "↻ %s — reconnecting in %.1fs\n", e.Reason, float64(e.DelayMS)/1000)
 	case sharetunnel.EventEnded:
@@ -388,8 +396,17 @@ func shareStatus(c *commandClient, args []string, out io.Writer) error {
 		return err
 	}
 	a := report.Account
+	var acct sharetunnel.Account
+	var accountErr error
+	if a.SignedIn {
+		accountErr = c.request("GET", "/fabo/share/account", nil, &acct)
+	}
 	if asJSON {
-		return json.NewEncoder(out).Encode(map[string]any{"signed_in": a.SignedIn, "server": a.Server, "login": a.Login, "shares": report.Shares})
+		result := map[string]any{"signed_in": a.SignedIn, "server": a.Server, "login": a.Login, "shares": report.Shares}
+		if accountErr == nil && acct.Billing {
+			result["billing"], result["plan"], result["usage"] = true, acct.Plan, acct.Usage
+		}
+		return json.NewEncoder(out).Encode(result)
 	}
 	if !a.SignedIn {
 		where := a.Server
@@ -400,8 +417,19 @@ func shareStatus(c *commandClient, args []string, out io.Writer) error {
 		return nil
 	}
 	fmt.Fprintf(out, "◆ Fabo Share (%s)\n  account   %s\n", a.Server, a.Login)
-	var acct sharetunnel.Account
-	if err := c.request("GET", "/fabo/share/account", nil, &acct); err == nil {
+	if accountErr == nil {
+		if acct.Billing {
+			fmt.Fprintf(out, "  plan      %s (%s)\n", acct.Plan.Name, acct.Plan.ID)
+			if acct.Usage.Cap != nil {
+				fmt.Fprintf(out, "  traffic   %s / %s\n", humanBytes(acct.Usage.Used), humanBytes(*acct.Usage.Cap))
+			}
+			if !acct.Usage.Resets.IsZero() {
+				fmt.Fprintf(out, "  resets    %s\n", acct.Usage.Resets.Format("2006-01-02"))
+			}
+			if acct.Plan.Expires != nil {
+				fmt.Fprintf(out, "  expires   %s\n", acct.Plan.Expires.Format("2006-01-02"))
+			}
+		}
 		if acct.Limits.Tunnels != nil {
 			fmt.Fprintf(out, "  tunnels   up to %d at once\n", *acct.Limits.Tunnels)
 		} else {
@@ -411,7 +439,7 @@ func shareStatus(c *commandClient, args []string, out io.Writer) error {
 			fmt.Fprintf(out, "  speed     %s/s\n", humanBytes(acct.Limits.Rate))
 		}
 	} else {
-		fmt.Fprintf(out, "  (%v)\n", err)
+		fmt.Fprintf(out, "  (%v)\n", accountErr)
 	}
 	for _, s := range report.Shares {
 		mark := "○"
@@ -423,6 +451,28 @@ func shareStatus(c *commandClient, args []string, out io.Writer) error {
 			where = s.State
 		}
 		fmt.Fprintf(out, "%s %s ← %s  (%d requests)\n", mark, where, s.Target, s.Requests)
+		if s.State == sharetunnel.EventWaiting {
+			fmt.Fprintf(out, "  waiting for quota: %s\n", s.Reason)
+		}
+	}
+	return nil
+}
+
+// shareUpgrade prints the one-time billing URL before asking the system browser to open it.
+func shareUpgrade(c *commandClient, out io.Writer) error {
+	var result struct {
+		URL string `json:"url"`
+	}
+	if err := c.request("POST", "/fabo/share/billing", map[string]any{}, &result); err != nil {
+		return err
+	}
+	link, err := url.Parse(result.URL)
+	if err != nil || link.Scheme != "https" || link.Host == "" || link.User != nil {
+		return errors.New("the daemon sent an invalid billing URL")
+	}
+	fmt.Fprintln(out, result.URL)
+	if err := openURL(result.URL); err != nil {
+		fmt.Fprintln(out, "Open this URL in your browser to manage plans and billing.")
 	}
 	return nil
 }

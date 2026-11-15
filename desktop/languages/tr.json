@@ -641,5 +641,16 @@
   "Connecting": "Bağlanıyor",
   "In": "Gelen",
   "Out": "Giden",
-  "Sign in to publish a port or container": "Bir portu veya kapsayıcıyı yayınlamak için giriş yapın"
+  "Sign in to publish a port or container": "Bir portu veya kapsayıcıyı yayınlamak için giriş yapın",
+  "Waiting for quota": "Kota bekleniyor",
+  "Free": "Ücretsiz",
+  "Upgrade": "Yükselt",
+  "Renew": "Yenile",
+  "Plans and billing…": "Planlar ve faturalar…",
+  "Monthly traffic exhausted": "Aylık trafik tükendi",
+  "; resets %d/%d": "; %[2]d/%[1]d tarihinde yenilenir",
+  "Upgrade traffic allowance": "Trafik kotasını artır",
+  "%s allows %d simultaneous links": "%s aynı anda %d bağlantıya izin verir",
+  "Stop an existing link, or upgrade your plan to create more.": "Mevcut bir bağlantıyı durdurun veya daha fazlası için planınızı yükseltin.",
+  "Upgrade connection allowance": "Bağlantı sınırını artır"
 }

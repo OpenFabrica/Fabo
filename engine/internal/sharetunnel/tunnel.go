@@ -58,6 +58,7 @@ const (
 	EventRequest      = "request"
 	EventNotice       = "notice"
 	EventReconnecting = "reconnecting"
+	EventWaiting      = "waiting"
 	EventEnded        = "ended"
 )
 
@@ -76,7 +77,7 @@ type Event struct {
 	Request *Request `json:"request,omitempty"`
 	// Text is set on notice.
 	Text string `json:"text,omitempty"`
-	// Reason is set on reconnecting and ended; DelayMS on reconnecting.
+	// Reason is set on reconnecting, waiting and ended; DelayMS on retryable states.
 	Reason  string `json:"reason,omitempty"`
 	DelayMS int64  `json:"delay_ms,omitempty"`
 	// Error is true when the tunnel ended for any reason but Stop.
@@ -101,6 +102,8 @@ type Options struct {
 
 	// idle overrides idleTimeout in tests.
 	idle time.Duration
+	// quotaRetry overrides the five-minute quota wait in tests.
+	quotaRetry time.Duration
 }
 
 // DialAddr returns a Dial for a `host:port` target with LocalDialTimeout.
@@ -119,25 +122,30 @@ func DialAddr(addr string) func(ctx context.Context) (net.Conn, error) {
 
 // Handle is a running tunnel.
 type Handle struct {
-	cancel context.CancelFunc
-	done   chan struct{}
-	mu     sync.Mutex
+	cancel  context.CancelFunc
+	done    chan struct{}
+	retry   chan struct{}
+	waiting bool
+	mu      sync.Mutex
 	// raw is the live relay socket, closed by Stop to wake every goroutine
 	// at once; closing the TLS layer could block on a stalled write.
 	raw net.Conn
 }
 
 // Start opens a tunnel on its own goroutines and returns at once; it
-// reconnects by itself until stopped, refused, or told not to.
+// reconnects by itself until stopped or permanently refused; quota refusals wait for recovery.
 func Start(o Options) *Handle {
 	if o.idle == 0 {
 		o.idle = idleTimeout
+	}
+	if o.quotaRetry == 0 {
+		o.quotaRetry = 5 * time.Minute
 	}
 	if o.Name == "" {
 		o.Name = o.Target.Label
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	h := &Handle{cancel: cancel, done: make(chan struct{})}
+	h := &Handle{cancel: cancel, done: make(chan struct{}), retry: make(chan struct{}, 1)}
 	go h.run(ctx, o)
 	return h
 }
@@ -151,6 +159,18 @@ func (h *Handle) Stop() {
 	}
 	h.mu.Unlock()
 	<-h.done
+}
+
+// Retry wakes a quota-waiting tunnel immediately; concurrent requests coalesce and live tunnels are unaffected.
+func (h *Handle) Retry() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.waiting {
+		select {
+		case h.retry <- struct{}{}:
+		default:
+		}
+	}
 }
 
 // Done is closed once the tunnel has ended and its goroutines are gone.
@@ -175,6 +195,8 @@ const (
 	endAgain
 	// endFinal: don't try again.
 	endFinal
+	// endWaiting: preserve the handle until quota or connection allowance recovers.
+	endWaiting
 )
 
 type end struct {
@@ -226,6 +248,8 @@ func (h *Handle) run(ctx context.Context, o Options) {
 			} else {
 				finalReason = reason
 			}
+		case endWaiting:
+			delay = o.quotaRetry
 		case endAgain:
 			delay = 200*time.Millisecond + backoff(0)
 		default:
@@ -235,13 +259,30 @@ func (h *Handle) run(ctx context.Context, o Options) {
 			break
 		}
 		attempt++
-		emit(Event{Type: EventReconnecting, Reason: reason, DelayMS: delay.Milliseconds()})
+		kind := EventReconnecting
+		var retry <-chan struct{}
+		if e.kind == endWaiting {
+			kind, retry = EventWaiting, h.retry
+			// Publish waiting before its event so an OnEvent-triggered Retry cannot be lost.
+			h.mu.Lock()
+			h.waiting = true
+			h.mu.Unlock()
+		}
+		emit(Event{Type: kind, Reason: reason, DelayMS: delay.Milliseconds()})
 		timer := time.NewTimer(delay)
 		select {
 		case <-ctx.Done():
 		case <-timer.C:
+		case <-retry:
 		}
 		timer.Stop()
+		h.mu.Lock()
+		h.waiting = false
+		select {
+		case <-h.retry:
+		default:
+		}
+		h.mu.Unlock()
 	}
 	if finalReason != "" {
 		emit(Event{Type: EventEnded, Reason: finalReason, Error: true})
@@ -447,6 +488,9 @@ func (s *session) handle(m sharewire.Msg) (end, bool) {
 		}
 		s.emit(Event{Type: EventLive, URL: m.URL, Rate: m.Rate, Remaining: m.Remaining, Warning: m.Warning, Domains: domains})
 	case sharewire.Refused:
+		if strings.HasPrefix(m.Reason, sharewire.QuotaExhaustedPrefix) {
+			return end{endWaiting, m.Reason}, true
+		}
 		return end{endFinal, m.Reason}, true
 	case sharewire.Open:
 		s.open(m.Stream)
@@ -475,6 +519,9 @@ func (s *session) handle(m sharewire.Msg) (end, bool) {
 	case sharewire.Notice:
 		s.emit(Event{Type: EventNotice, Text: m.Text})
 	case sharewire.Goodbye:
+		if strings.HasPrefix(m.Reason, sharewire.QuotaExhaustedPrefix) {
+			return end{endWaiting, m.Reason}, true
+		}
 		if m.Reconnect {
 			return end{endAgain, m.Reason}, true
 		}

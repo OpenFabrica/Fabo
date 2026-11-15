@@ -37,7 +37,7 @@ const usage = `usage: fabo [ui [-view PAGE] [-start]]   open the desktop window
        fabo unpack [--start] FILE        recreate packed containers here
        fabo usb [list] | attach DEVICE | detach DEVICE | helper remove
        fabo share PORT|CONTAINER [NAME]  a public HTTPS link to it; also fabo PORT [NAME]
-       fabo share login [--server HOST] [--token T] | logout | status | names | reserve|release NAME
+       fabo share login [--server HOST] [--token T] | logout | status | upgrade | names | reserve|release NAME
        fabo bench [--runs N] [--image IMAGE] [--network none|bridge] [--only fabo|orbstack|docker]
        fabo raw run [OPTIONS] IMAGE [COMMAND...] | pull IMAGE | images | rmi IMAGE...
        fabo migrate [OPTIONS]       import an offline Kiri store

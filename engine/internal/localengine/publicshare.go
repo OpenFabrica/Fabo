@@ -46,9 +46,12 @@ type PublicShares struct {
 	shares []*publicShare
 	// login is the one device-flow sign-in in progress; loginGen makes a
 	// superseded poll's result harmless.
-	login    *pendingLogin
-	loginGen uint64
-	closed   bool
+	login         *pendingLogin
+	loginGen      uint64
+	closed        bool
+	billingCancel context.CancelFunc
+	billingWG     sync.WaitGroup
+	lastPlan      *sharetunnel.Plan
 }
 
 // pendingLogin is a GitHub device-flow sign-in waiting for approval.
@@ -96,10 +99,12 @@ func OpenPublicShares(opts PublicShareOptions) (*PublicShares, error) {
 func (p *PublicShares) Close() {
 	p.mu.Lock()
 	p.closed = true
+	p.cancelBillingLocked()
 	handles := p.detachAllLocked()
 	p.cancelLoginLocked()
 	p.mu.Unlock()
 	stopAll(handles)
+	p.billingWG.Wait()
 }
 
 // detachAllLocked forgets every share and returns their handles to stop
@@ -306,7 +311,7 @@ func (p *PublicShares) onEvent(s *publicShare, e sharetunnel.Event) {
 		}
 	case sharetunnel.EventLive:
 		s.State, s.URL, s.Reason = e.Type, e.URL, ""
-	case sharetunnel.EventReconnecting:
+	case sharetunnel.EventReconnecting, sharetunnel.EventWaiting:
 		s.State, s.Reason = e.Type, e.Reason
 	case sharetunnel.EventEnded:
 		s.State, s.Reason, s.Error = e.Type, e.Reason, e.Error
@@ -392,6 +397,7 @@ func (p *PublicShares) switchServerLocked(server string) ([]*sharetunnel.Handle,
 		return nil, sharetunnel.SaveConfig(p.opts.ConfigPath, p.cfg)
 	}
 	p.cancelLoginLocked()
+	p.cancelBillingLocked()
 	handles := p.detachAllLocked()
 	p.cfg.SetToken("", "")
 	return handles, sharetunnel.SaveConfig(p.opts.ConfigPath, p.cfg)
@@ -400,6 +406,7 @@ func (p *PublicShares) switchServerLocked(server string) ([]*sharetunnel.Handle,
 // setLoginLocked saves new credentials. A different account (or any new
 // token) replaces the old one, so the old tunnels stop first.
 func (p *PublicShares) setLoginLocked(token, login string) ([]*sharetunnel.Handle, error) {
+	p.cancelBillingLocked()
 	handles := p.detachAllLocked()
 	p.cfg.SetToken(token, login)
 	return handles, sharetunnel.SaveConfig(p.opts.ConfigPath, p.cfg)
@@ -590,7 +597,21 @@ func (p *PublicShares) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, view)
 	case rest == "account" && r.Method == http.MethodGet:
-		p.relayCall(w, func(api *sharetunnel.API) (any, error) { return api.Whoami(r.Context()) })
+		p.relayCall(w, func(api *sharetunnel.API) (any, error) {
+			acct, err := api.Whoami(r.Context())
+			if err == nil {
+				p.observeAccount(api, acct)
+			}
+			return acct, err
+		})
+	case rest == "billing" && r.Method == http.MethodPost:
+		p.relayCall(w, func(api *sharetunnel.API) (any, error) {
+			link, err := api.BillingURL(r.Context())
+			if err == nil {
+				p.startBillingPoll(api, 15*time.Second, 10*time.Minute)
+			}
+			return map[string]string{"url": link}, err
+		})
 	case rest == "names" && r.Method == http.MethodGet:
 		p.relayCall(w, func(api *sharetunnel.API) (any, error) { return api.Names(r.Context()) })
 	case rest == "names" && r.Method == http.MethodPost:

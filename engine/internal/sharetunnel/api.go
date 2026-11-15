@@ -201,18 +201,31 @@ func (a *API) LoginPoll(ctx context.Context, code, device string) (login Login, 
 	return Login{Token: out.Token, Login: out.Login}, false, false, nil
 }
 
-// Account is GET /v1/whoami.
+// Plan describes the account's effective limits and optional paid/gift expiry.
+type Plan struct {
+	ID      string     `json:"id"`
+	Name    string     `json:"name"`
+	Tunnels int        `json:"tunnels"`
+	Names   int        `json:"names"`
+	Traffic uint64     `json:"traffic"`
+	Expires *time.Time `json:"expires"`
+}
+
+// Account is GET /v1/whoami, with billing fields absent on legacy relays.
 type Account struct {
-	Login  string `json:"login"`
-	Trust  int    `json:"trust"`
-	Limits struct {
+	Billing bool   `json:"billing,omitempty"`
+	Plan    Plan   `json:"plan,omitzero"`
+	Login   string `json:"login"`
+	Trust   int    `json:"trust"`
+	Limits  struct {
 		Tunnels *uint64 `json:"tunnels"`
 		Rate    uint64  `json:"rate"`
 		Warning bool    `json:"warning"`
 	} `json:"limits"`
 	Usage struct {
-		Used uint64  `json:"used"`
-		Cap  *uint64 `json:"cap,omitempty"`
+		Used   uint64    `json:"used"`
+		Cap    *uint64   `json:"cap,omitempty"`
+		Resets time.Time `json:"resets,omitzero"`
 	} `json:"usage"`
 }
 
@@ -221,6 +234,22 @@ func (a *API) Whoami(ctx context.Context) (Account, error) {
 	var out Account
 	_, err := a.signed(ctx, "GET", "/v1/whoami", nil, &out)
 	return out, err
+}
+
+// BillingURL returns an account-bound single-use HTTPS URL for the relay's billing page.
+func (a *API) BillingURL(ctx context.Context) (string, error) {
+	var out struct {
+		URL string `json:"url"`
+	}
+	_, err := a.signed(ctx, "POST", "/v1/billing/web", map[string]string{}, &out)
+	if err != nil {
+		return "", err
+	}
+	u, err := url.Parse(out.URL)
+	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil {
+		return "", errors.New("the share relay sent an invalid billing URL")
+	}
+	return out.URL, nil
 }
 
 // ReservedName is one of the account's names.

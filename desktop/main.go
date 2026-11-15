@@ -470,6 +470,8 @@ func (s *desktop) refresh() {
 	page := s.page
 	wantDisk := page == overviewPage && s.disk == nil
 	wantShares := page == sharePage || strings.HasPrefix(s.form.kind, "share")
+	previousAccount := s.shares.info.Account
+	billingDue := time.Since(s.shares.billingChecked) >= time.Minute
 	s.run(8*time.Second, func(ctx context.Context) func() {
 		e := s.engine
 		info, err := e.info(ctx)
@@ -499,8 +501,15 @@ func (s *desktop) refresh() {
 		var builderErr, eventsErr error
 		var shares shareInfo
 		sharesErr := errSkipped
+		var billing shareAccount
+		billingErr := errSkipped
+		billingRead := false
 		if wantShares {
 			sharesErr = e.get(ctx, "/fabo/share", &shares)
+			if sharesErr == nil && page == sharePage && shares.Account.SignedIn && (billingDue || shares.Account.Login != previousAccount.Login || shares.Account.Server != previousAccount.Server) {
+				billingRead = true
+				billingErr = e.get(ctx, "/fabo/share/account", &billing)
+			}
 		}
 		switch page {
 		case overviewPage:
@@ -541,7 +550,16 @@ func (s *desktop) refresh() {
 				s.builder = builder
 			}
 			if sharesErr == nil {
+				if !shares.Account.SignedIn || shares.Account.Login != s.shares.info.Account.Login || shares.Account.Server != s.shares.info.Account.Server {
+					s.shares.billing, s.shares.billingChecked, s.shares.billingURL = shareAccount{}, time.Time{}, ""
+				}
 				s.shares.info, s.shares.ok = shares, true
+				if billingRead {
+					s.shares.billingChecked = time.Unix(now, 0)
+				}
+				if billingErr == nil {
+					s.shares.billing = billing
+				}
 				s.settleShareLogin()
 			}
 
