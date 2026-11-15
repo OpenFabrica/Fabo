@@ -28,6 +28,8 @@ import (
 )
 
 const (
+	// QuotaExhaustedPrefix distinguishes recoverable account quota refusals.
+	QuotaExhaustedPrefix = "quota exhausted:"
 	// Protocol is the session protocol version sent in Hello.
 	Protocol uint16 = 1
 	// FeatureWindow tells the edge this client uses Welcome.Window for
