@@ -433,7 +433,6 @@
   "Username": "Tên người dùng",
   "VM": "VM",
   "VM restarted": "Đã khởi động lại VM",
-  "VPNs need no setting: container traffic leaves through %s.": "VPN không cần thiết lập: lưu lượng container đi ra qua %[1]s.",
   "Variable name": "Tên biến",
   "Variable value": "Giá trị biến",
   "Volumes": "Volume",
@@ -582,5 +581,11 @@
   "Restart engine": "Khởi động lại engine",
   "Later": "Để sau",
   "Engine restarted": "Đã khởi động lại engine",
-  "%s %s is installed; restart the engine to run it": "Đã cài %s %s; khởi động lại engine để áp dụng"
+  "%s %s is installed; restart the engine to run it": "Đã cài %s %s; khởi động lại engine để áp dụng",
+  "Container networking": "Mạng của container",
+  "Network mode": "Chế độ mạng",
+  "VPN-friendly": "Tương thích VPN",
+  "System NAT": "NAT hệ thống",
+  "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "Fabo mở kết nối của container trên %s, nên VPN, Tailscale và ứng dụng proxy cũng áp dụng cho container. Thông lượng tối đa thấp hơn NAT (khoảng 500 MB/s), vẫn dư cho các lượt tải thông thường.",
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "Nhanh nhất, nhưng VPN, Tailscale và chế độ nâng cao của ứng dụng proxy có thể không tới được container."
 }

@@ -33,6 +33,9 @@ func (v *vmConfiguration) validate(settings localengine.VMSettings) error {
 	if settings.MemoryMiB < v.minMemory || settings.MemoryMiB > v.maxMemory {
 		return fmt.Errorf("memory_mib must be between %d and %d", v.minMemory, v.maxMemory)
 	}
+	if !localengine.ValidVMNetwork(settings.Network) {
+		return fmt.Errorf("network must be %q or %q", localengine.VMNetworkUser, localengine.VMNetworkNAT)
+	}
 	return nil
 }
 
@@ -473,12 +476,17 @@ func (s *supervisor) resources(w http.ResponseWriter, r *http.Request) {
 		var input struct {
 			CPUs      uint   `json:"cpus"`
 			MemoryMiB uint64 `json:"memory_mib"`
+			Network   *string `json:"network"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&input); err != nil {
 			supervisorError(w, http.StatusBadRequest, err)
 			return
 		}
-		next := localengine.VMSettings{CPUs: input.CPUs, MemoryMiB: input.MemoryMiB, Stopped: s.vm.settings.Stopped}
+		next := localengine.VMSettings{CPUs: input.CPUs, MemoryMiB: input.MemoryMiB, Network: s.vm.settings.Network, Stopped: s.vm.settings.Stopped}
+		// Clients that predate the network mode post only the size; keep the saved mode for them.
+		if input.Network != nil {
+			next.Network = *input.Network
+		}
 		if err := s.vm.validate(next); err != nil {
 			supervisorError(w, http.StatusBadRequest, err)
 			return
@@ -497,15 +505,15 @@ func (s *supervisor) resources(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	active := s.isActiveLocked()
-	boot := localengine.VMSettings{}
+	boot, runningNetwork := localengine.VMSettings{}, ""
 	if active {
-		boot = s.current.boot
+		boot, runningNetwork = s.current.boot, s.current.boot.NetworkMode()
 	}
 	s.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"cpus": s.vm.settings.CPUs, "memory_mib": s.vm.settings.MemoryMiB,
-		"running_cpus": boot.CPUs, "running_memory_mib": boot.MemoryMiB, "awake": active,
+		"cpus": s.vm.settings.CPUs, "memory_mib": s.vm.settings.MemoryMiB, "network": s.vm.settings.NetworkMode(),
+		"running_cpus": boot.CPUs, "running_memory_mib": boot.MemoryMiB, "running_network": runningNetwork, "awake": active,
 		"max_cpus": s.vm.maxCPU, "max_memory_mib": s.vm.maxMemory,
 	})
 }

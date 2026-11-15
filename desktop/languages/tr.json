@@ -433,7 +433,6 @@
   "Username": "Kullanıcı adı",
   "VM": "VM",
   "VM restarted": "VM yeniden başlatıldı",
-  "VPNs need no setting: container traffic leaves through %s.": "VPN'ler ayar gerektirmez: kapsayıcı trafiği %[1]s üzerinden çıkar.",
   "Variable name": "Değişken adı",
   "Variable value": "Değişken değeri",
   "Volumes": "Birimler",
@@ -582,5 +581,11 @@
   "Restart engine": "Motoru yeniden başlat",
   "Later": "Daha sonra",
   "Engine restarted": "Motor yeniden başlatıldı",
-  "%s %s is installed; restart the engine to run it": "%s %s yüklü; kullanmak için motoru yeniden başlatın"
+  "%s %s is installed; restart the engine to run it": "%s %s yüklü; kullanmak için motoru yeniden başlatın",
+  "Container networking": "Kapsayıcı ağı",
+  "Network mode": "Ağ modu",
+  "VPN-friendly": "VPN uyumlu",
+  "System NAT": "Sistem NAT",
+  "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "Fabo kapsayıcı bağlantılarını %s üzerinde açar; bu yüzden VPN'ler, Tailscale ve proxy uygulamaları kapsayıcılarda da geçerlidir. Azami aktarım hızı NAT'tan düşüktür (yaklaşık 500 MB/s), ama sıradan indirmeler için fazlasıyla yeterlidir.",
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "En hızlısı, ancak VPN'ler, Tailscale ve proxy uygulamalarının gelişmiş modları kapsayıcılara ulaşmayabilir."
 }

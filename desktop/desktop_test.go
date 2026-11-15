@@ -238,7 +238,7 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			 {"Id":"n-bridge","Name":"bridge","Driver":"bridge","IPAM":{"Config":[{"Subnet":"172.17.0.0/16","Gateway":"172.17.0.1"}]}},
 			 {"Id":"n-host","Name":"host","Driver":"host"},{"Id":"n-none","Name":"none","Driver":"null"}]`)
 		case path == "/fabo/resources":
-			fmt.Fprint(w, `{"cpus":4,"memory_mib":8192,"running_cpus":4,"running_memory_mib":8192,"awake":true,"max_cpus":10,"max_memory_mib":32768}`)
+			fmt.Fprint(w, `{"cpus":4,"memory_mib":8192,"network":"user","running_cpus":4,"running_memory_mib":8192,"running_network":"user","awake":true,"max_cpus":10,"max_memory_mib":32768}`)
 		case strings.HasSuffix(path, "/stats"):
 			f.mu.Lock()
 			reads[path]++
@@ -962,6 +962,46 @@ func TestProxyIsSavedFromSettings(t *testing.T) {
 	if got := f.changed(); len(got) != 1 || got[0] != "POST /fabo/proxy" ||
 		!strings.Contains(f.body(), `"mode":"custom"`) || !strings.Contains(f.body(), `"http":"proxy.corp:3128"`) || !strings.Contains(f.body(), `"containers":true`) {
 		t.Fatalf("requests: %v %s", got, f.body())
+	}
+}
+
+// The network mode is explained for the choice in view, saved with the
+// VM's stored size, and a VM still running the old mode offers a restart.
+// Engines that report no mode only have NAT and get no choice.
+func TestNetworkModeIsSavedFromSettings(t *testing.T) {
+	f, s := newFakeEngine(t)
+	s.navigate(settingsPage)
+	s.settingsTab = 2
+	tt := ui.NewTester(s.view, 1180, 760)
+	if m := has(tt, "Container networking", "Network mode", "VPN-friendly", "System NAT"); m != "" {
+		t.Fatalf("missing %q in %q", m, tt.Texts())
+	}
+	if _, found := tt.Find("Restart VM to apply"); found {
+		t.Fatal("a restart was offered with nothing pending")
+	}
+	if err := tt.Click("System NAT"); err != nil {
+		t.Fatal(err)
+	}
+	if m := has(tt, "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers."); m != "" {
+		t.Fatalf("missing %q in %q", m, tt.Texts())
+	}
+	if err := tt.Click("Save"); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.changed(); len(got) != 1 || got[0] != "POST /fabo/resources" ||
+		!strings.Contains(f.body(), `"network":"nat"`) || !strings.Contains(f.body(), `"cpus":4`) || !strings.Contains(f.body(), `"memory_mib":8192`) {
+		t.Fatalf("requests: %v %s", got, f.body())
+	}
+
+	s.res.Network, s.res.RunningNetwork, s.netMode = "nat", "user", 1
+	tt.Frame()
+	if _, found := tt.Find("Restart VM to apply"); !found {
+		t.Fatal("no restart offered for a VM running the old mode")
+	}
+	s.res.Network = ""
+	tt.Frame()
+	if _, found := tt.Find("Network mode"); found {
+		t.Fatal("an engine without network modes was offered a choice")
 	}
 }
 

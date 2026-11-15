@@ -433,7 +433,6 @@
   "Username": "使用者名稱",
   "VM": "VM",
   "VM restarted": "虛擬機已重啓",
-  "VPNs need no setting: container traffic leaves through %s.": "VPN 不需任何設定：容器流量經由 %[1]s 送出。",
   "Variable name": "變量名",
   "Variable value": "變量值",
   "Volumes": "磁碟區",
@@ -582,5 +581,11 @@
   "Restart engine": "重新啟動引擎",
   "Later": "稍後",
   "Engine restarted": "引擎已重新啟動",
-  "%s %s is installed; restart the engine to run it": "已安裝 %s %s，重新啟動引擎後生效"
+  "%s %s is installed; restart the engine to run it": "已安裝 %s %s，重新啟動引擎後生效",
+  "Container networking": "容器連網",
+  "Network mode": "連網方式",
+  "VPN-friendly": "相容 VPN",
+  "System NAT": "系統 NAT",
+  "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "容器的連線由 Fabo 在 %s 上代為發出，VPN、Tailscale 和代理軟體對容器同樣生效。吞吐上限比 NAT 低（約 500 MB/s），一般下載用不到這麼快。",
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "傳輸最快，但 VPN、Tailscale 和代理軟體的增強模式在容器內可能不生效。"
 }

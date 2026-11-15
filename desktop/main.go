@@ -190,6 +190,9 @@ type desktop struct {
 	settingsFor string
 	cpus        float64
 	memory      float64
+	// netMode is the network mode picked in Settings → Network, as an index
+	// into vmNetworkModes, until it is saved.
+	netMode int
 	cacheGB     string
 	resOK       bool
 	proxy       proxyInfo

@@ -41,6 +41,11 @@ Apple silicon and Intel Macs (macOS 14+), Windows 10 and 11 (x86-64 and Arm, thr
   (`https://<name>.fabo.local`), with Fabo's own certificate authority in
   `~/.fabo/tls`, whose name constraints allow only `*.fabo.local` and
   `*.fabo.localhost` (Settings → Domains → HTTPS asks macOS to trust it)
+- **VM network mode** (Settings → Network): **VPN-friendly** by default,
+  where Fabo opens containers' connections on the Mac itself, so VPNs,
+  Tailscale and proxy apps' enhanced modes reach containers and the Mac's
+  per-domain DNS applies; or **System NAT**, macOS's own NAT, which is
+  faster for bulk transfers but cannot reach what the Mac routes into a VPN
 - **Storage**: named and anonymous volumes, bind mounts of Mac paths
   (virtiofs), `--tmpfs`, `--mount`, `volume` commands
 - **Images**: `pull` (with `docker login` credentials), `push`, `tag`,

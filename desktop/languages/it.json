@@ -433,7 +433,6 @@
   "Username": "Nome utente",
   "VM": "VM",
   "VM restarted": "VM riavviata",
-  "VPNs need no setting: container traffic leaves through %s.": "Le VPN non richiedono impostazioni: il traffico dei container esce tramite %[1]s.",
   "Variable name": "Nome della variabile",
   "Variable value": "Valore della variabile",
   "Volumes": "Volumi",
@@ -582,5 +581,11 @@
   "Restart engine": "Riavvia motore",
   "Later": "Più tardi",
   "Engine restarted": "Motore riavviato",
-  "%s %s is installed; restart the engine to run it": "%s %s è installato; riavvia il motore per usarlo"
+  "%s %s is installed; restart the engine to run it": "%s %s è installato; riavvia il motore per usarlo",
+  "Container networking": "Rete dei container",
+  "Network mode": "Modalità di rete",
+  "VPN-friendly": "Compatibile con VPN",
+  "System NAT": "NAT di sistema",
+  "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "Fabo apre le connessioni dei container su %s, quindi VPN, Tailscale e app proxy valgono anche per i container. Il throughput massimo è più basso che con il NAT (circa 500 MB/s), più di quanto serva ai normali download.",
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "La più veloce, ma VPN, Tailscale e le modalità avanzate delle app proxy potrebbero non raggiungere i container."
 }

@@ -107,8 +107,10 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   explanation and its control. Appearance is described above. Resources
   starts or turns off the engine and saves the VM's CPUs and memory through
   `/fabo/resources`; when a running VM still has its old size it offers a
-  restart, which is `/fabo/sleep` followed by `/fabo/wake`. Network edits
-  the proxy through `/fabo/proxy`. Builds shows the builder, its cache limit
+  restart, which is `/fabo/sleep` followed by `/fabo/wake`. Network picks the VM's network
+  mode (saved with the VM's size through `/fabo/resources`, offering the
+  same restart) and edits the proxy through `/fabo/proxy`. Engines that
+  report no mode get no choice. Builds shows the builder, its cache limit
   and clears the build cache. Domains changes the HTTP and HTTPS ports
   through `/fabo/domains`, and switches Local names and HTTPS through the
   launcher's `fabo domains` command (see Container domains). Registries
@@ -589,10 +591,37 @@ stateDiagram-v2
     Stopped --> Awake: explicit wake
 ```
 
-The VM uses an Apple NAT interface by default. Its MAC is stable for
-a given state directory. The guest obtains and renews its IPv4 lease,
-installs the default route and writes DHCP resolvers for newly started
-containers. The guest bridge forwards outbound IPv4 to that uplink.
+The VM has one network interface, whose MAC is stable for a given state
+directory. The guest obtains and renews its IPv4 lease, installs the
+default route and writes DHCP resolvers for newly started containers.
+The guest bridge forwards outbound IPv4 to that uplink. What sits behind
+the interface is the VM's network mode, saved as `network` in
+`vm-settings.json` and changed through `/fabo/resources` (it applies at
+the next boot; `running_network` reports the running VM's mode):
+
+- `user` (the default, also for settings saved before the mode existed):
+  the interface is a `VZFileHandleNetworkDeviceAttachment` on a datagram
+  socket pair whose other end is a gVisor network stack inside the daemon
+  (gvisor-tap-vsock). It serves DHCP on `192.168.127.0/24` with a fixed
+  lease of `192.168.127.2` for the VM's MAC, and DNS on the gateway
+  `192.168.127.1`, answered by the macOS resolver, so `/etc/resolver/*`
+  and VPN split DNS apply. Every TCP and UDP flow is opened by the daemon
+  as an ordinary macOS socket, so it follows the Mac's routes: VPNs,
+  Tailscale subnet routes and proxy apps' TUN modes reach containers.
+  The subnet never appears on a macOS interface. IPv4 only. Every frame
+  passes through the daemon, so throughput tops out lower: a 1 GB
+  download from the Mac took about 1.9 s against 0.22 s over NAT
+  (Apple silicon, 2 vCPUs), which is still above ordinary internet
+  speeds. When the stack stops on an error the daemon logs it; the VM is
+  offline until it restarts.
+- `nat`: Apple's `VZNATNetworkDeviceAttachment` on `192.168.64.0/24`,
+  with macOS's resolver at the vmnet gateway. It is the fastest path, but
+  macOS does not translate the VM's addresses into VPN tunnels, so
+  destinations that the Mac reaches through a VPN or Tailscale time out
+  from containers.
+
+Neither mode is used to reach the VM from the Mac: publishing, domains,
+`host.docker.internal` and the engine API all travel over vsock.
 Use `-offline` to boot with only the internal container bridge and
 vsock. Host port publishing remains available in offline mode.
 
@@ -1183,8 +1212,9 @@ the host sends the container's address and port through vsock. An IPv6-only
 endpoint uses the IPv6 form of the guest relay header. The guest
 uses the existing framed TCP relay on port 1030 and the UDP datagram relay
 on port 1029. The TCP reply includes an explicit end frame so the host can
-preserve half-close through Virtualization.framework. This path also
-works with the VM's NAT interface disabled. The original kernel DNAT
+preserve half-close through Virtualization.framework. This path does not
+use the VM's network interface, so it works in either network mode and
+with the interface disabled. The original kernel DNAT
 optimization is pending.
 
 The guest resolves numeric and named users and groups using the container's

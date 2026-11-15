@@ -433,7 +433,6 @@
   "Username": "Имя пользователя",
   "VM": "VM",
   "VM restarted": "VM перезапущена",
-  "VPNs need no setting: container traffic leaves through %s.": "VPN не требует настройки: трафик контейнеров выходит через %[1]s.",
   "Variable name": "Имя переменной",
   "Variable value": "Значение переменной",
   "Volumes": "Тома",
@@ -582,5 +581,11 @@
   "Restart engine": "Перезапустить движок",
   "Later": "Позже",
   "Engine restarted": "Движок перезапущен",
-  "%s %s is installed; restart the engine to run it": "Установлен %s %s; перезапустите движок, чтобы использовать его"
+  "%s %s is installed; restart the engine to run it": "Установлен %s %s; перезапустите движок, чтобы использовать его",
+  "Container networking": "Сеть контейнеров",
+  "Network mode": "Режим сети",
+  "VPN-friendly": "Совместимо с VPN",
+  "System NAT": "Системный NAT",
+  "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "Fabo открывает соединения контейнеров в %s, поэтому VPN, Tailscale и прокси-приложения действуют и для контейнеров. Предельная скорость ниже, чем через NAT (около 500 МБ/с), но обычным загрузкам этого с запасом хватает.",
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "Быстрее всего, но VPN, Tailscale и расширенные режимы прокси-приложений могут не работать в контейнерах."
 }

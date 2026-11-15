@@ -433,7 +433,6 @@
   "Username": "사용자 이름",
   "VM": "VM",
   "VM restarted": "VM 다시 시작됨",
-  "VPNs need no setting: container traffic leaves through %s.": "VPN은 설정할 필요 없습니다: 컨테이너 트래픽은 %[1]s를 통해 나갑니다.",
   "Variable name": "변수 이름",
   "Variable value": "변수 값",
   "Volumes": "볼륨",
@@ -582,5 +581,11 @@
   "Restart engine": "엔진 다시 시작",
   "Later": "나중에",
   "Engine restarted": "엔진 다시 시작됨",
-  "%s %s is installed; restart the engine to run it": "%s %s이(가) 설치되었습니다. 엔진을 다시 시작하면 적용됩니다"
+  "%s %s is installed; restart the engine to run it": "%s %s이(가) 설치되었습니다. 엔진을 다시 시작하면 적용됩니다",
+  "Container networking": "컨테이너 네트워크",
+  "Network mode": "네트워크 방식",
+  "VPN-friendly": "VPN 호환",
+  "System NAT": "시스템 NAT",
+  "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "Fabo가 %s에서 컨테이너 연결을 대신 열기 때문에 VPN, Tailscale, 프록시 앱이 컨테이너에도 적용됩니다. 처리량 상한은 NAT보다 낮지만(약 500 MB/s) 일반 다운로드에는 충분합니다.",
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "가장 빠르지만 VPN, Tailscale, 프록시 앱의 향상 모드가 컨테이너에 적용되지 않을 수 있습니다."
 }

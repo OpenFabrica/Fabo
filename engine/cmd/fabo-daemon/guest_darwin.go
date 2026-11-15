@@ -39,6 +39,8 @@ type guestOptions struct {
 	cpus                          uint
 	memory                        uint64
 	offline                       bool
+	// network is the uplink mode from the saved VM settings ("" is user mode).
+	network string
 }
 
 func (o *guestOptions) register(flags *flag.FlagSet) {
@@ -58,7 +60,7 @@ func (o *guestOptions) register(flags *flag.FlagSet) {
 		return nil
 	})
 	flags.BoolVar(&o.standardShares, "standard-shares", false, "share the standard Fabo host directories")
-	flags.BoolVar(&o.offline, "offline", false, "boot the VM without its NAT interface")
+	flags.BoolVar(&o.offline, "offline", false, "boot the VM without a network interface")
 }
 
 func standardMacShares() []string {
@@ -133,11 +135,28 @@ func (o guestOptions) start(ctx context.Context, stateDir string) (guestConnecti
 	if err != nil {
 		return guestConnection{}, err
 	}
+	// User mode replaces the framework's NAT with the daemon's own stack and
+	// gives the VM one end of a socket pair instead; -1 keeps NAT.
+	var uplink *userNetwork
+	networkFD := -1
+	if hardwareAddress != "" && (localengine.VMSettings{Network: o.network}).NetworkMode() == localengine.VMNetworkUser {
+		if uplink, err = startUserNetwork(ctx, hardwareAddress); err != nil {
+			_ = reader.Close()
+			_ = writer.Close()
+			return guestConnection{}, err
+		}
+		networkFD = uplink.guestFD
+	}
+	closeUplink := func() {
+		if uplink != nil {
+			uplink.close()
+		}
+	}
 	var message *C.char
 	hostCtx, stopHost := context.WithCancel(ctx)
 	host := &hostBound{ctx: hostCtx, slots: make(chan struct{}, 128), engineSocket: o.engineSocket}
 	handle := cgo.NewHandle(host)
-	machine := C.fabo_vm_start(kernel, initrd, disk, console, mac, unsafe.SliceData(paths), C.size_t(len(paths)), shareTag, C.uint32_t(o.cpus), C.uint64_t(o.memory<<20),
+	machine := C.fabo_vm_start(kernel, initrd, disk, console, mac, C.int(networkFD), unsafe.SliceData(paths), C.size_t(len(paths)), shareTag, C.uint32_t(o.cpus), C.uint64_t(o.memory<<20),
 		guestwire.Port, guestwire.HostRelayPort, C.uintptr_t(handle), C.int(writer.Fd()), &message)
 	_ = writer.Close()
 	if machine == nil {
@@ -145,6 +164,7 @@ func (o guestOptions) start(ctx context.Context, stateDir string) (guestConnecti
 		host.workers.Wait()
 		handle.Delete()
 		_ = reader.Close()
+		closeUplink()
 		return guestConnection{}, vmError(message)
 	}
 	dialer := &vmRelayDialer{machine: machine}
@@ -157,6 +177,8 @@ func (o guestOptions) start(ctx context.Context, stateDir string) (guestConnecti
 			C.fabo_vm_release(machine)
 			host.workers.Wait()
 			handle.Delete()
+			// Only after the VM has stopped, so its last frames have somewhere to go.
+			closeUplink()
 		}()
 		if conn != nil {
 			_ = conn.Close()
@@ -245,6 +267,6 @@ func (o guestOptions) vmConfiguration() *vmConfiguration {
 }
 
 func (o guestOptions) withVMSettings(settings localengine.VMSettings) guestOptions {
-	o.cpus, o.memory = settings.CPUs, settings.MemoryMiB
+	o.cpus, o.memory, o.network = settings.CPUs, settings.MemoryMiB, settings.Network
 	return o
 }

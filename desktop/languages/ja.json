@@ -433,7 +433,6 @@
   "Username": "ユーザー名",
   "VM": "VM",
   "VM restarted": "VM を再起動しました",
-  "VPNs need no setting: container traffic leaves through %s.": "VPN の設定は不要です：コンテナのトラフィックは %[1]s を経由して外に出ます。",
   "Variable name": "変数名",
   "Variable value": "変数の値",
   "Volumes": "ボリューム",
@@ -582,5 +581,11 @@
   "Restart engine": "エンジンを再起動",
   "Later": "後で",
   "Engine restarted": "エンジンを再起動しました",
-  "%s %s is installed; restart the engine to run it": "%s %s がインストール済みです。エンジンを再起動すると反映されます"
+  "%s %s is installed; restart the engine to run it": "%s %s がインストール済みです。エンジンを再起動すると反映されます",
+  "Container networking": "コンテナのネットワーク",
+  "Network mode": "ネットワーク方式",
+  "VPN-friendly": "VPN 対応",
+  "System NAT": "システム NAT",
+  "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "コンテナの接続は Fabo が %s 上で代わりに開くため、VPN・Tailscale・プロキシアプリがコンテナにも効きます。スループットの上限は NAT より低め（約 500 MB/s）ですが、通常のダウンロードには十分です。",
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "最速ですが、VPN・Tailscale・プロキシアプリの拡張モードがコンテナに届かない場合があります。"
 }

@@ -433,7 +433,6 @@
   "Username": "Nama pengguna",
   "VM": "VM",
   "VM restarted": "VM dimulai ulang",
-  "VPNs need no setting: container traffic leaves through %s.": "VPN tidak perlu diatur: trafik kontainer keluar melalui %[1]s.",
   "Variable name": "Nama variabel",
   "Variable value": "Nilai variabel",
   "Volumes": "Volume",
@@ -582,5 +581,11 @@
   "Restart engine": "Mulai ulang engine",
   "Later": "Nanti",
   "Engine restarted": "Engine dimulai ulang",
-  "%s %s is installed; restart the engine to run it": "%s %s sudah terpasang; mulai ulang engine untuk menjalankannya"
+  "%s %s is installed; restart the engine to run it": "%s %s sudah terpasang; mulai ulang engine untuk menjalankannya",
+  "Container networking": "Jaringan kontainer",
+  "Network mode": "Mode jaringan",
+  "VPN-friendly": "Kompatibel VPN",
+  "System NAT": "NAT sistem",
+  "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need.": "Fabo membuka koneksi kontainer di %s, jadi VPN, Tailscale, dan aplikasi proxy juga berlaku untuk kontainer. Throughput maksimum lebih rendah daripada NAT (sekitar 500 MB/s), lebih dari cukup untuk unduhan biasa.",
+  "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.": "Paling cepat, tetapi VPN, Tailscale, dan mode lanjutan aplikasi proxy mungkin tidak menjangkau kontainer."
 }

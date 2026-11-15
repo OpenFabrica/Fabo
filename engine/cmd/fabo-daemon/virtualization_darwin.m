@@ -84,7 +84,7 @@ static NSURL *fileURL(const char *path) {
 }
 
 static VZVirtualMachineConfiguration *configuration(
-    const char *kernel, const char *initrd, const char *disk, const char *console, const char *mac,
+    const char *kernel, const char *initrd, const char *disk, const char *console, const char *mac, int networkFD,
     char *const *shares, size_t shareCount, const char *shareTag, uint32_t cpus, uint64_t memory, NSError **error) {
     VZLinuxBootLoader *loader = [[VZLinuxBootLoader alloc] initWithKernelURL:fileURL(kernel)];
     loader.initialRamdiskURL = fileURL(initrd);
@@ -99,7 +99,22 @@ static VZVirtualMachineConfiguration *configuration(
         VZVirtioNetworkDeviceConfiguration *network =
             [[VZVirtioNetworkDeviceConfiguration alloc] init];
         network.MACAddress = [[VZMACAddress alloc] initWithString:[NSString stringWithUTF8String:mac]];
-        network.attachment = [[VZNATNetworkDeviceAttachment alloc] init];
+        if (networkFD >= 0) {
+            // User mode: frames go to the daemon's network stack, which opens
+            // connections from macOS. The framework owns this duplicate.
+            int fd = fcntl(networkFD, F_DUPFD_CLOEXEC, 0);
+            if (fd < 0) {
+                if (error != NULL) {
+                    *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:errno
+                                             userInfo:@{NSLocalizedDescriptionKey: @"duplicate VM network socket failed"}];
+                }
+                return nil;
+            }
+            NSFileHandle *handle = [[NSFileHandle alloc] initWithFileDescriptor:fd closeOnDealloc:YES];
+            network.attachment = [[VZFileHandleNetworkDeviceAttachment alloc] initWithFileHandle:handle];
+        } else {
+            network.attachment = [[VZNATNetworkDeviceAttachment alloc] init];
+        }
         config.networkDevices = @[network];
     }
     NSMutableArray<VZDirectorySharingDeviceConfiguration *> *shareDevices = [NSMutableArray new];
@@ -162,7 +177,7 @@ static VZVirtualMachineConfiguration *configuration(
 }
 
 void *fabo_vm_start(const char *kernel, const char *initrd, const char *disk,
-                    const char *console, const char *mac, char *const *shares, size_t shareCount,
+                    const char *console, const char *mac, int networkFD, char *const *shares, size_t shareCount,
                     const char *shareTag, uint32_t cpus, uint64_t memory,
                     uint32_t port, uint32_t hostPort, uintptr_t hostHandle, int notify, char **error) {
     @autoreleasepool {
@@ -173,7 +188,7 @@ void *fabo_vm_start(const char *kernel, const char *initrd, const char *disk,
             return NULL;
         }
         NSError *failure = nil;
-        VZVirtualMachineConfiguration *config = configuration(kernel, initrd, disk, console, mac, shares, shareCount, shareTag, cpus, memory, &failure);
+        VZVirtualMachineConfiguration *config = configuration(kernel, initrd, disk, console, mac, networkFD, shares, shareCount, shareTag, cpus, memory, &failure);
         if (config == nil) {
             *error = strdup(failure.localizedDescription.UTF8String ?: "invalid VM configuration");
             return NULL;

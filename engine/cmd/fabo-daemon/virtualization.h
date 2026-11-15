@@ -2,7 +2,7 @@
 #include <stddef.h>
 
 void *fabo_vm_start(const char *kernel, const char *initrd, const char *disk,
-                    const char *console, const char *mac, char *const *shares, size_t shareCount,
+                    const char *console, const char *mac, int networkFD, char *const *shares, size_t shareCount,
                     const char *shareTag, uint32_t cpus, uint64_t memory,
                     uint32_t port, uint32_t hostPort, uintptr_t hostHandle, int notify, char **error);
 int fabo_vm_control(void *machine);

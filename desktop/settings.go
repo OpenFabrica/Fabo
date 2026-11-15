@@ -86,6 +86,7 @@ func (s *desktop) loadSettings() {
 			// there is no VM to size.
 			if s.resOK = resErr == nil && res.CPUs > 0; s.resOK {
 				s.res, s.cpus, s.memory = res, float64(res.CPUs), float64(res.Memory)/1024
+				s.netMode = max(0, indexOf(vmNetworkModes, res.Network))
 			}
 			if s.proxyOK = proxyErr == nil && proxy.Settings.Mode != ""; s.proxyOK {
 				s.proxy, s.proxyDraft = proxy, proxy.Settings
@@ -523,8 +524,16 @@ func (s *desktop) resourcesPane(c *ui.Context, p palette) {
 	})
 }
 
-// networkPane sets the proxy image pulls and pushes go through.
+// vmNetworkModes are the VM uplink modes, in the order the choice shows them.
+var vmNetworkModes = []string{"user", "nat"}
+
+// networkPane picks how the VM reaches the network and sets the proxy image
+// pulls and pushes go through.
 func (s *desktop) networkPane(c *ui.Context, p palette) {
+	// Engines from before the network mode report none; they only have NAT.
+	if s.resOK && s.res.Network != "" {
+		s.networkModeRows(c, p)
+	}
 	heading(c, p, tr("代理", "Proxy"))
 	if !s.proxyOK {
 		remark(c, p, tr("启动引擎后才能修改代理。", "Start the engine to change the proxy."))
@@ -571,10 +580,45 @@ func (s *desktop) networkPane(c *ui.Context, p palette) {
 		}
 	})
 	ui.Row(c.Key("apply")).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, fmt.Sprintf(tr("VPN 不需要设置：容器流量经由 %s 发出。", "VPNs need no setting: container traffic leaves through %s."), osName())).
-			Grow(1).Width(0).MinWidth(0).FontSize(12).TextColor(p.muted)
+		ui.Box(c).Grow(1)
 		if button(c.Key("save"), p, tr("保存", "Save"), "", primaryButton, *d == s.proxy.Settings || s.working["proxy"]) {
 			s.do("proxy", engineAction{http.MethodPost, "/fabo/proxy", *d}, tr("代理设置已保存", "Proxy settings saved"))
+		}
+	})
+}
+
+// networkModeRows choose between the user-mode network, which follows the
+// Mac's VPNs and proxies, and the Virtualization framework's NAT. A running
+// VM keeps the mode it booted with, so a saved change waits for a restart.
+func (s *desktop) networkModeRows(c *ui.Context, p palette) {
+	r := s.res
+	heading(c, p, tr("容器联网", "Container networking"))
+	hint := fmt.Sprintf(tr("容器的连接由 Fabo 在 %s 上代为发出，VPN、Tailscale 和代理软件对容器同样生效。吞吐上限比 NAT 低（约 500 MB/s），一般下载用不到这么快。", "Fabo opens container connections on %s, so VPNs, Tailscale and proxy apps apply to containers too. Throughput tops out lower than with NAT (about 500 MB/s), more than ordinary downloads need."), osName())
+	if vmNetworkModes[s.netMode] == "nat" {
+		hint = tr("传输最快，但 VPN、Tailscale 和代理软件的增强模式在容器里可能不生效。", "Fastest, but VPNs, Tailscale and proxy apps' enhanced modes may not reach containers.")
+	}
+	pref(c, p, tr("联网方式", "Network mode"), hint, func() {
+		choice(c.Key("vm-network"), p, tr("联网方式", "Network mode"), &s.netMode, tr("兼容 VPN", "VPN-friendly"), tr("系统 NAT", "System NAT"))
+	})
+	mode := vmNetworkModes[s.netMode]
+	changed := mode != r.Network
+	stale := r.Awake && r.RunningNetwork != "" && r.RunningNetwork != r.Network
+	if !changed && !stale {
+		return
+	}
+	ui.Row(c.Key("vm-network-apply")).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
+		ui.Box(c).Grow(1)
+		if stale && !changed && button(c.Key("vm-network-restart"), p, tr("重启虚拟机以生效", "Restart VM to apply"), "restart", plainButton, s.working["engine"]) {
+			s.pending = &confirmation{
+				title: tr("重启虚拟机？", "Restart the VM?"),
+				body:  tr("重启会停止运行中的容器，之后需要重新启动它们。", "Restarting stops the running containers; start them again afterwards."),
+				ok:    tr("重启", "Restart"), run: s.restartVM,
+			}
+		}
+		if changed && button(c.Key("vm-network-save"), p, tr("保存", "Save"), "", primaryButton, s.working["resources"]) {
+			// The endpoint takes the whole VM configuration; send the saved size unchanged.
+			s.do("resources", engineAction{http.MethodPost, "/fabo/resources", map[string]any{"cpus": r.CPUs, "memory_mib": r.Memory, "network": mode}},
+				tr("已保存，虚拟机下次启动时生效", "Saved. The VM uses these from its next start"))
 		}
 	})
 }

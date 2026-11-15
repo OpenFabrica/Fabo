@@ -237,7 +237,10 @@ code download-while-others-start 1 bash -c "$D logs dl 2>&1 | grep -qE '(^| )[1-
 $D rm -f dl >/dev/null
 t none-net "lo" $D run --rm --network none alpine ip link
 code none-no-internet 1 $D run --rm --network none alpine wget -qO- -T 2 http://example.com
-t host-net "192.168.64." $D run --rm --network host alpine ip -4 addr show eth0
+# The VM's eth0 comes from the network mode it booted with (Settings → Network).
+VM_NET=$(curl -s --unix-socket "$SOCK" http://d/fabo/resources | python3 -c "import json,sys; print(json.load(sys.stdin).get('running_network') or 'nat')")
+if [ "$VM_NET" = user ]; then VM_ADDR="192.168.127.2/"; else VM_ADDR="192.168.64."; fi
+t host-net "$VM_ADDR" $D run --rm --network host alpine ip -4 addr show eth0
 t hosts-file "localhost" $D run --rm alpine cat /etc/hosts
 t add-host "1.2.3.4" $D run --rm --add-host foo:1.2.3.4 alpine getent hosts foo
 $D run -d --name peer nginx:alpine >/dev/null

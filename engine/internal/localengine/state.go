@@ -238,7 +238,32 @@ func (s *State) restore() (map[string]*container, error) {
 type VMSettings struct {
 	CPUs      uint   `json:"cpus"`
 	MemoryMiB uint64 `json:"memory_mib"`
-	Stopped   bool   `json:"stopped,omitempty"`
+	// Network is the VM uplink mode; empty means VMNetworkUser.
+	Network string `json:"network,omitempty"`
+	Stopped bool   `json:"stopped,omitempty"`
+}
+
+// VM uplink modes. VMNetworkUser hands every guest connection to the
+// daemon, which opens it as an ordinary macOS process, so VPNs, Tailscale
+// and per-domain resolvers apply to containers. VMNetworkNAT uses the
+// Virtualization framework's NAT: faster, but traffic that macOS routes
+// into a VPN tunnel may not get through.
+const (
+	VMNetworkUser = "user"
+	VMNetworkNAT  = "nat"
+)
+
+// NetworkMode is the uplink mode these settings boot with.
+func (v VMSettings) NetworkMode() string {
+	if v.Network == "" {
+		return VMNetworkUser
+	}
+	return v.Network
+}
+
+// ValidVMNetwork reports whether mode names a VM uplink mode ("" is the default).
+func ValidVMNetwork(mode string) bool {
+	return mode == "" || mode == VMNetworkUser || mode == VMNetworkNAT
 }
 
 func (s *State) LoadVMSettings(defaults VMSettings) (VMSettings, error) {

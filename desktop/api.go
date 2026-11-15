@@ -110,15 +110,18 @@ type network struct {
 func (n network) builtin() bool { return n.Name == "bridge" || n.Name == "host" || n.Name == "none" }
 
 // vmResources is /fabo/resources. An engine running directly on Linux
-// reports zero CPUs.
+// reports zero CPUs. Network is "user" or "nat"; RunningNetwork is empty
+// while the VM sleeps.
 type vmResources struct {
-	CPUs          int  `json:"cpus"`
-	Memory        int  `json:"memory_mib"`
-	RunningCPUs   int  `json:"running_cpus"`
-	RunningMemory int  `json:"running_memory_mib"`
-	Awake         bool `json:"awake"`
-	MaxCPUs       int  `json:"max_cpus"`
-	MaxMemory     int  `json:"max_memory_mib"`
+	CPUs           int    `json:"cpus"`
+	Memory         int    `json:"memory_mib"`
+	Network        string `json:"network"`
+	RunningCPUs    int    `json:"running_cpus"`
+	RunningMemory  int    `json:"running_memory_mib"`
+	RunningNetwork string `json:"running_network"`
+	Awake          bool   `json:"awake"`
+	MaxCPUs        int    `json:"max_cpus"`
+	MaxMemory      int    `json:"max_memory_mib"`
 }
 
 type builderInfo struct {
