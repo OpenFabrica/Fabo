@@ -25,3 +25,11 @@ func TestNamesFollowTheBundleIdentifier(t *testing.T) {
 		}
 	}
 }
+
+// Only a literal true turns a bundle key on.
+func TestPlistTrueReadsBooleanKeys(t *testing.T) {
+	plist := "<dict><key>FaboSharesEngine</key>\n  <true/><key>Other</key><false/></dict>"
+	if !plistTrue(plist, "FaboSharesEngine") || plistTrue(plist, "Other") || plistTrue(plist, "Missing") {
+		t.Fatal("plistTrue misread the keys")
+	}
+}

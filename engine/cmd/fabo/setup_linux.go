@@ -34,6 +34,11 @@ func (i installation) startDaemon(*http.Client) error {
 
 func (i installation) finishDesktop() {}
 
+// installedApp is macOS-only: Linux packages never set FaboSharesEngine.
+func (i installation) installedApp() (installation, error) {
+	return installation{}, errors.New("sharing the installed engine is for macOS development builds")
+}
+
 func reportFailure(error) {}
 
 // contextCommand is macOS-only: on Linux plain docker reaches Fabo through

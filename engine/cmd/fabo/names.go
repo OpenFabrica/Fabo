@@ -35,6 +35,12 @@ func bundleID(plist string) string {
 	return strings.TrimSpace(id)
 }
 
+// plistTrue reports whether an Info.plist's text sets key to true.
+func plistTrue(plist, key string) bool {
+	_, rest, ok := strings.Cut(plist, "<key>"+key+"</key>")
+	return ok && strings.HasPrefix(strings.TrimSpace(rest), "<true/>")
+}
+
 // namesFor maps a bundle identifier to its names. Anything that is not a
 // well-formed feature identifier is the standard installation.
 func namesFor(id string) names {

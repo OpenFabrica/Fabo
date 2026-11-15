@@ -112,6 +112,10 @@ type installation struct {
 	dir   string // directory holding fabo, with symlinks resolved
 	home  string
 	names names
+	// sharesEngine is set by FaboSharesEngine in a development bundle's
+	// Info.plist: its window uses the installed app's engine, containers
+	// and images instead of starting its own.
+	sharesEngine bool
 }
 
 // locate resolves the running executable and the names its bundle selects.
@@ -129,7 +133,7 @@ func locate() (installation, error) {
 	}
 	dir := filepath.Dir(exe)
 	plist, _ := os.ReadFile(filepath.Join(dir, "..", "Info.plist"))
-	return installation{dir: dir, home: home, names: namesFor(bundleID(string(plist)))}, nil
+	return installation{dir: dir, home: home, names: namesFor(bundleID(string(plist))), sharesEngine: plistTrue(string(plist), "FaboSharesEngine")}, nil
 }
 
 // root is the installation's directory under HOME: socket, logs and Go state.

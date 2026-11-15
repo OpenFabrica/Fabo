@@ -31,18 +31,31 @@ func openDesktop(args []string) error {
 	if info, err := os.Stat(desktop); err != nil || !info.Mode().IsRegular() {
 		return errors.New("this installation has no desktop window (fabo-desktop)")
 	}
-	if err := in.prepareDesktop(args); err != nil {
+	env := os.Environ()
+	owner := in
+	if in.sharesEngine {
+		// A development window borrows the installed app: its engine, and its
+		// launcher for everything the window asks fabo to do, so a restart or
+		// an import acts on the engine the window shows. This bundle sets
+		// nothing up of its own.
+		if owner, err = in.installedApp(); err != nil {
+			return err
+		}
+		env = append(env, "FABO_LAUNCHER="+filepath.Join(owner.dir, "fabo"), "FABO_SHARED_ENGINE=1")
+	} else if err := in.prepareDesktop(args); err != nil {
 		return err
 	}
-	socket := in.socket()
-	if err := in.ensureDaemon(socket); err != nil {
+	socket := owner.socket()
+	if err := owner.ensureDaemon(socket); err != nil {
 		return err
 	}
-	in.finishDesktop()
+	if !in.sharesEngine {
+		in.finishDesktop()
+	}
 	if len(args) > 0 {
 		args = args[1:] // "ui"
 	}
-	return syscall.Exec(desktop, append([]string{desktop}, args...), append(os.Environ(), "FABO_SOCKET="+socket))
+	return syscall.Exec(desktop, append([]string{desktop}, args...), append(env, "FABO_SOCKET="+socket))
 }
 
 // socketClient speaks HTTP to the daemon on its Unix socket.

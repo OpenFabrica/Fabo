@@ -10,6 +10,9 @@
 # identifier com.openfabrica.fabo.<flavor>, which gives it its own state directory,
 # socket and Finder folder beside the installed app (engine/cmd/fabo/names.go)
 # and a labelled band on its icon. A flavored app is never notarized.
+# Its window shows the installed app's engine, containers and images
+# (FaboSharesEngine), so the UI can be debugged against real data; with
+# FABO_OWN_ENGINE=1 the window starts the build's own engine instead.
 #
 # Needs the guest first: make guest, make kernel, make disk.
 # FABO_SIGN_IDENTITY picks the signing identity; "-" signs ad hoc.
@@ -23,10 +26,11 @@ case $arch in
   x86_64) goarch=amd64 guest=guest/out/x86_64 kernel=bzImage out=target/intel cache=target/cli-cache/x86_64 pin=X86_ docker_arch=x86_64 ;;
   *) echo "arch is arm64 or x86_64, not $arch" >&2; exit 2 ;;
 esac
-name=Fabo id=com.openfabrica.fabo
+name=Fabo id=com.openfabrica.fabo shares=
 if [ -n "$flavor" ]; then
   [[ $flavor =~ ^[a-z0-9]+$ ]] || { echo "a flavor is lowercase letters and digits, not $flavor" >&2; exit 2; }
   name="Fabo $(printf %s "${flavor:0:1}" | tr a-z A-Z)${flavor:1}" id=com.openfabrica.fabo.$flavor out=$out/dev
+  [ "${FABO_OWN_ENGINE:-}" = 1 ] || shares='<key>FaboSharesEngine</key><true/>'
 fi
 for f in "$guest/$kernel" "$guest/initramfs-go.cpio" guest/out/data.img; do
   [ -f "$f" ] || { echo "no $f: run make guest, make kernel and make disk first" >&2; exit 1; }
@@ -126,6 +130,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key><string>$plain</string>
   <key>CFBundleVersion</key><string>$plain</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
+  $shares
   <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSLocalNetworkUsageDescription</key><string>Fabo lets containers reach devices and services on your network, and serves the ports they publish.</string>
