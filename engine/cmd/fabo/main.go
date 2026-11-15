@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/OpenFabrica/Fabo/engine/internal/sharetunnel"
 )
 
 // release is this build's version, stamped from the git tag by the Makefile
@@ -34,6 +36,8 @@ const usage = `usage: fabo [ui [-view PAGE] [-start]]   open the desktop window
        fabo pack [-o FILE] [--project NAME] [CONTAINER...]   containers with their changes and volumes, in one file
        fabo unpack [--start] FILE        recreate packed containers here
        fabo usb [list] | attach DEVICE | detach DEVICE | helper remove
+       fabo share PORT|CONTAINER [NAME]  a public HTTPS link to it; also fabo PORT [NAME]
+       fabo share login [--server HOST] [--token T] | logout | status | names | reserve|release NAME
        fabo bench [--runs N] [--image IMAGE] [--network none|bridge] [--only fabo|orbstack|docker]
        fabo raw run [OPTIONS] IMAGE [COMMAND...] | pull IMAGE | images | rmi IMAGE...
        fabo migrate [OPTIONS]       import an offline Kiri store
@@ -78,6 +82,8 @@ func main() {
 		err = contextCommand(args[1:])
 	case args[0] == "usb":
 		err = usbCommand(args[1:])
+	case args[0] == "share":
+		err = shareCommand(args[1:])
 	case args[0] == "bench":
 		err = benchCommand(args[1:])
 	case args[0] == "raw":
@@ -92,6 +98,9 @@ func main() {
 		if err == nil {
 			err = in.runDocker(args)
 		}
+	case sharetunnel.IsShorthand(args[0]):
+		// `fabo 3000` shares a port; no docker command looks like one.
+		err = shareCommand(args)
 	default:
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)

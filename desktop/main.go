@@ -53,7 +53,7 @@ var navItems = []navItem{
 	{machinesPage, "cpu", "Linux 机器", "Machines", false},
 	{kubernetesPage, "helm", "Kubernetes", "Kubernetes", false},
 	{"usb", "usb", "USB 设备", "USB devices", true},
-	{"share", "share", "共享", "Share", true},
+	{sharePage, "share", "共享", "Share", false},
 	{terminalPage, "terminal", "终端", "Terminal", false},
 	{settingsPage, "sliders", "设置", "Settings", false},
 }
@@ -218,6 +218,7 @@ type desktop struct {
 	registries     registryUI
 	kube           kubernetesUI
 	imp            importUI
+	shares         shareUI
 	containerDraft containerSettings
 	fonts          []string
 	monoFonts      []string
@@ -468,6 +469,7 @@ func (s *desktop) refresh() {
 	}
 	page := s.page
 	wantDisk := page == overviewPage && s.disk == nil
+	wantShares := page == sharePage || strings.HasPrefix(s.form.kind, "share")
 	s.run(8*time.Second, func(ctx context.Context) func() {
 		e := s.engine
 		info, err := e.info(ctx)
@@ -495,6 +497,11 @@ func (s *desktop) refresh() {
 		var disk *diskUsage
 		var builder builderInfo
 		var builderErr, eventsErr error
+		var shares shareInfo
+		sharesErr := errSkipped
+		if wantShares {
+			sharesErr = e.get(ctx, "/fabo/share", &shares)
+		}
 		switch page {
 		case overviewPage:
 			events, eventsErr = e.events(ctx, now)
@@ -532,6 +539,10 @@ func (s *desktop) refresh() {
 			}
 			if builderErr == nil && page == buildsPage {
 				s.builder = builder
+			}
+			if sharesErr == nil {
+				s.shares.info, s.shares.ok = shares, true
+				s.settleShareLogin()
 			}
 
 			if samples != nil {

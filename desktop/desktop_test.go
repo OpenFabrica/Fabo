@@ -38,6 +38,19 @@ type fakeEngine struct {
 	proc  *os.Process
 	// execCmd is the command of the exec created last.
 	execCmd []string
+	// share is what GET /fabo/share answers; empty means the default
+	// signed-in account with two links.
+	share string
+}
+
+// fakeShare is the default /fabo/share: signed in, one live link with
+// requests and one reconnecting.
+func fakeShare(now int64) string {
+	at := time.Unix(now-30, 0).UTC().Format(time.RFC3339)
+	return fmt.Sprintf(`{"account":{"signedIn":true,"login":"mike","server":"edge.fabo.dev"},"shares":[
+	 {"id":"sh-web","target":"shop-web-1","owner":"app","url":"https://shop-web-1-x7k2ab.fabo.link","state":"live","started":%[1]q,"requests":3,"in":2048,"out":184320,
+	  "recent":[{"method":"GET","path":"/","status":200,"ms":12,"out":4096,"at":%[1]q},{"method":"GET","path":"/assets/app.js","status":200,"ms":31,"out":180224,"at":%[1]q},{"method":"POST","path":"/api/cart","status":502,"ms":3000,"at":%[1]q}]},
+	 {"id":"sh-dev","target":"localhost:5173","owner":"cli","url":"https://q8m2zt1c.fabo.link","state":"reconnecting","reason":"the relay stopped answering","started":%[1]q,"requests":0,"recent":[]}]}`, at)
 }
 
 // fakeDirs and fakeFiles are the small filesystem the fake containers
@@ -267,6 +280,14 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 			 {"id":"CVE-2026-2002","severity":"High","package":"openssl","version":"3.3.0","fixed":[]}]}`)
 		case path == "/fabo/builder":
 			fmt.Fprint(w, `{"cache_gb":20,"default_cache_gb":20,"cache_limit":21474836480,"idle_secs":600,"image":"moby/buildkit:v0.17.0","state":"running"}`)
+		case path == "/fabo/share":
+			f.mu.Lock()
+			body := f.share
+			f.mu.Unlock()
+			if body == "" {
+				body = fakeShare(now)
+			}
+			fmt.Fprint(w, body)
 		case path == "/fabo/domains":
 			fmt.Fprint(w, `{"http":{"port":80,"default":80,"running":true,"serving":true},"https":{"port":443,"default":443,"running":true,"serving":true}}`)
 		case path == "/fabo/proxy":
@@ -1238,6 +1259,13 @@ func TestScreenshots(t *testing.T) {
 		shot("networks-"+theme, s)
 		s.navigate(buildsPage)
 		shot("builds-"+theme, s)
+		s.navigate(sharePage)
+		s.refresh()
+		s.selectRow("sh-web")
+		shot("share-"+theme, s)
+		s.tab[sharePage] = 1
+		shot("share-requests-"+theme, s)
+		s.selectRow("")
 		s.navigate(settingsPage)
 		for i, tab := range settingsTabs {
 			s.settingsTab = i

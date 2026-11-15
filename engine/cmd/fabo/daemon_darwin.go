@@ -69,6 +69,7 @@ func (i installation) daemonCommand() (string, []string, error) {
 		"-socket", socket,
 		"-state", state,
 		"-domain-tls-dir", filepath.Join(root, "tls"),
+		"-share-config", filepath.Join(root, "share.json"),
 		"-finder-socket", filepath.Join(root, "files", "nfs.sock"),
 		"-finder-mount", filepath.Join(i.home, i.names.app),
 	}

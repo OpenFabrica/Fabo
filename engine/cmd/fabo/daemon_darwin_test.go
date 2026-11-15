@@ -58,6 +58,7 @@ func TestDaemonCommandUsesTheBundleAndPrivateDirectories(t *testing.T) {
 		"-cpus":              "1",
 		"-memory":            "3072",
 		"-builder-container": "buildx_buildkit_fabo-dev-build0",
+		"-share-config":      filepath.Join(home, ".fabo-dev", "share.json"),
 	} {
 		if got := value(flag); got != want {
 			t.Errorf("%s = %q, want %q", flag, got, want)

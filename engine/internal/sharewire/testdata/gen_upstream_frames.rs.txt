@@ -1,0 +1,72 @@
+// 用上游 kiri-share-proto 生成固定帧，供 Go 端 sharewire 逐字节对照。
+use kiri_share_proto::{Msg, Hello, Welcome, PROTOCOL};
+
+fn hex(b: &[u8]) -> String { b.iter().map(|x| format!("{:02x}", x)).collect() }
+
+fn enc(m: Msg<'_>) -> String { let mut b = Vec::new(); m.encode(&mut b); hex(&b) }
+
+// 手工拼帧，模拟省略可选尾字段的旧版对端。
+fn raw(kind: u16, body: &[u8]) -> String {
+    let mut b = Vec::new();
+    b.extend_from_slice(&((body.len() + 2) as u32).to_le_bytes());
+    b.extend_from_slice(&kind.to_le_bytes());
+    b.extend_from_slice(body);
+    hex(&b)
+}
+
+fn s(out: &mut Vec<u8>, v: &str) { out.extend_from_slice(&(v.len() as u32).to_le_bytes()); out.extend_from_slice(v.as_bytes()); }
+
+fn main() {
+    let full: Vec<(&str, String)> = vec![
+        ("hello", enc(Msg::Hello(Hello { protocol: PROTOCOL, token: "ft_tok", device: "0123456789abcdef0123456789abcdef", name: "web", target: "web (localhost:8080)", client: "fabo 0.3.0", features: 4, machine: "3f9a0c41d2e87b65aabbccdd", host: "paul-mbp" }))),
+        ("welcome", enc(Msg::Welcome(Welcome { url: "https://web-x7k2ab.share.test", rate: 0, remaining: u64::MAX, warning: false, domains: "", lanes: 0, lane_key: "", window: 0 }))),
+        ("welcome_window", enc(Msg::Welcome(Welcome { url: "https://web.share.test", rate: 524288, remaining: 1 << 33, warning: true, domains: "https://a.example.com,https://b.example.org", lanes: 0, lane_key: "", window: 4096 }))),
+        ("refused", enc(Msg::Refused("web is already in use"))),
+        ("open", enc(Msg::Open { stream: 7, remote: "203.0.113.9:51234" })),
+        ("data", enc(Msg::Data { stream: 7, data: b"GET / HTTP/1.1\r\n\r\n" })),
+        ("data_empty", enc(Msg::Data { stream: 7, data: b"" })),
+        ("window", enc(Msg::Window { stream: 7, credit: 65536 })),
+        ("close", enc(Msg::Close { stream: 7 })),
+        ("reset", enc(Msg::Reset { stream: 4294967295 })),
+        ("ping", enc(Msg::Ping(0x0102030405060708))),
+        ("pong", enc(Msg::Pong(42))),
+        ("notice", enc(Msg::Notice("nothing is answering on localhost:3000"))),
+        ("goodbye", enc(Msg::Goodbye { reconnect: true, reason: "edge restarting" })),
+        ("goodbye_final", enc(Msg::Goodbye { reconnect: false, reason: "stopped from paul-mbp" })),
+    ];
+    // 旧版短 Hello：没有 features/machine/host。
+    let mut h = Vec::new();
+    h.extend_from_slice(&PROTOCOL.to_le_bytes());
+    for v in ["tok", "dev", "web", "localhost:3000", "kiri 0.0.9"] { s(&mut h, v); }
+    // 只到 features 的 Hello。
+    let mut hf = h.clone();
+    hf.extend_from_slice(&4u32.to_le_bytes());
+    // 旧版短 Welcome：没有 domains 及其后字段。
+    let mut w = Vec::new();
+    s(&mut w, "https://web.share.test");
+    w.extend_from_slice(&0u32.to_le_bytes());
+    w.extend_from_slice(&u64::MAX.to_le_bytes());
+    w.push(0);
+    // 只到 domains 的 Welcome。
+    let mut wd = w.clone();
+    s(&mut wd, "https://dev.example.com");
+    let short: Vec<(&str, String)> = vec![
+        ("hello_old", raw(1, &h)),
+        ("hello_features_only", raw(1, &hf)),
+        ("welcome_old", raw(2, &w)),
+        ("welcome_domains_only", raw(2, &wd)),
+    ];
+    // 与解码结果一起核对：每条的 decode 结果用 Debug 输出，便于 Go 端写期望值。
+    println!("{{");
+    println!("  \"full\": {{");
+    for (i, (k, v)) in full.iter().enumerate() { println!("    \"{}\": \"{}\"{}", k, v, if i + 1 < full.len() { "," } else { "" }); }
+    println!("  }},");
+    println!("  \"short\": {{");
+    for (i, (k, v)) in short.iter().enumerate() { println!("    \"{}\": \"{}\"{}", k, v, if i + 1 < short.len() { "," } else { "" }); }
+    println!("  }}");
+    println!("}}");
+    for (k, v) in short.iter() {
+        let b: Vec<u8> = (0..v.len()).step_by(2).map(|i| u8::from_str_radix(&v[i..i+2], 16).unwrap()).collect();
+        eprintln!("{} => {:?}", k, kiri_share_proto::decode(&b).unwrap());
+    }
+}

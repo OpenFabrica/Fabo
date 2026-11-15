@@ -197,6 +197,17 @@ type RelayTCPConn struct {
 
 func NewRelayTCPConn(conn net.Conn) *RelayTCPConn { return &RelayTCPConn{Conn: conn} }
 
+// CloseWrite half-closes the relay when its transport can, so the guest
+// sees the end of what was sent while the reply keeps coming. Public share
+// links rely on it: a visitor that finished its request must reach the
+// container as EOF, or a keep-alive server holds the stream open.
+func (c *RelayTCPConn) CloseWrite() error {
+	if cw, ok := c.Conn.(interface{ CloseWrite() error }); ok {
+		return cw.CloseWrite()
+	}
+	return nil
+}
+
 func (c *RelayTCPConn) Read(p []byte) (int, error) {
 	if len(p) == 0 {
 		return 0, nil

@@ -633,6 +633,8 @@ func (s *desktop) pageBody(c *ui.Context, p palette) {
 		s.hostTerminalView(c, p)
 	case kubernetesPage:
 		s.kubernetesView(c, p)
+	case sharePage:
+		s.shareView(c, p)
 	case settingsPage:
 		s.settingsView(c, p)
 	}
@@ -978,6 +980,21 @@ func (s *desktop) dialog(c *ui.Context, p palette) {
 			title, ok = tr("新建 Linux 机器", "New Linux machine"), tr("创建", "Create")
 			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
 			submitted = s.machineForm(c, p)
+		case "share":
+			title, ok = tr("新建公开链接", "New public link"), tr("共享", "Share")
+			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
+			submitted = s.shareForm(c, p)
+		case "share-login":
+			title, ok = tr("登录共享中继", "Sign in to the share relay"), tr("登录", "Sign in")
+			if s.shares.waiting {
+				ok = tr("关闭", "Close")
+			}
+			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
+			submitted = s.shareLoginForm(c, p)
+		case "share-relay":
+			title, ok = tr("共享中继", "Share relay"), tr("保存", "Save")
+			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
+			submitted = s.shareRelayForm(c, p)
 		case "pull":
 			title, ok = tr("拉取镜像", "Pull an image"), tr("拉取", "Pull")
 			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
@@ -1018,6 +1035,12 @@ func (s *desktop) submit() bool {
 	switch f.kind {
 	case "machine":
 		return s.createMachine()
+	case "share":
+		return s.createShare()
+	case "share-login":
+		return s.loginShare()
+	case "share-relay":
+		return s.setShareRelay()
 	case "run":
 		spec := runSpec{Image: f.image, Name: f.name, Command: f.value}
 		if spec.Image == "" {

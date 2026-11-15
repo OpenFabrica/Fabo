@@ -76,6 +76,7 @@ func main() {
 	stateDir := flag.String("state", "", "existing private directory for container records")
 	tlsDir := flag.String("domain-tls-dir", "", "directory for the local domain authority")
 	domainDefaults := flag.Bool("domains-default", false, "enable the standard domain listener ports")
+	shareConfig := flag.String("share-config", "", "account file for public share links (share.json); empty disables them")
 	flag.Parse()
 	if !guest.valid() || *socket == "" || *stateDir == "" {
 		flag.Usage()
@@ -83,12 +84,12 @@ func main() {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if err := run(ctx, guest, *socket, *catalog, *stateDir, *builder, *tlsDir, *domainDefaults); err != nil {
+	if err := run(ctx, guest, *socket, *catalog, *stateDir, *builder, *tlsDir, *shareConfig, *domainDefaults); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func run(ctx context.Context, guest guestOptions, socket, catalog, stateDir, builder, tlsDir string, domainDefaults bool) (err error) {
+func run(ctx context.Context, guest guestOptions, socket, catalog, stateDir, builder, tlsDir, shareConfig string, domainDefaults bool) (err error) {
 	socket, err = filepath.Abs(socket)
 	if err != nil {
 		return err
@@ -158,6 +159,16 @@ func run(ctx context.Context, guest guestOptions, socket, catalog, stateDir, bui
 		return err
 	}
 	defer manager.domains.Close()
+	if shareConfig != "" {
+		manager.shares, err = localengine.OpenPublicShares(localengine.PublicShareOptions{
+			ConfigPath: shareConfig, Version: engineRelease,
+			ResolveContainer: manager.resolveShareContainer, DialContainer: manager.dialShare,
+		})
+		if err != nil {
+			return fmt.Errorf("public share links: %w", err)
+		}
+		defer manager.shares.Close()
+	}
 	mirror, mirrorErr := localengine.OpenBuildMirror(engineCtx, manager.mirrorEngine)
 	if mirrorErr != nil {
 		log.Printf("local build images: %v", mirrorErr)

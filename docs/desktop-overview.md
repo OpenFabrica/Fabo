@@ -39,7 +39,8 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   the title strip. A window narrower than 1040 points folds it on its own; unfolding
   it there lasts until the window widens, without changing the saved choice. Kubernetes is a group of its own: its heading shows the cluster's
   state and opens its settings, and Pods and Services open their lists.
-  USB devices and Share are not built yet and stay out of the sidebar.
+  USB devices are not built yet and stay out of the sidebar; Share lists
+  public share links (see [Public share links](#public-share-links)).
 - **Title strip.** On the right sit the search field of the page's table
   (Command/Ctrl+K focuses it), then Terminal and Settings.
 - **Lists.** Every page is a table with a detail panel, under the page's
@@ -1968,6 +1969,59 @@ Linux driver path with software serial and HID devices. Run
 `tests/usb.sh` with `FABO` pointing to the built `fabo` and an isolated Docker
 context to verify that path. CLI contracts and host capture verification
 boundaries are documented in [CLI tools](cli-tools.md).
+
+### Public share links
+
+`fabo share PORT|HOST:PORT|CONTAINER` (or `fabo PORT`) and the window's
+Share page give a local service a public HTTPS address through a
+self-hosted `fabo-edge` relay ([deployment](share-edge.md)). The supervisor
+hosts the tunnels in `PublicShares`, beside the domain router, so links
+survive VM sleep; a daemon restart closes them. The launcher passes the
+account file as `-share-config <root>/share.json`; without it the
+`/fabo/share` endpoints answer 404.
+
+```mermaid
+flowchart LR
+    Visitor -->|https://NAME.DOMAIN| Edge[fabo-edge]
+    Edge -->|TLS, ALPN fabo-share/1| Shares[PublicShares in the supervisor]
+    Shares -->|port target| Host[localhost:PORT]
+    Shares -->|container target: wake VM, dial like a container domain| Container
+```
+
+- **Endpoints.** `GET /fabo/share` reports the account (`signedIn`, `login`,
+  `server`, a pending GitHub code) and every link with its state, URL,
+  counters and last 50 requests. `POST /fabo/share {target, name,
+  noReserve}` opens a link the engine owns (the window's); `DELETE
+  /fabo/share/{id}` closes one. `POST /fabo/share/run` opens a link and
+  streams its events as NDJSON; that request is the link's lease, so the
+  link closes when the CLI exits for any reason. `GET
+  /fabo/share/{id}/events` watches without owning. `POST /fabo/share/login`
+  takes `server`, `token`, `dev`+`login`, or `github`; `POST
+  /fabo/share/logout`; `GET /fabo/share/account`; `GET|POST|DELETE
+  /fabo/share/names[/{name}]` pass through to the relay. None of them wake
+  the VM.
+- **Account rules.** One device-flow sign-in runs at a time; a newer
+  sign-in or sign-out cancels it and its late result is dropped. A token
+  belongs to the relay that issued it and is never sent elsewhere:
+  switching relays clears it, and `FABO_SHARE_SERVER` naming another relay
+  reads as signed out. Signing out, switching
+  relays or signing in as someone else closes the open links first.
+- **Targets.** A port or `host:port` is dialed with a 3 s timeout. A
+  container is dialed through the guest relay, choosing its port as its
+  container domain does, so it needs no published port. A visitor to a
+  container while the VM sleeps wakes it (waiting up to 60 s), then retries
+  for 10 s while restart policies bring containers back; the VM sleeps only
+  with no container running. Each visitor counts as activity.
+- **Requests.** A request is reported when its visitor connection ends,
+  with method, path, status and sizes sniffed from the first bytes each
+  way, as upstream does; a keep-alive connection reports later. A
+  half-close from the visitor reaches the service as EOF (also through the
+  guest relay), so the reply still arrives.
+- **Window.** The Share page shows the account, New link (a port,
+  `host:port` or a running container, and an optional name), and the links
+  with copy, open and stop. The detail panel shows a link's facts and its
+  recent requests. Without a relay it asks for one; signed out it offers
+  GitHub (showing the code to enter) or an operator's token.
 
 ### Container security options
 

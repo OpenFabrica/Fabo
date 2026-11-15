@@ -77,7 +77,7 @@ func (i installation) daemonCommand() (string, []string, error) {
 	// systemd sets INVOCATION_ID for every unit. Only Fabo's own unit, or a
 	// WSL distro's, delegates the cgroup subtree that -systemd expects.
 	service := os.Getenv("INVOCATION_ID") != "" && (wsl || os.Getenv("STATE_DIRECTORY") != "")
-	args := []string{"-agent", agent, "-socket", socket, "-state", state, "-domains-default"}
+	args := []string{"-agent", agent, "-socket", socket, "-state", state, "-domains-default", "-share-config", filepath.Join(i.root(), "share.json")}
 	if wsl {
 		args = append(args, "-windows-proxy")
 	}

@@ -65,6 +65,11 @@ type supervisor struct {
 	proxy        *localengine.Proxy
 	domains      *localengine.Domains
 	buildMirror  *localengine.BuildMirror
+	// shares hosts public share links; nil when the launcher passed no
+	// -share-config.
+	shares *localengine.PublicShares
+	// wakeForShare boots the VM for a share link; tests replace it.
+	wakeForShare func() error
 
 	// life serializes resource updates, VM release, and VM boot.
 	life sync.Mutex
@@ -306,8 +311,101 @@ func (s *supervisor) dialDomain(ctx context.Context, host string) (net.Conn, err
 	return engine.DialDomain(ctx, host)
 }
 
+// shareWakeTimeout bounds waiting for the VM to boot for a share link,
+// separately from the dial that follows.
+const shareWakeTimeout = 60 * time.Second
+
+// shareEngine returns the running engine for a public share link, waking
+// the VM when it sleeps. A visitor counts as activity, so the VM does not
+// go idle under a link that is being used.
+func (s *supervisor) shareEngine(ctx context.Context) (engine *localengine.Engine, woke bool, err error) {
+	s.mu.Lock()
+	if s.isActiveLocked() {
+		engine := s.current.engine
+		s.lastActivity = time.Now()
+		s.mu.Unlock()
+		return engine, false, nil
+	}
+	stopped := s.vm == nil || s.vm.settings.Stopped
+	s.mu.Unlock()
+	if stopped {
+		return nil, false, errManuallyStopped
+	}
+	wake := s.wakeForShare
+	if wake == nil {
+		wake = func() error { return s.wake(false) }
+	}
+	// wake takes life itself and is not cancellable; a slow boot keeps
+	// going in the background while this visitor gives up.
+	booted := make(chan error, 1)
+	go func() { booted <- wake() }()
+	wait, cancel := context.WithTimeout(ctx, shareWakeTimeout)
+	defer cancel()
+	select {
+	case err := <-booted:
+		if err != nil {
+			return nil, false, err
+		}
+	case <-wait.Done():
+		return nil, false, fmt.Errorf("the Fabo VM didn't start in time: %w", wait.Err())
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.isActiveLocked() {
+		return nil, false, errManuallyStopped
+	}
+	s.lastActivity = time.Now()
+	return s.current.engine, true, nil
+}
+
+// shareRestartWait is how long a visitor that woke the VM waits for the
+// container to come back: the VM sleeps only with no container running, so
+// a shared container returns through its restart policy just after boot.
+var shareRestartWait = 10 * time.Second
+
+// dialShare connects a share link's visitor to a container's HTTP service.
+func (s *supervisor) dialShare(ctx context.Context, name string) (net.Conn, error) {
+	engine, woke, err := s.shareEngine(ctx)
+	if err != nil {
+		return nil, err
+	}
+	deadline := time.Now().Add(shareRestartWait)
+	for {
+		dial, cancel := context.WithTimeout(ctx, 10*time.Second)
+		conn, err := engine.DialContainer(dial, name)
+		cancel()
+		if err == nil || !woke || time.Now().After(deadline) {
+			return conn, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, err
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+}
+
+// resolveShareContainer checks a container can be shared and returns its name.
+func (s *supervisor) resolveShareContainer(ctx context.Context, name string) (string, error) {
+	engine, _, err := s.shareEngine(ctx)
+	if err != nil {
+		return "", err
+	}
+	return engine.ShareableContainer(name)
+}
+
 func (s *supervisor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := localengine.APIPath(r.URL.Path)
+	// Share links don't need the guest: they are served before the wake
+	// logic below, and wake the VM only when a visitor reaches a container.
+	if path == "/fabo/share" || strings.HasPrefix(path, "/fabo/share/") {
+		if s.shares == nil {
+			supervisorError(w, http.StatusNotFound, errors.New("public share links are not set up for this daemon"))
+			return
+		}
+		s.shares.ServeHTTP(w, r)
+		return
+	}
 	if s.windowsProxy {
 		switch {
 		case path == "/fabo/proxy/system":
@@ -474,8 +572,8 @@ func (s *supervisor) resources(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 	case http.MethodPost:
 		var input struct {
-			CPUs      uint   `json:"cpus"`
-			MemoryMiB uint64 `json:"memory_mib"`
+			CPUs      uint    `json:"cpus"`
+			MemoryMiB uint64  `json:"memory_mib"`
 			Network   *string `json:"network"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&input); err != nil {

@@ -191,6 +191,44 @@ func (e *Engine) DialDomain(ctx context.Context, host string) (net.Conn, error) 
 	if e == nil || name == "" {
 		return nil, errMissing
 	}
+	return e.dialService(ctx, name)
+}
+
+// DialContainer opens a stream to a running container's HTTP service,
+// picking the port the same way as its container domain does; public share
+// links use it, so the container needs no published port.
+func (e *Engine) DialContainer(ctx context.Context, name string) (net.Conn, error) {
+	if e == nil || name == "" {
+		return nil, errMissing
+	}
+	return e.dialService(ctx, strings.TrimPrefix(name, "/"))
+}
+
+// ShareableContainer returns the canonical name of a running, networked
+// container matching name (a name, id prefix or domain alias).
+func (e *Engine) ShareableContainer(name string) (string, error) {
+	if e == nil {
+		return "", errMissing
+	}
+	name = strings.TrimPrefix(name, "/")
+	if target, ok := e.domainTarget(name); ok {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		if c := e.containers[target.id]; c != nil {
+			return c.name, nil
+		}
+	}
+	e.mu.Lock()
+	c, err := e.find(name)
+	e.mu.Unlock()
+	if err != nil {
+		return "", fmt.Errorf("%w: no port or container named %s", errMissing, name)
+	}
+	return "", fmt.Errorf("%w: container %s isn't running", errInvalid, c.name)
+}
+
+// dialService connects to the HTTP service of the container name matches.
+func (e *Engine) dialService(ctx context.Context, name string) (net.Conn, error) {
 	target, found := e.domainTarget(name)
 	if !found {
 		return nil, errMissing

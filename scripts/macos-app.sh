@@ -45,10 +45,15 @@ mkdir -p "$macos" "$res/guest" "$res/bin/cli-plugins" "$cache"
 # Virtualization framework through cgo. -s -w leave out the symbol table and
 # DWARF, about a third of each binary; panics still name functions and lines.
 export GOOS=darwin GOARCH=$goarch
+# FABO_SHARE_SERVER (from make) becomes the engine's default share relay.
+share_ldflags=""
+if [ -n "${FABO_SHARE_SERVER:-}" ]; then
+  share_ldflags="-X github.com/OpenFabrica/Fabo/engine/internal/sharetunnel.DefaultServer=$FABO_SHARE_SERVER"
+fi
 CGO_ENABLED=0 go -C engine build -trimpath -ldflags "-s -w -X main.release=$version" -o "$root/$macos/fabo" ./cmd/fabo
 CGO_ENABLED=0 go -C desktop build -trimpath -ldflags "-s -w -X main.release=$version" -o "$root/$macos/fabo-desktop" .
 CGO_ENABLED=1 CC="clang -arch $arch" MACOSX_DEPLOYMENT_TARGET=14.0 \
-  go -C engine build -trimpath -ldflags "-s -w -X main.engineRelease=$version" -o "$root/$macos/fabo-daemon" ./cmd/fabo-daemon
+  go -C engine build -trimpath -ldflags "-s -w -X main.engineRelease=$version $share_ldflags" -o "$root/$macos/fabo-daemon" ./cmd/fabo-daemon
 unset GOOS GOARCH
 
 # In Resources, not loose in Contents: codesign refuses a file there.

@@ -87,7 +87,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 
 原生窗口截图及逐项结果保留在 `target/desktop-advanced-check/`。专用 VM、临时 HOME / Docker 配置 / kubeconfig、测试容器和数据卷均已清理，日常 Dev 引擎未重启。`target/dev/Fabo Advanced.app` 已构建并通过 ad hoc 签名检查，未安装或发布。
 
-该批实现当时的终端与日志限制已由下节增量补齐。剩余边界：Linux 引导、其余 13 种语言、Kubernetes forwards、Import / Diagnostics / Build with、USB / Share 界面，以及文件预览 / 下载和扫描历史 / SBOM 导出尚未补齐。仓库 token 与私有镜像鉴权头由接口测试覆盖，未使用真实私人仓库账号；Linux / Windows 的真实桌面和全量 `tests/e2e.sh` 未在本轮验证。
+该批实现当时的终端与日志限制已由下节增量补齐。剩余边界：Linux 引导、其余 13 种语言、Kubernetes forwards、Import / Diagnostics / Build with、USB 界面，以及文件预览 / 下载和扫描历史 / SBOM 导出尚未补齐。仓库 token 与私有镜像鉴权头由接口测试覆盖，未使用真实私人仓库账号；Linux / Windows 的真实桌面和全量 `tests/e2e.sh` 未在本轮验证。
 
 ### 连续终端与日志（2026-11-14 增量）
 
@@ -100,6 +100,17 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 ### 多语言（2026-11-14 增量）
 
 新增繁体中文、德语、西班牙语、法语、巴西葡萄牙语、意大利语、波兰语、俄语、土耳其语、日语、韩语、越南语和印度尼西亚语，连同原有简体中文和英文共 15 种。设置支持立即切换、保存与跟随系统；按上游规则匹配地区和旧语言标签，兼容旧 `zh` 设置，缺词回退英文。14 份译表各含 407 条桌面消息，覆盖导航、设置、资源操作、终端及日志入口；参数和覆盖检查纳入 desktop tests。desktop race 与 `make check` 通过；原生窗口 17 项专项覆盖各语言切换、保存、重启恢复、系统选项及旧设置兼容，app 签名检查与 Linux ARM64 / Windows AMD64 交叉编译通过（两者未实机运行）。记录位于 `target/language-check/`。详情见 [桌面多语言](languages.md)。首次语言选择引导仍待对齐；CLI、引擎输出和真实 Linux / Windows 桌面不在本轮验收范围。
+
+### 公网共享（2026-11-15 对齐）
+
+`fabo share PORT|HOST:PORT|CONTAINER`、`fabo PORT` 简写，以及 login / logout / status / names / reserve / release，对照上游 `crates/kiri/src/share.rs`；桌面「共享」页对照 `ui/sharing.rs`。上游的中继 `edge.runkiri.com` 闭源，本仓库新增自建中继 `fabo-edge`（`make edge`，见 [fabo-edge](share-edge.md)）。线协议与 `kiri-share-proto` 逐字节一致，测试比对上游 Rust 生成的固定帧。与上游有意不同的地方：
+
+- 隧道由引擎 supervisor 托管，经 `/fabo/share` 供 CLI 和窗口使用；CLI 那条请求就是隧道的租约，没有上游的 traffic 文件。
+- ALPN 为 `fabo-share/1`。
+- 容器通过 guest relay 连接，不需要 `-p`。
+- 没有 attest、lanes、名字人工审核、自定义域名、限速和月流量。
+
+验证见 [CLI 工具说明](cli-tools.md) 的 Share 一节；公网服务器和真实 GitHub OAuth App 尚未验证。
 
 ### 待对齐功能
 
@@ -115,7 +126,8 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | Kubernetes 转发 | Pods / Services、持续日志、Pod 删除、集群启停和网络设置已有界面；待补 Pod / ClusterIP 的本地端口转发入口及生命周期管理。引擎已有 `/fabo/k8s/forward` 接口 | `ui/k8s.rs`、`ui/index.html` |
 | 首次引导 | macOS launcher 的首次设置已实现；桌面尚无首次语言选择及 Linux 设置检查、修复、跳过和恢复流程 | `ui/lang.rs`、`ui/linux.rs` 的 `onboarding`、`ui/index.html` |
 | Import / Build with | `fabo import`、`fabo build-with` 已实现；桌面导入流程已对齐（设置 → 导入、列表底部提示条、查看窗口、切换 docker 的对话框与进度卡片）。待补构建引擎选择入口；上游状态栏的 `docker → 引擎` 指示因 Fabo 无状态栏，由提示条承担 | `buildwith.rs`、`ui/index.html` 的 `buildAsk` |
-| USB / Share | 两个侧栏页面仍为占位；USB CLI、helper 与 USB/IP 已实现，待接设备界面；Share 的创建、查看和停止等界面流程尚未移植 | `ui/sharing.rs`、`ui/index.html` |
+| USB | 侧栏页面仍为占位；USB CLI、helper 与 USB/IP 已实现，待接设备界面 | `ui/index.html` |
+| Share 余项 | Share 页和 `fabo share` 已对齐（见上文「公网共享」）；未做上游的账号用量面板、账号在其他电脑上的链接列表（`/v1/tunnels/live` 已有，未接界面）以及 Pod / Service 的 Kubernetes 共享 | `ui/sharing.rs`、`ui/index.html` |
 | 更新与诊断入口 | 桌面未接入更新检查 / 下载 / 安装、诊断日志 / 报告及崩溃报告设置；其 Go 实现也未补齐，见下表 | `ui/mod.rs`、`ui/index.html`、`update.rs`、`diag/` |
 
 上表的 `ui/` 等相对路径均位于上游 `crates/kiri/src/`。表中列为「引擎已有」的接口不代表桌面流程已完成。
@@ -127,7 +139,6 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | 需要管理员密码的设置 | `fabo setup --docker-socket`：创建 `/var/run/docker.sock` 链接、安装开机恢复用的 LaunchDaemon，并在卸载时清理。域名解析和 HTTPS 信任已实现，但尚未像上游那样合并域名与 socket 设置的授权；系统密码框标题仍来自 `osascript` / `security` | 上游 `crates/kiri/src/setup.rs` 的 `docker_socket` |
 | CLI / 引擎版本提示 | Docker 命令透传已实现；执行前的 CLI / 引擎版本差异提醒未对齐 | 上游 `crates/kiri/src/docker.rs`；见前文「Docker 命令透传」 |
 | Kubernetes 后台同步 | kubeconfig 目前在 `start` / `status` 时同步；待接 daemon 启动时的后台同步，覆盖迁移或重启后的刷新 | 上游 `crates/kiri/src/kubeconfig.rs`；见 [CLI 工具说明](cli-tools.md) |
-| Share 命令 | `fabo share` 及端口简写尚未移植；需补齐共享命令、状态管理及桌面 Share 页的配套实现 | 上游 `crates/kiri/src/main.rs` 的 `share` 分发与 `share` 模块、`ui/sharing.rs` |
 | raw 兼容差异 | Go raw 使用独立存储，不共享 daemon / Rust 镜像索引；`images` 未复刻 Rust 的显示格式与拉取时间列。后续需决定保留差异还是进一步对齐 | 上游 `crates/kiri/src/main.rs` 的 `raw` 分发；见 [CLI 工具说明](cli-tools.md) |
 | 自动更新与诊断 | 更新源检查、下载与安装、崩溃报告、诊断报告和日志脱敏尚无对应 Go 实现 | 上游 `crates/kiri/src/update.rs`、`diag/` |
 | Windows 宿主与安装 | `fabo-win` 宿主的 named pipe、托盘、设置、更新与 Windows 系统凭据存储，WSL 连接用的 `fabo bridge`，以及 MSI 构建仍待移植。WSL 引擎启动脚本已支持 Go，但安装 / 打包链仍携带旧 `fabo-init` 等产物要求；不能把整个 WSL 引擎侧列为未实现 | 上游 `crates/kiri-win/`、`bridge.rs`；本仓库 `installer/windows`、`contrib/windows`、`contrib/wsl`、`scripts/fabo-linux.sh` |
@@ -145,6 +156,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | 宿主与文件系统 | 在适用环境复跑 `tests/finder-mount.sh`、`tests/kernel-features.sh`；修正并复跑 `tests/linux-host.sh` 的网桥冲突和 cgroup 委派环境 |
 | Windows / Linux 桌面 | 本轮桌面仅交叉编译通过；真实 Linux / Windows 的窗口、输入、凭据 helper 与引擎连接仍需验证。WSL 启动脚本已有局部验证，`tests/wsl.sh` 和完整 Windows 宿主 / MSI 链路仍需回归 |
 | 私人仓库 | 本地 Registry 鉴权、credential helper、macOS Keychain 和认证头已有专项；真实私人仓库账号、token 与私有镜像拉取仍需实测 |
+| 公网共享 | 本机自签名中继和开发版引擎已实测；还需在公网服务器（真实泛域名证书、DNS）和真实 GitHub OAuth App（设备码、组织白名单）上验证，以及 Linux 宿主引擎上的 `fabo share` |
 | USB 硬件 | 物理设备捕获、root helper 安装 / 移除、解绑与断连恢复仍需设备验证；软件 USB 专项已通过 |
 | 迁移与 machine | 真实 OrbStack / Docker Desktop 数据迁入、更多 machine 发行版和 Linux 宿主仍需实测；隔离 Go 引擎之间的迁入及 Alpine / Ubuntu machine 已有专项 |
 | 协议交叉校验 | 原 Rust / Go 编解码器交叉用例已随 Rust 删除，当前只有 Go 对 Go；需恢复跨实现或固定协议样本的兼容性验证 |
