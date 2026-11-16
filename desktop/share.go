@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -77,6 +78,13 @@ type shareUI struct {
 	billing        shareAccount
 	billingChecked time.Time
 	billingURL     string
+	// watch holds the links this window opened and has not seen settle,
+	// each with whether a list has shown it yet; ready holds the ones that
+	// just went live, which the view announces.
+	watch map[string]bool
+	ready []shareLink
+	// copy is an address the view writes to the clipboard on its next frame.
+	copy string
 }
 
 // shareState is a link's state as a dot and a word.
@@ -147,25 +155,26 @@ func (s *desktop) shareView(c *ui.Context, p palette) {
 	}
 	switch {
 	case a.Server == "":
-		if empty(c, p, "share", tr("设置共享中继", "Set a share relay"), tr("设置中继", "Set relay")) {
+		if empty(c, p, "globe", tr("设置共享中继", "Set a share relay"), tr("设置中继", "Set relay")) {
 			s.form = form{kind: "share-relay"}
 		}
 		return
 	case !a.SignedIn:
-		if empty(c, p, "share", tr("登录后把端口或容器发布到公网", "Sign in to publish a port or container"), tr("登录", "Sign in")) {
+		if empty(c, p, "globe", tr("登录后把端口或容器发布到公网", "Sign in to publish a port or container"), tr("登录", "Sign in")) {
 			s.form = form{kind: "share-login"}
 		}
 		return
 	}
 	s.shareQuotaBanner(c, p)
 	links := s.shares.info.Shares
-	cols := []column{{tr("目标", "Target"), 0, 1, false}, {tr("地址", "Address"), 0, 1.4, false},
-		{tr("状态", "State"), 110, 0, false}, {tr("请求", "Requests"), 80, 0, true}, {tr("流量", "Traffic"), 90, 0, true}}
-	const actionsWidth = 92
+	cols := []column{{tr("目标", "Target"), 0, 1, false}, {tr("公开地址", "Public address"), 0, 1.6, false},
+		{tr("状态", "State"), 110, 0, false}, {tr("请求", "Requests"), 70, 0, true}, {tr("流量", "Traffic"), 80, 0, true},
+		{tr("开始", "Started"), 84, 0, true}}
+	const actionsWidth = 62
 	if !s.dockMax {
-		tableHeader(c, p, narrowColumns(cols, s.narrow(), 3, 4), actionsWidth, nil)
+		tableHeader(c, p, narrowColumns(cols, s.narrow(), 3, 4, 5), actionsWidth, nil)
 		if len(links) == 0 {
-			if empty(c, p, "share", tr("还没有公开链接", "No public links yet"), tr("新建链接", "New link")) {
+			if empty(c, p, "globe", tr("还没有公开链接", "No public links yet"), tr("新建链接", "New link")) {
 				s.openShareForm("")
 			}
 		} else {
@@ -175,25 +184,35 @@ func (s *desktop) shareView(c *ui.Context, p palette) {
 				Rows(func(r ui.ListRow) {
 					rc, l := r.Context, links[r.Index]
 					s.tableRow(rc, p, l.ID, l.Target, actionsWidth, nil, func() {
-						cell(rc, 0, cols[0].grow).Gap(10).Children(func() {
-							ui.Icon(rc, icons["share"]).Size(14, 14).TextColor(p.muted)
-							label(rc, l.Target, p.text).FontWeight(500)
-						})
+						cell(rc, 0, cols[0].grow).Gap(10).Children(func() { s.shareTarget(rc, p, l) })
 						cell(rc, 0, cols[1].grow).Children(func() {
-							address := l.URL
-							if address == "" {
-								address = "—"
-							}
-							text := label(rc, address, p.sub)
-							if l.State == "waiting" {
-								text.Strikethrough().TextColor(p.muted)
+							switch {
+							case l.URL == "":
+								label(rc, "—", p.muted)
+							case l.State != "live":
+								// An address that does not answer now is not offered
+								// as a link; one that will not come back by itself
+								// is struck out.
+								text := label(rc, shareAddress(l.URL), p.muted)
+								if l.State == "waiting" || l.State == "ended" {
+									text.Strikethrough()
+								}
+							default:
+								// The address opens itself, as a container's does.
+								if openLink(rc.Key("address"), p, "", shareAddress(l.URL), l.URL) {
+									rc.OpenURL(l.URL)
+								}
 							}
 						})
-						cell(rc, cols[2].width, 0).Gap(7).Children(func() {
+						state := cell(rc, cols[2].width, 0).Gap(7)
+						if l.Reason != "" {
+							state.Tooltip(l.Reason)
+						}
+						state.Children(func() {
 							kind, word := shareState(l)
 							dot(rc, p, kind)
 							ink := p.text
-							if l.State == "waiting" {
+							if kind == "failed" {
 								ink = p.err
 							}
 							label(rc, word, ink)
@@ -201,6 +220,7 @@ func (s *desktop) shareView(c *ui.Context, p palette) {
 						if !narrow {
 							cell(rc, cols[3].width, 0).Children(func() { number(rc, fmt.Sprint(l.Requests), p.text) })
 							cell(rc, cols[4].width, 0).Children(func() { number(rc, displaySize(int64(l.In+l.Out)), p.text) })
+							cell(rc, cols[5].width, 0).Children(func() { number(rc, since(s.now, l.Started.Unix()), p.muted) })
 						}
 					}, func() {
 						s.shareActions(rc, p, l)
@@ -215,26 +235,105 @@ func (s *desktop) shareView(c *ui.Context, p palette) {
 	}
 }
 
-// shareActions are a link row's buttons: copy, open, stop.
-func (s *desktop) shareActions(c *ui.Context, p palette, l shareLink) {
-	if iconButton(c.Key("copy"), p, "copy", tr("复制地址 ", "Copy the address of ")+l.Target, l.URL == "").Clicked() {
-		c.WriteClipboard(l.URL)
-		s.notices = append(s.notices, tr("已复制", "Copied"))
+// shareAddress is a link's address as rows show it, without the scheme.
+func shareAddress(address string) string {
+	return strings.TrimPrefix(strings.TrimPrefix(address, "https://"), "http://")
+}
+
+// sharedContainer finds the container a link publishes. A port's target
+// always carries a colon, which a container's name cannot.
+func (s *desktop) sharedContainer(l shareLink) (container, bool) {
+	if strings.Contains(l.Target, ":") {
+		return container{}, false
 	}
-	if iconButton(c.Key("open"), p, "out", tr("在浏览器打开 ", "Open in the browser ")+l.Target, l.URL == "").Clicked() {
-		c.OpenURL(l.URL)
+	for _, x := range s.containers {
+		if x.Name == l.Target {
+			return x, true
+		}
+	}
+	return container{}, false
+}
+
+// shareOf finds the link that publishes a container, a live one first.
+func (s *desktop) shareOf(x container) (found shareLink, ok bool) {
+	for _, l := range s.shares.info.Shares {
+		if l.Target != x.Name || l.State == "ended" {
+			continue
+		}
+		if l.State == "live" {
+			return l, true
+		}
+		if !ok {
+			found, ok = l, true
+		}
+	}
+	return found, ok
+}
+
+// shareTarget is a row's target: a box for a container, a screen for a port
+// of this machine, then its name. A container that stopped says so, as its link answers
+// nothing until it runs again.
+func (s *desktop) shareTarget(c *ui.Context, p palette, l shareLink) {
+	// A container that was removed is still a container's link.
+	icon := "box"
+	if strings.Contains(l.Target, ":") {
+		icon = "monitor"
+	}
+	ui.Icon(c, icons[icon]).Size(14, 14).Shrink(0).TextColor(p.muted)
+	label(c, l.Target, p.text).FontWeight(500)
+	if x, ok := s.sharedContainer(l); ok && x.bucket() != "running" {
+		label(c, tr("已停止", "Stopped"), p.warn).Shrink(0)
+	}
+}
+
+// copyShare puts a link's address on the clipboard.
+func (s *desktop) copyShare(c *ui.Context, l shareLink) {
+	c.WriteClipboard(l.URL)
+	s.notices = append(s.notices, tr("已复制 ", "Copied ")+shareAddress(l.URL))
+}
+
+// shareActions are a link row's buttons: copy and stop, or for a link the
+// relay closed, try again and remove.
+func (s *desktop) shareActions(c *ui.Context, p palette, l shareLink) {
+	if l.State == "ended" {
+		if iconButton(c.Key("retry"), p, "restart", tr("重新连接 ", "Reconnect ")+l.Target, s.working[l.ID]).Clicked() {
+			s.startShare(l.Target, l.Name, l.ID)
+		}
+		if iconButton(c.Key("remove"), p, "x", tr("移除 ", "Remove ")+l.Target, s.working[l.ID]).Clicked() {
+			s.stopShare(l)
+		}
+		return
+	}
+	if iconButton(c.Key("copy"), p, "copy", tr("复制地址 ", "Copy the address of ")+l.Target, l.URL == "").Clicked() {
+		s.copyShare(c, l)
 	}
 	if iconButton(c.Key("stop"), p, "stop", tr("停止共享 ", "Stop sharing ")+l.Target, s.working[l.ID]).Clicked() {
-		s.stopShare(l)
+		s.askStopShare(l)
 	}
 }
 
 // shareDock shows a link: where it points and what it served lately.
 func (s *desktop) shareDock(c *ui.Context, p palette, l shareLink) {
-	_, word := shareState(l)
-	s.dock(c, p, l.Target, func() { label(c, word, p.muted).Shrink(0) }, []string{tr("信息", "Info"), tr("请求", "Requests")}, func() {
-		if iconButton(c.Key("dock-stop"), p, "stop", tr("停止共享 ", "Stop sharing ")+l.Target, s.working[l.ID]).Clicked() {
-			s.stopShare(l)
+	kind, word := shareState(l)
+	s.dock(c, p, l.Target, func() { label(c, word, stateColor(p, kind)).Shrink(0) }, []string{tr("信息", "Info"), tr("请求", "Requests")}, func() {
+		if iconButton(c.Key("dock-copy"), p, "copy", tr("复制地址", "Copy address"), l.URL == "").Clicked() {
+			s.copyShare(c, l)
+		}
+		if iconButton(c.Key("dock-open"), p, "out", tr("在浏览器打开", "Open in browser"), l.URL == "" || l.State != "live").Clicked() {
+			c.OpenURL(l.URL)
+		}
+		if x, ok := s.sharedContainer(l); ok && iconButton(c.Key("dock-container"), p, "box", tr("查看容器 ", "Show container ")+x.Name, false).Clicked() {
+			s.open(containersPage, x.ID)
+		}
+		if l.State == "ended" {
+			if iconButton(c.Key("dock-retry"), p, "restart", tr("重新连接", "Reconnect"), s.working[l.ID]).Clicked() {
+				s.startShare(l.Target, l.Name, l.ID)
+			}
+			if iconButton(c.Key("dock-remove"), p, "x", tr("移除链接", "Remove link"), s.working[l.ID]).Clicked() {
+				s.stopShare(l)
+			}
+		} else if iconButton(c.Key("dock-stop"), p, "stop", tr("停止共享", "Stop sharing this link"), s.working[l.ID]).Clicked() {
+			s.askStopShare(l)
 		}
 	}, func(tab int) {
 		if tab == 0 {
@@ -243,8 +342,9 @@ func (s *desktop) shareDock(c *ui.Context, p palette, l shareLink) {
 				opened = tr("命令行", "Command line")
 			}
 			keyValues(c, p, compact([]field{
-				{tr("地址", "Address"), l.URL},
+				{tr("公开地址", "Public address"), l.URL},
 				{tr("目标", "Target"), l.Target},
+				{tr("名称", "Name"), l.Name},
 				{tr("状态", "State"), word},
 				{tr("原因", "Reason"), l.Reason},
 				{tr("来源", "Opened from"), opened},
@@ -284,56 +384,280 @@ func (s *desktop) shareDock(c *ui.Context, p palette, l shareLink) {
 	})
 }
 
-// openShareForm opens New link, with target filled in when given.
-func (s *desktop) openShareForm(target string) {
+// openShareForm opens New link. A container, when given, is already chosen,
+// so typing starts at the name; without running containers it opens on the
+// port. Opening it reads the account again, so the plan's limit is known by
+// the time the form is sent.
+func (s *desktop) openShareForm(container string) {
 	if s.shareLimitReached() {
 		s.form = form{kind: "share-limit"}
 		return
 	}
-	s.form = form{kind: "share", image: target, named: target != ""}
+	s.form = form{kind: "share", host: container, named: container != "", flag: container == "" && len(s.runningNames()) == 0}
+	s.refreshing = false
+	s.refresh()
 }
 
-// shareForm is the New link dialog's fields.
-func (s *desktop) shareForm(c *ui.Context, p palette) (submitted bool) {
-	f := &s.form
-	var running []string
+// runningNames are the containers a link can publish.
+func (s *desktop) runningNames() []string {
+	var names []string
 	for _, x := range s.containers {
 		if x.bucket() == "running" {
-			running = append(running, x.Name)
+			names = append(names, x.Name)
 		}
 	}
-	ui.Row(c).FillWidth().Gap(10).AlignItems(ui.End).Children(func() {
-		submitted = input(c, p, "target", tr("端口或容器", "Port or container"), "3000", &f.image, !f.named).Grow(1).Submitted()
-		if len(running) > 0 {
-			none := tr("选择容器", "Pick a container")
-			if chosen, ok := pick(c.Key("share-container"), tr("容器", "Container"), none, append([]string{none}, running...)); ok && chosen != none {
-				f.image = chosen
-			}
+	return names
+}
+
+// shareForm is the New link dialog's fields: what to publish, a container
+// (form.host) or a port of this machine (form.image, with form.flag set),
+// and the name its address should carry.
+func (s *desktop) shareForm(c *ui.Context, p palette) (submitted bool) {
+	f := &s.form
+	mode := 0
+	if f.flag {
+		mode = 1
+	}
+	// The row keeps the control at its own width; the dialog would stretch it.
+	ui.Row(c).FillWidth().Children(func() {
+		if choice(c.Key("share-kind"), p, tr("共享什么", "What to share"), &mode, tr("容器", "Container"), tr("本机端口", "Local port")) {
+			f.flag, f.problem = mode == 1, ""
 		}
 	})
-	submitted = input(c, p, "name", tr("名称", "Name"), tr("自动生成", "Generated"), &f.name, f.named).Submitted() || submitted
-	return submitted
+	if f.flag {
+		submitted = input(c, p, "target", tr("端口或 host:port", "Port or host:port"), "3000", &f.image, true).Submitted()
+	} else {
+		// Nothing is chosen until the user chooses: a link is public at once.
+		none := tr("选择容器", "Pick a container")
+		options := append([]string{none}, s.runningNames()...)
+		chosen := none
+		if f.host != "" {
+			chosen = f.host
+			// The chosen container may have stopped since the dialog opened.
+			if !slices.Contains(options, chosen) {
+				options = append(options, chosen)
+			}
+		}
+		ui.Column(c.Key("field-container")).FillWidth().Gap(5).Children(func() {
+			ui.Text(c, tr("容器", "Container")).FontSize(11.5).TextColor(p.muted)
+			if len(options) == 1 {
+				ui.Text(c, tr("没有运行中的容器", "No running containers")).FontSize(12).TextColor(p.sub).Padding(7, 0)
+				return
+			}
+			if ui.Select(c.Key("share-container"), &chosen, options).Label(tr("要共享的容器", "Container to share")).FillWidth().Height(30).
+				Cursor(ui.CursorPointer).Changed() {
+				f.host, f.problem = "", ""
+				if chosen != none {
+					f.host = chosen
+				}
+			}
+		})
+	}
+	// The name is where typing starts for a container: Enter then shares it.
+	return input(c, p, "name", tr("名称", "Name"), tr("自动生成", "Generated"), &f.name, !f.flag).Submitted() || submitted
 }
 
 // createShare checks New link and asks the engine to open it.
 func (s *desktop) createShare() bool {
 	f := &s.form
-	if f.image == "" {
-		f.problem = tr("请填写端口或容器", "Enter a port or container")
+	target := f.host
+	if f.flag {
+		target = f.image
+	}
+	if target == "" {
+		f.problem = tr("请选择要共享的容器", "Pick a container to share")
+		if f.flag {
+			f.problem = tr("请填写端口", "Enter a port")
+		}
 		return false
 	}
-	target, name := f.image, f.name
-	s.do("share-create", engineAction{http.MethodPost, "/fabo/share", map[string]any{"target": target, "name": name}},
-		tr("已打开公开链接 ", "Opened a public link to ")+target)
+	// The account read that opening the form asked for may have brought a
+	// limit the window did not know of.
+	if s.shareLimitReached() {
+		s.form = form{kind: "share-limit"}
+		return false
+	}
+	s.startShare(target, f.name, "")
 	return true
 }
 
-// stopShare closes a link.
+// startShare opens a link to target and watches it until it settles;
+// replaces, when set, is a closed link it takes the place of. Nothing is
+// announced here: the link is only useful once it is live, and the view
+// says so then.
+func (s *desktop) startShare(target, name, replaces string) {
+	key := "share-create"
+	if replaces != "" {
+		key = replaces
+	}
+	s.working[key] = true
+	s.run(2*time.Minute, func(ctx context.Context) func() {
+		if replaces != "" {
+			// Gone already is as good as removed.
+			_ = s.engine.request(ctx, http.MethodDelete, "/fabo/share/"+url.PathEscape(replaces), nil, nil)
+		}
+		var out struct {
+			ID string `json:"id"`
+		}
+		err := s.engine.request(ctx, http.MethodPost, "/fabo/share", map[string]any{"target": target, "name": name}, &out)
+		return func() {
+			delete(s.working, key)
+			if err == nil && out.ID != "" {
+				if s.shares.watch == nil {
+					s.shares.watch = map[string]bool{}
+				}
+				s.shares.watch[out.ID] = false
+				if s.selected[sharePage] == replaces && replaces != "" {
+					s.selected[sharePage] = out.ID
+				}
+			}
+			s.settle(err, "")
+		}
+	})
+	if s.engine.http == nil {
+		delete(s.working, key)
+	}
+}
+
+// noteShares looks at a fresh list for the links this window opened: one
+// that went live is handed to the view to announce, one that cannot serve
+// is reported with the relay's reason. Either way it is watched no longer.
+func (s *desktop) noteShares(links []shareLink) {
+	if len(s.shares.watch) == 0 {
+		return
+	}
+	listed := map[string]bool{}
+	for _, l := range links {
+		listed[l.ID] = true
+		if _, watched := s.shares.watch[l.ID]; !watched {
+			continue
+		}
+		s.shares.watch[l.ID] = true
+		switch l.State {
+		case "live":
+			s.shares.ready = append(s.shares.ready, l)
+		case "waiting", "ended":
+			_, word := shareState(l)
+			text := l.Target + tr("：", ": ") + word
+			if l.Reason != "" {
+				text += " · " + l.Reason
+			}
+			s.notices = append(s.notices, text)
+		default:
+			continue
+		}
+		delete(s.shares.watch, l.ID)
+	}
+	// A link stopped before it settled has nothing left to say. One no
+	// list has shown yet stays: a read that began before the link was
+	// opened ends after it, without the link.
+	for id, seen := range s.shares.watch {
+		if seen && !listed[id] {
+			delete(s.shares.watch, id)
+		}
+	}
+}
+
+// announceShares turns what noteShares found into toasts, and performs the
+// copy a toast's button asked for. Only the view can do either.
+func (s *desktop) announceShares(c *ui.Context) {
+	if s.shares.copy != "" {
+		c.WriteClipboard(s.shares.copy)
+		s.notices = append(s.notices, tr("已复制 ", "Copied ")+shareAddress(s.shares.copy))
+		s.shares.copy = ""
+	}
+	for _, l := range s.shares.ready {
+		c.ToastAction(fmt.Sprintf(tr("%s 已上线", "%s is live"), l.Target), tr("复制链接", "Copy link"), func() { s.shares.copy = l.URL })
+	}
+	s.shares.ready = nil
+}
+
+// askStopShare stops a link, asking first when it has an address: one the
+// relay generated cannot be had again.
+func (s *desktop) askStopShare(l shareLink) {
+	if l.URL == "" {
+		s.stopShare(l)
+		return
+	}
+	s.pending = &confirmation{
+		title: tr("停止共享 ", "Stop sharing ") + l.Target + tr("？", "?"),
+		body:  fmt.Sprintf(tr("%s 会立即无法访问。", "%s stops answering at once."), shareAddress(l.URL)),
+		ok:    tr("停止共享", "Stop sharing"),
+		run:   func() { s.stopShare(l) },
+	}
+}
+
+// stopShare closes a link. It can be asked from another page, so the Share
+// page's selection is dropped here and not through selectRow.
 func (s *desktop) stopShare(l shareLink) {
 	s.do(l.ID, engineAction{http.MethodDelete, "/fabo/share/" + url.PathEscape(l.ID), nil}, tr("已停止共享 ", "Stopped sharing ")+l.Target)
 	if s.selected[sharePage] == l.ID {
-		s.selectRow("")
+		s.selected[sharePage] = ""
+		if s.page == sharePage {
+			s.dockMax = false
+		}
 	}
+}
+
+// shareContainer is the containers page's quick share: New link with the
+// container chosen, or whatever stands before that, a relay or a sign-in.
+func (s *desktop) shareContainer(x container) {
+	a := s.shares.info.Account
+	switch {
+	case a.Server == "":
+		s.form = form{kind: "share-relay"}
+	case !a.SignedIn:
+		s.form = form{kind: "share-login"}
+	default:
+		s.openShareForm(x.Name)
+	}
+}
+
+// shareControl is a running container's share button, in its row and in its
+// panel (id keeps their menus apart). Not shared, it opens New link for the
+// container. Shared, it takes the link's state color and opens the link's
+// menu: copy, open, details, stop.
+func (s *desktop) shareControl(c *ui.Context, p palette, id string, x container) {
+	if !s.shares.ok || x.bucket() != "running" {
+		return
+	}
+	l, shared := s.shareOf(x)
+	if !shared || !s.shares.info.Account.SignedIn {
+		// The globe is in the accent even at rest, so the way to the
+		// public internet stands out among the row's grey buttons.
+		name := tr("共享 ", "Share ") + x.Name
+		busy := s.working["share-create"]
+		b := ui.ButtonBase(c.Key("share")).Label(name).Tooltip(name).Size(28, 28).Shrink(0).Center().Radius(7).Disabled(busy).Cursor(pointerFor(busy))
+		ink := p.accent
+		switch {
+		case busy:
+			ink = p.muted.Alpha(0.4)
+		case b.Hovered():
+			b.Background(p.accent.Alpha(0.14))
+		}
+		b.Children(func() { ui.Icon(c, icons["globe"]).Size(15, 15).TextColor(ink) })
+		if b.Clicked() {
+			s.shareContainer(x)
+		}
+		return
+	}
+	kind, word := shareState(l)
+	tint := stateColor(p, kind)
+	first := menuEntry{label: word + "…", disabled: true}
+	if l.URL != "" {
+		first = menuEntry{label: fmt.Sprintf(tr("复制 %s", "Copy %s"), shareAddress(l.URL)), run: func() { s.copyShare(c, l) }}
+	}
+	if kind == "running" {
+		// Live is the accent here: green is the container's own state.
+		tint = p.accent
+	}
+	s.menuButton(c.Key("share"), p, id, "globe", tint, tr("公开链接 ", "Public link of ")+x.Name, []menuEntry{
+		first,
+		{label: tr("在浏览器打开", "Open in browser"), disabled: l.State != "live", run: func() { c.OpenURL(l.URL) }},
+		{label: tr("共享详情", "Share details"), run: func() { s.open(sharePage, l.ID) }},
+		{},
+		{label: tr("停止共享", "Stop sharing"), danger: true, run: func() { s.askStopShare(l) }},
+	})
 }
 
 // signOutShare signs out; the engine closes the links first.

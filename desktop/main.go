@@ -53,7 +53,7 @@ var navItems = []navItem{
 	{machinesPage, "cpu", "Linux 机器", "Machines", false},
 	{kubernetesPage, "helm", "Kubernetes", "Kubernetes", false},
 	{"usb", "usb", "USB 设备", "USB devices", true},
-	{sharePage, "share", "共享", "Share", false},
+	{sharePage, "globe", "共享", "Share", false},
 	{terminalPage, "terminal", "终端", "Terminal", false},
 	{settingsPage, "sliders", "设置", "Settings", false},
 }
@@ -208,17 +208,19 @@ type desktop struct {
 	domainsOK  bool
 	// domainsRead marks that the containers page asked for the domain
 	// settings once, so its rows can show their local addresses.
-	domainsRead    bool
-	names          nameState
-	namesOK        bool
-	builderOK      bool
-	portHTTP       string
-	portHTTPS      string
-	credentials    *registryStore
-	registries     registryUI
-	kube           kubernetesUI
-	imp            importUI
-	shares         shareUI
+	domainsRead bool
+	names       nameState
+	namesOK     bool
+	builderOK   bool
+	portHTTP    string
+	portHTTPS   string
+	credentials *registryStore
+	registries  registryUI
+	kube        kubernetesUI
+	imp         importUI
+	shares      shareUI
+	// rowHovered is whether the pointer is on the table row being built.
+	rowHovered     bool
 	containerDraft containerSettings
 	fonts          []string
 	monoFonts      []string
@@ -469,7 +471,11 @@ func (s *desktop) refresh() {
 	}
 	page := s.page
 	wantDisk := page == overviewPage && s.disk == nil
-	wantShares := page == sharePage || strings.HasPrefix(s.form.kind, "share")
+	// The containers page shows which containers are shared. The account
+	// is the relay's to answer, so it is read only where its plan matters:
+	// on the Share page and while one of its dialogs is open.
+	shareForm := strings.HasPrefix(s.form.kind, "share")
+	wantShares := page == sharePage || page == containersPage || shareForm
 	previousAccount := s.shares.info.Account
 	billingDue := time.Since(s.shares.billingChecked) >= time.Minute
 	s.run(8*time.Second, func(ctx context.Context) func() {
@@ -506,7 +512,7 @@ func (s *desktop) refresh() {
 		billingRead := false
 		if wantShares {
 			sharesErr = e.get(ctx, "/fabo/share", &shares)
-			if sharesErr == nil && page == sharePage && shares.Account.SignedIn && (billingDue || shares.Account.Login != previousAccount.Login || shares.Account.Server != previousAccount.Server) {
+			if sharesErr == nil && (page == sharePage || shareForm) && shares.Account.SignedIn && (billingDue || shares.Account.Login != previousAccount.Login || shares.Account.Server != previousAccount.Server) {
 				billingRead = true
 				billingErr = e.get(ctx, "/fabo/share/account", &billing)
 			}
@@ -553,6 +559,7 @@ func (s *desktop) refresh() {
 				if !shares.Account.SignedIn || shares.Account.Login != s.shares.info.Account.Login || shares.Account.Server != s.shares.info.Account.Server {
 					s.shares.billing, s.shares.billingChecked, s.shares.billingURL = shareAccount{}, time.Time{}, ""
 				}
+				s.noteShares(shares.Shares)
 				s.shares.info, s.shares.ok = shares, true
 				if billingRead {
 					s.shares.billingChecked = time.Unix(now, 0)

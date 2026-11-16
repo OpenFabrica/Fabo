@@ -166,7 +166,6 @@ var icons = map[string]*ui.SVG{
 	"sliders":  lineIcon(`<path d="M4 7h9M19 7h1M4 17h1M11 17h9"/><circle cx="16" cy="7" r="2.5"/><circle cx="8" cy="17" r="2.5"/>`),
 	"helm":     lineIcon(`<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M12 14.5V20M4 12h5.5M14.5 12H20M6.3 6.3l3.9 3.9M13.8 13.8l3.9 3.9M17.7 6.3l-3.9 3.9M10.2 13.8l-3.9 3.9"/>`),
 	"usb":      lineIcon(`<path d="M12 3v14M9 6l3-3 3 3M8 9v3l4 3M16 8v3l-4 3"/><circle cx="12" cy="19" r="2"/>`),
-	"share":    lineIcon(`<path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"/>`),
 	"play":     lineIcon(`<path d="M8 5.5l10 6.5-10 6.5z"/>`),
 	"stop":     lineIcon(`<rect x="7" y="7" width="10" height="10" rx="1.5"/>`),
 	"restart":  lineIcon(`<path d="M19 12a7 7 0 11-2.6-5.4M19 4v4.5h-4.5"/>`),
@@ -205,6 +204,7 @@ var icons = map[string]*ui.SVG{
 	"wrench":   lineIcon(`<path d="M14.5 6.5a4 4 0 005 5l-8.8 8.8a2 2 0 01-2.8-2.8l8.8-8.8a4 4 0 01-2.2-2.2z"/><path d="M14.5 6.5a4 4 0 015-3l-2.5 2.5.5 2 2 .5 2.5-2.5a4 4 0 01-3 5"/>`),
 	"settings": lineIcon(`<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>`),
 	"info":     lineIcon(`<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>`),
+	"monitor":  lineIcon(`<rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8.5 20h7M12 16.5V20"/>`),
 }
 
 // mono is the monospace family of tables, IDs and logs. The view sets it
@@ -268,24 +268,42 @@ type moreMenuState struct {
 // overshoot an edge, without losing the menu.
 const moreMenuGrace = 300 * time.Millisecond
 
-// moreMenu is the "more actions" button of a row, with a menu that also
-// closes once the pointer has left both the button and the menu for a
-// moment, besides Escape, Tab and a press elsewhere. label names the button
-// and keys its state, so it must be unique among the rows shown.
+// moreMenu is the "more actions" button of a row. label names the button
+// and keys its menu's state, so it must be unique among the rows shown.
 func (s *desktop) moreMenu(c *ui.Context, p palette, label string, entries []menuEntry) {
-	st := s.menus[label]
+	s.menuButton(c, p, label, "more", p.muted, label, entries)
+}
+
+// menuButton is an icon button with a menu that also closes once the pointer
+// has left both the button and the menu for a moment, besides Escape, Tab
+// and a press elsewhere. id keys the menu's state and must be unique among
+// the buttons shown; tint is the icon's color at rest, so a button can show
+// a state.
+func (s *desktop) menuButton(c *ui.Context, p palette, id, icon string, tint ui.Color, label string, entries []menuEntry) {
+	st := s.menus[id]
 	if st == nil {
 		st = &moreMenuState{}
-		s.menus[label] = st
+		s.menus[id] = st
 	}
 	m := ui.MenuBase(c, &st.open)
 	b := m.Trigger.Label(label).Tooltip(label).Size(28, 28).Shrink(0).Center().Radius(7).Cursor(ui.CursorPointer)
-	ink := p.muted
-	if b.Hovered() || st.open {
+	ink := tint
+	// A tinted button is filled with its color under a white icon, and
+	// stays so under the pointer: it goes on saying its state. A plain
+	// one darkens.
+	switch {
+	case tint != p.muted:
+		fill := tint
+		if b.Hovered() || st.open {
+			fill = tint.Mix(p.text, 0.12)
+		}
+		b.Background(fill)
+		ink = p.onAccent
+	case b.Hovered() || st.open:
 		b.Background(p.raised)
 		ink = p.text
 	}
-	b.Children(func() { ui.Icon(c, icons["more"]).Size(15, 15).TextColor(ink) })
+	b.Children(func() { ui.Icon(c, icons[icon]).Size(15, 15).TextColor(ink) })
 
 	// Close before building the menu once the pointer has stayed away long
 	// enough; whether it is away is known only after the menu is built.

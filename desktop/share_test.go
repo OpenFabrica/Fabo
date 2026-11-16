@@ -16,25 +16,52 @@ func TestSharePage(t *testing.T) {
 	tt := ui.NewTester(s.view, 1180, 760)
 	click(t, tt, "Share")
 	tt.Frame()
-	if m := has(tt, "mike", "edge.fabo.dev", "shop-web-1", "https://shop-web-1-x7k2ab.fabo.link", "Live", "localhost:5173", "Connecting"); m != "" {
+	if m := has(tt, "mike", "edge.fabo.dev", "1 live", "shop-web-1", "shop-web-1-x7k2ab.fabo.link", "Live", "localhost:5173", "Connecting"); m != "" {
 		t.Fatalf("missing %q in %q", m, tt.Texts())
 	}
-	click(t, tt, "New link")
-	if s.form.kind != "share" {
-		t.Fatalf("form %q", s.form.kind)
+	// A live address opens itself; one that is reconnecting is only text.
+	click(t, tt, "Open https://shop-web-1-x7k2ab.fabo.link")
+	if got := tt.OpenedURLs(); len(got) != 1 || got[0] != "https://shop-web-1-x7k2ab.fabo.link" {
+		t.Fatalf("opened %v", got)
 	}
-	// An empty target is refused in place. (Enter submits; "Share" is
-	// also the sidebar's label.)
+	if _, found := tt.Find("Open https://q8m2zt1c.fabo.link"); found {
+		t.Fatal("a reconnecting address is offered as a link")
+	}
+	click(t, tt, "New link")
+	if s.form.kind != "share" || s.form.flag {
+		t.Fatalf("form %+v", s.form)
+	}
+	// Nothing is chosen for the user: Enter without a container is refused
+	// in place. ("Share" is also the sidebar's label.)
+	tt.Key(0, ui.KeyEnter)
+	if s.form.problem == "" || len(f.changed()) != 0 {
+		t.Fatalf("an empty target was accepted: %v", f.changed())
+	}
+	// A port of this machine is the other kind; typing starts in its field.
+	click(t, tt, "Local port")
+	if !s.form.flag || s.form.problem != "" {
+		t.Fatalf("after choosing the port: %+v", s.form)
+	}
 	tt.Key(0, ui.KeyEnter)
 	if s.form.problem == "" {
-		t.Fatal("an empty target was accepted")
+		t.Fatal("an empty port was accepted")
 	}
 	tt.Type("3000")
 	tt.Key(0, ui.KeyEnter)
 	if got := f.changed(); len(got) != 1 || got[0] != "POST /fabo/share" || !strings.Contains(f.last, `"target":"3000"`) {
 		t.Fatalf("create: %v %s", got, f.last)
 	}
+	// Stopping a link that has an address asks first, and Cancel keeps it.
 	click(t, tt, "Stop sharing shop-web-1")
+	if s.pending == nil || len(f.changed()) != 1 {
+		t.Fatalf("stop did not ask: %v", f.changed())
+	}
+	click(t, tt, "Cancel")
+	if s.pending != nil || len(f.changed()) != 1 {
+		t.Fatalf("cancel still stopped: %v", f.changed())
+	}
+	click(t, tt, "Stop sharing shop-web-1")
+	click(t, tt, "Stop sharing")
 	if got := f.changed(); len(got) != 2 || got[1] != "DELETE /fabo/share/sh-web" {
 		t.Fatalf("stop: %v", got)
 	}
@@ -44,6 +71,143 @@ func TestSharePage(t *testing.T) {
 	tt.Frame()
 	if m := has(tt, "/assets/app.js", "502"); m != "" {
 		t.Fatalf("missing %q in %q", m, tt.Texts())
+	}
+}
+
+// A container's row shares it in two steps: its button opens New link with
+// the container chosen and typing at the name, and Enter sends it. The link
+// is announced once it is live, with a button that copies its address.
+func TestContainerQuickShare(t *testing.T) {
+	f, s := newFakeEngine(t)
+	tt := ui.NewTester(s.view, 1180, 760)
+	tt.Frame()
+	// Only running containers can be shared.
+	s.filter[containersPage] = 0
+	tt.Frame()
+	if _, found := tt.Find("Share loki"); found {
+		t.Fatal("a stopped container offers sharing")
+	}
+	click(t, tt, "Share shop-api-1")
+	if s.form.kind != "share" || s.form.host != "shop-api-1" || s.form.flag {
+		t.Fatalf("form %+v", s.form)
+	}
+	tt.Type("api")
+	tt.Key(0, ui.KeyEnter)
+	if got := f.changed(); len(got) != 1 || got[0] != "POST /fabo/share" ||
+		!strings.Contains(f.last, `"target":"shop-api-1"`) || !strings.Contains(f.last, `"name":"api"`) {
+		t.Fatalf("create: %v %s", got, f.last)
+	}
+	// The list read right after does not show the link yet; it stays watched.
+	if _, watched := s.shares.watch["sh-new"]; !watched {
+		t.Fatalf("the new link is not watched: %v", s.shares.watch)
+	}
+	// Connecting, nothing is said yet.
+	connecting := strings.Replace(fakeShare(time.Now().Unix()), `"shares":[`,
+		`"shares":[{"id":"sh-new","target":"shop-api-1","name":"api","owner":"app","state":"connecting","started":"2026-11-16T00:00:00Z","requests":0,"recent":[]},`, 1)
+	f.mu.Lock()
+	f.share = connecting
+	f.mu.Unlock()
+	s.refresh()
+	tt.Frame()
+	if tt.HasText("shop-api-1 is live") || !s.shares.watch["sh-new"] {
+		t.Fatalf("announced before live: %q", tt.Texts())
+	}
+	f.mu.Lock()
+	f.share = strings.Replace(connecting, `"state":"connecting"`, `"url":"https://api.fabo.link","state":"live"`, 1)
+	f.mu.Unlock()
+	s.refresh()
+	tt.Frame()
+	if !tt.HasText("shop-api-1 is live") || len(s.shares.watch) != 0 {
+		t.Fatalf("live link not announced once: %q %v", tt.Texts(), s.shares.watch)
+	}
+	click(t, tt, "Copy link")
+	tt.Frame()
+	if !tt.HasText("Copied api.fabo.link") {
+		t.Fatalf("copy not confirmed: %q", tt.Texts())
+	}
+	// A shared container's button is its link's menu.
+	if _, found := tt.Find("Share shop-api-1"); found {
+		t.Fatal("a shared container still offers a new link")
+	}
+	s.selectRow("c-redis")
+	click(t, tt, "Public link of shop-web-1")
+	click(t, tt, "Stop sharing")
+	if s.pending == nil {
+		t.Fatal("stopping from the menu did not ask")
+	}
+	click(t, tt, "Stop sharing")
+	if got := f.changed(); len(got) != 2 || got[1] != "DELETE /fabo/share/sh-web" {
+		t.Fatalf("stop: %v", got)
+	}
+	// Stopping from here leaves this page's own selection alone.
+	if s.selected[containersPage] != "c-redis" {
+		t.Fatalf("selection moved to %q", s.selected[containersPage])
+	}
+	click(t, tt, "Public link of shop-web-1")
+	click(t, tt, "Share details")
+	if s.page != sharePage || s.selected[sharePage] != "sh-web" {
+		t.Fatalf("details: page %q, selected %q", s.page, s.selected[sharePage])
+	}
+}
+
+// A link the relay will not serve is reported with its reason, and one it
+// closed can be opened again in its place.
+func TestShareFailureAndRetry(t *testing.T) {
+	f, s := newFakeEngine(t)
+	tt := ui.NewTester(s.view, 1180, 760)
+	click(t, tt, "Share")
+	tt.Frame()
+	s.shares.watch = map[string]bool{"sh-dev": true}
+	f.mu.Lock()
+	f.share = strings.Replace(fakeShare(time.Now().Unix()), `"state":"reconnecting","reason":"the relay stopped answering"`, `"state":"ended","error":true,"reason":"name already in use"`, 1)
+	f.mu.Unlock()
+	s.refresh()
+	if got := strings.Join(s.notices, "|"); !strings.Contains(got, "localhost:5173: Closed · name already in use") || len(s.shares.watch) != 0 {
+		t.Fatalf("failure not reported: %q %v", got, s.shares.watch)
+	}
+	tt.Frame()
+	if _, found := tt.Find("Stop sharing localhost:5173"); found {
+		t.Fatal("a closed link still offers stop")
+	}
+	click(t, tt, "Reconnect localhost:5173")
+	if got := f.changed(); len(got) != 2 || got[0] != "DELETE /fabo/share/sh-dev" || got[1] != "POST /fabo/share" || !strings.Contains(f.last, `"target":"localhost:5173"`) {
+		t.Fatalf("retry: %v %s", got, f.last)
+	}
+}
+
+// The containers page does not read the account, so a plan's limit is only
+// known once New link is open; sending the form then meets it.
+func TestContainerShareMeetsPlanLimit(t *testing.T) {
+	f, s := newFakeEngine(t)
+	setShareBillingFixture(f, "free")
+	tt := ui.NewTester(s.view, 1180, 760)
+	tt.Frame()
+	if s.shares.billing.Billing {
+		t.Fatal("the containers page read the account")
+	}
+	click(t, tt, "Share shop-api-1")
+	if s.form.kind != "share" || !s.shares.billing.Billing {
+		t.Fatalf("form %q, billing read %v", s.form.kind, s.shares.billing.Billing)
+	}
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	if s.form.kind != "share-limit" || len(f.changed()) != 0 || !tt.HasText("Free allows 1 simultaneous links") {
+		t.Fatalf("limit not met: form %q, requests %v", s.form.kind, f.changed())
+	}
+}
+
+// Signed out, a container's share button leads to the sign-in.
+func TestContainerShareSignedOut(t *testing.T) {
+	f, s := newFakeEngine(t)
+	f.mu.Lock()
+	f.share = `{"account":{"signedIn":false,"server":"edge.example.com"},"shares":[]}`
+	f.mu.Unlock()
+	s.refresh()
+	tt := ui.NewTester(s.view, 1180, 760)
+	tt.Frame()
+	click(t, tt, "Share shop-web-1")
+	if s.form.kind != "share-login" {
+		t.Fatalf("form %q", s.form.kind)
 	}
 }
 

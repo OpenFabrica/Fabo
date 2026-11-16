@@ -29,7 +29,8 @@ func containerColumns() []column {
 	}
 }
 
-const containerActionsWidth = 92
+// Share, restart, stop and more.
+const containerActionsWidth = 122
 
 // treeWidth is the room before a row's tile: a group's fold arrow, and the
 // guide that hangs a member under its group.
@@ -148,6 +149,22 @@ func (s *desktop) togglePicked(list []container) {
 	}
 }
 
+// pickTile is the square at the head of a row, which doubles as the row's
+// checkbox so that no column of boxes stands in the table: the tile shows
+// until the pointer is on the row or something is picked, then the box
+// that picks list takes its place.
+func (s *desktop) pickTile(c *ui.Context, p palette, name string, list []container, hovered bool, tile func()) {
+	if !hovered && len(s.picked) == 0 {
+		tile()
+		return
+	}
+	ui.Box(c).Size(32, 32).Shrink(0).Center().Children(func() {
+		if checkbox(c.Key("pick"), p, tr("选择 ", "Select ")+name, s.pickState(list)) {
+			s.togglePicked(list)
+		}
+	})
+}
+
 // containersView is the containers page: filters, or the actions on the
 // picked containers, the grouped table, and the selected row's panel.
 func (s *desktop) containersView(c *ui.Context, p palette) {
@@ -261,11 +278,9 @@ func (s *desktop) containersView(c *ui.Context, p palette) {
 		if s.tight() {
 			optional = containerTight
 		}
-		tableHeader(c, p, narrowColumns(containerColumns(), s.narrow(), optional...), containerActionsWidth, func() {
-			if checkbox(c.Key("pick-all"), p, tr("全选", "Select all"), s.pickState(shown)) {
-				s.togglePicked(shown)
-			}
-		})
+		// No box heads the column: while containers are picked the toolbar
+		// offers to pick all that are shown.
+		tableHeader(c, p, narrowColumns(containerColumns(), s.narrow(), optional...), containerActionsWidth, nil)
 		switch {
 		case len(flat) > 0:
 			ui.List(c.Key("rows"), s.list(containersPage), len(flat)).FillWidth().Grow(1).MinHeight(0).
@@ -411,8 +426,8 @@ func treeGuide(c *ui.Context, p palette, last bool) {
 	})
 }
 
-// projectRow is the heading of a Compose project. Its checkbox picks the
-// members shown, the arrow folds them, and the rest opens the project's
+// projectRow is the heading of a Compose project. Its tile turns into the
+// checkbox that picks the members shown, the arrow folds them, and the rest opens the project's
 // panel; the buttons act on all of its members.
 func (s *desktop) projectRow(c *ui.Context, p palette, row containerRow) {
 	key := projectKey(row.project)
@@ -433,13 +448,9 @@ func (s *desktop) projectRow(c *ui.Context, p palette, row containerRow) {
 	default:
 		line.Background(p.hover.Mix(p.panel, 0.4))
 	}
+	hovered := line.Hovered()
 	line.Children(func() {
-		ui.Row(c.Key("lead")).Shrink(0).Margin(0, 12, 0, pageInset).Children(func() {
-			if checkbox(c.Key("pick"), p, tr("选择 ", "Select ")+row.project, s.pickState(row.members)) {
-				s.togglePicked(row.members)
-			}
-		})
-		fold := clickable(c.Key("fold")).Label(tr("折叠 ", "Fold ") + row.project).Width(treeWidth).FillHeight().Shrink(0).Justify(ui.Start).AlignItems(ui.Center)
+		fold := clickable(c.Key("fold")).Label(tr("折叠 ", "Fold ")+row.project).Width(treeWidth).FillHeight().Shrink(0).Margin(0, 0, 0, pageInset).Justify(ui.Start).AlignItems(ui.Center)
 		fold.Children(func() {
 			arrow := "down"
 			if s.collapsed[row.project] {
@@ -457,7 +468,7 @@ func (s *desktop) projectRow(c *ui.Context, p palette, row containerRow) {
 		open := clickable(c.Key("open")).Label(tr("查看 ", "Details for ") + row.project).Grow(1).Width(0).MinWidth(0).FillHeight().
 			Gap(10).AlignItems(ui.Center).Justify(ui.Start)
 		open.Children(func() {
-			imageTile(c, p, "", "layers")
+			s.pickTile(c, p, row.project, row.members, hovered, func() { imageTile(c, p, "", "layers") })
 			ui.Column(c).Grow(1).Width(0).MinWidth(0).Gap(2).Children(func() {
 				ui.Text(c, row.project).FontSize(13).FontWeight(600).TextColor(p.text).SingleLine()
 				ui.Text(c, fmt.Sprintf(tr("Compose · %d/%d 运行中", "Compose · %d/%d running"), running, len(row.members))).
@@ -492,19 +503,15 @@ func (s *desktop) projectRow(c *ui.Context, p palette, row containerRow) {
 	s.visible = append(s.visible, key)
 }
 
-// containerRow is one container of the table: its checkbox, then its tile,
-// name and image, hung under its project when it has one.
+// containerRow is one container of the table: its tile, which turns into
+// its checkbox, then its name and image, hung under its project when it
+// has one.
 func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 	x := row.c
 	cols := containerColumns()
 	u := s.usage[x.ID]
 	live := x.State == "running" && u != nil
-	pick := func() {
-		if checkbox(c.Key("pick"), p, tr("选择 ", "Select ")+x.Name, s.pickState([]container{x})) {
-			s.togglePicked([]container{x})
-		}
-	}
-	s.tableRow(c, p, x.ID, x.Name, containerActionsWidth, pick, func() {
+	s.tableRow(c, p, x.ID, x.Name, containerActionsWidth, nil, func() {
 		narrow, tight := s.narrow(), s.tight()
 		// The name keeps room for its tile and a few letters however
 		// narrow the table gets.
@@ -515,7 +522,7 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 				ui.Box(c).Width(treeWidth).Shrink(0)
 			}
 			ui.Box(c).Shrink(0).Children(func() {
-				imageTile(c, p, x.Image, "box")
+				s.pickTile(c, p, x.Name, []container{x}, s.rowHovered, func() { imageTile(c, p, x.Image, "box") })
 				// The state sits on the tile's corner, as on an avatar.
 				ui.Box(c).Absolute().Right(-3).Bottom(-3).Padding(2).Radius(6).Background(p.panel).Children(func() {
 					s.containerDot(c, p, x)
@@ -528,7 +535,7 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 				if addr := s.localURL(x); addr != "" {
 					// The address opens itself; a button inside the row's
 					// takes its own clicks, so the row is not chosen.
-					if openLink(c.Key("address"), p, "globe", strings.TrimPrefix(strings.TrimPrefix(addr, "https://"), "http://"), addr) {
+					if openLink(c.Key("address"), p, "link", strings.TrimPrefix(strings.TrimPrefix(addr, "https://"), "http://"), addr) {
 						c.OpenURL(addr)
 					}
 				} else {
@@ -579,6 +586,7 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 		})
 		cell(c, cols[6].width, 0).Children(func() { label(c, since(s.now, x.Created), p.muted) })
 	}, func() {
+		s.shareControl(c, p, "share:"+x.ID, x)
 		s.containerActions(c, p, x)
 		show := func(tab int) func() {
 			return func() {
@@ -601,6 +609,8 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 			entries = append(entries, menuEntry{label: tr("打包…", "Pack…"), disabled: s.working["pack"], run: func() { s.pack([]string{x.Name}, "", x.Name) }})
 		}
 		entries = append(entries,
+			// The way to pick without the pointer: the boxes only show under it.
+			menuEntry{label: tr("选择", "Select"), run: func() { s.picked[x.ID] = true }},
 			menuEntry{label: tr("复制 ID", "Copy ID"), run: func() {
 				c.WriteClipboard(x.ID)
 				s.notices = append(s.notices, tr("已复制", "Copied"))
@@ -626,7 +636,7 @@ func (s *desktop) containerDock(c *ui.Context, p palette, x container) {
 			link := clickable(c.Key("address")).Label(fmt.Sprintf(tr("打开 %s", "Open %s"), addr)).Tooltip(addr).Height(22).PaddingX(7).Gap(4).
 				Radius(6).AlignItems(ui.Center).MinWidth(0).Shrink(1).Background(p.accent.Alpha(0.1))
 			link.Children(func() {
-				ui.Icon(c, icons["globe"]).Size(11, 11).Shrink(0).TextColor(p.accent)
+				ui.Icon(c, icons["link"]).Size(11, 11).Shrink(0).TextColor(p.accent)
 				label(c, strings.TrimPrefix(strings.TrimPrefix(addr, "https://"), "http://"), p.accent)
 			})
 			if link.Clicked() {
@@ -657,6 +667,7 @@ func (s *desktop) containerDock(c *ui.Context, p palette, x container) {
 				c.OpenURL(addr)
 			}
 		}
+		s.shareControl(c, p, "share-dock", x)
 		s.containerActions(c, p, x)
 		if iconButton(c.Key("delete"), p, "trash", tr("删除 ", "Delete ")+x.Name, s.working[x.ID]).Clicked() {
 			s.removeContainer(x)
@@ -671,6 +682,9 @@ func (s *desktop) containerDock(c *ui.Context, p palette, x container) {
 			fields := s.detail.fields
 			if addr := s.localURL(x); addr != "" {
 				fields = append([]field{{tr("本地地址", "Local address"), addr}}, fields...)
+			}
+			if l, ok := s.shareOf(x); ok && l.URL != "" {
+				fields = append([]field{{tr("公开地址", "Public address"), l.URL}}, fields...)
 			}
 			keyValues(c, p, fields)
 		case 1:

@@ -61,9 +61,12 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   networks, volumes and ports; a Config tab that edits the Compose file in
   place (Save, or Save and apply, which runs Compose's `up -d` with
   `DOCKER_HOST` set to the window's engine, through the Compose plugin
-  itself when it is found, so no docker context is needed); and the members. Checkboxes pick containers, a
-  project's box its members; while any are picked the filters give way to
-  start, stop and delete for all of them. The page opens on the Running
+  itself when it is found, so no docker context is needed); and the members. A row's tile is its
+  checkbox: the box takes the tile's place while the pointer is on the row,
+  and on every row once anything is picked (a row's menu has Select, for
+  picking without the pointer); a project's box picks its members. While
+  any are picked the filters give way to select all shown, start, stop and
+  delete for all of them. The page opens on the Running
   filter. Rows show state (a running container's uptime as `Up 3 min`,
   `运行 3 分钟` in Chinese), the first published port, CPU, memory and age.
   Start, stop and restart, of one container, a project or the picked
@@ -2017,11 +2020,32 @@ flowchart LR
   way, as upstream does; a keep-alive connection reports later. A
   half-close from the visitor reaches the service as EOF (also through the
   guest relay), so the reply still arrives.
-- **Window.** The Share page shows the account, New link (a port,
-  `host:port` or a running container, and an optional name), and the links
-  with copy, open and stop. The detail panel shows a link's facts and its
-  recent requests. Without a relay it asks for one; signed out it offers
+- **Window.** The Share page shows the account, New link, and the links.
+  New link publishes a running container, which the user picks (none is
+  chosen for them), or a port or `host:port` of this machine, under an
+  optional name. A live link's address opens in the browser; one that is
+  reconnecting is plain text, and one waiting for quota or closed by the
+  relay is struck out. Each row copies or stops its link; stopping a link
+  that has an address asks first, as a generated address cannot be had
+  again. A link the relay closed offers reconnect, which opens a new link
+  to the same target and name in its place, and remove. The detail panel
+  shows a link's facts and its recent requests, and leads to the container
+  it publishes. Without a relay the page asks for one; signed out it offers
   GitHub (showing the code to enter) or an operator's token.
+- **Containers page.** A running container's row and panel carry a share
+  button. Not shared, it opens New link with the container chosen and
+  typing at the name, so Enter shares it; without a relay or signed out it
+  opens that dialog first. Shared, the button takes the link's state color
+  and opens its menu: copy the address, open it, show it on the Share page,
+  stop sharing. The panel's Info tab lists the public address. The page
+  reads `GET /fabo/share` with its refresh for this; the relay's account
+  (`GET /fabo/share/account`) is read only on the Share page and while one
+  of its dialogs is open, so a plan's link limit is checked again when New
+  link is sent.
+- **Announcements.** A link opened from the window is announced once: when
+  it goes live, with a button that copies its address, or when it cannot
+  serve (waiting for quota, or closed), with the relay's reason. Links
+  opened by `fabo share` are not announced.
 
 ### Container security options
 

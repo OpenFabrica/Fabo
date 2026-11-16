@@ -177,6 +177,11 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 				w.WriteHeader(http.StatusCreated)
 				fmt.Fprint(w, `{"Id":"c-new"}`)
 			}
+			if path == "/fabo/share" {
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, `{"id":"sh-new"}`)
+				return
+			}
 			if path == "/images/load" {
 				fmt.Fprint(w, `{"stream":"Loaded image: shop/api:dev\n"}`)
 				return
@@ -382,8 +387,22 @@ func TestPickedContainersAreActedOnTogether(t *testing.T) {
 	if err := tt.Click("All"); err != nil {
 		t.Fatal(err)
 	}
+	// No boxes stand in the table until the pointer is on a row; then the
+	// row's tile is its box.
+	if _, found := tt.Find("Select shop"); found {
+		t.Fatal("a checkbox shows without the pointer")
+	}
+	at, _ := tt.Find("Details for shop")
+	tt.Move(at.X+at.W/2, at.Y+at.H/2)
+	tt.Frame()
 	if err := tt.Click("Select shop"); err != nil {
 		t.Fatal(err)
+	}
+	// With something picked every row shows its box.
+	tt.Move(0, 0)
+	tt.Frame()
+	if _, found := tt.Find("Select loki"); !found {
+		t.Fatal("picking did not show the other rows' boxes")
 	}
 	if !s.picked["c-api"] || !s.picked["c-web"] || len(s.picked) != 2 || !tt.HasText("2 selected") {
 		t.Fatalf("picked %v, texts %q", s.picked, tt.Texts())
@@ -395,7 +414,7 @@ func TestPickedContainersAreActedOnTogether(t *testing.T) {
 	if !strings.Contains(changes, "/containers/c-api/stop") || !strings.Contains(changes, "/containers/c-web/stop") {
 		t.Fatalf("stop: %s", changes)
 	}
-	// Every shown container, from the header's box.
+	// Every shown container, from the bar.
 	if err := tt.Click("Select all"); err != nil || len(s.picked) != len(s.containers) {
 		t.Fatalf("select all: %v %v", s.picked, err)
 	}
@@ -1303,8 +1322,24 @@ func TestScreenshots(t *testing.T) {
 		}
 		s.form = form{kind: "share-usage"}
 		shot("share-billing-usage-"+theme, s)
+		setShareBillingFixture(f, "paid")
+		s.shares.billingChecked = time.Time{}
+		s.refresh()
+		s.openShareForm("shop-api-1")
+		shot("share-new-"+theme, s)
+		s.form.flag = true
+		shot("share-new-port-"+theme, s)
 		s.form = form{}
 		s.selectRow("")
+		s.navigate(containersPage)
+		s.refresh()
+		// A list's state belongs to one view; each shot is another.
+		s.lists = map[string]*ui.ListState{}
+		s.selectRow("")
+		s.menus["share:c-web"] = &moreMenuState{open: true}
+		shot("containers-share-menu-"+theme, s)
+		delete(s.menus, "share:c-web")
+		s.lists = map[string]*ui.ListState{}
 		s.navigate(settingsPage)
 		for i, tab := range settingsTabs {
 			s.settingsTab = i

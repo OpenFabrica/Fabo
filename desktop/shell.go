@@ -27,8 +27,8 @@ const (
 	// what the container table's columns need: inset, checkbox, a 150 wide
 	// name, the columns kept and the action buttons, with the gaps between.
 	autoFoldWidth   = 1040
-	narrowListWidth = 900 // 54 + 150 + 504 columns + 72 gaps + 118
-	tightListWidth  = 560 // 54 + 150 + 150 + 52 + 24 gaps + 118
+	narrowListWidth = 900 // 24 + 150 + 504 columns + 72 gaps + 148
+	tightListWidth  = 560 // 24 + 150 + 150 + 52 + 24 gaps + 148
 )
 
 // rowHeight is the height of a table row at the chosen density. Container
@@ -124,6 +124,7 @@ func (s *desktop) view(c *ui.Context) {
 	s.dialog(c, p)
 	s.reviewWindow(c, p)
 	s.switchDialog(c, p)
+	s.announceShares(c)
 	for _, notice := range s.notices {
 		c.Toast(notice)
 	}
@@ -273,6 +274,17 @@ func (s *desktop) pageSummary() string {
 			total += img.Size
 		}
 		return displaySize(total)
+	case sharePage:
+		if !s.shares.ok || !s.shares.info.Account.SignedIn {
+			return ""
+		}
+		live := 0
+		for _, l := range s.shares.info.Shares {
+			if l.State == "live" {
+				live++
+			}
+		}
+		return fmt.Sprintf(tr("%d 个在线", "%d live"), live)
 	}
 	return ""
 }
@@ -754,6 +766,9 @@ func (s *desktop) tableRow(c *ui.Context, p palette, id, name string, actionsWid
 	case row.Hovered():
 		row.Background(p.hover)
 	}
+	// The cells may show something only under the pointer, as a container's
+	// checkbox.
+	s.rowHovered = row.Hovered()
 	row.Children(func() {
 		inset := float32(pageInset)
 		if lead != nil {
