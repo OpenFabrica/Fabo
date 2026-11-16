@@ -36,6 +36,7 @@ Fabo 是 Go 项目，版本号不存在源码里，只来自 git 标签 `vX.Y.Z`
 
 - 标签是 `vX.Y.Z` 或 `vX.Y.Z-(alpha|beta|rc).N`，并且是注释标签。
 - `CHANGELOG.md` 里有 `## <版本> · ` 这一节。
+- `NOTICE` 与 `scripts/notice.py` 的输出一致。
 
 - `git describe --tags --dirty` 的输出正好是要发的标签，没有 `-N-g<哈希>` 和 `-dirty` 后缀。
 - 标签在主分支上：`git merge-base --is-ancestor <标签> upstream/master`。
@@ -51,4 +52,6 @@ Fabo 是 Go 项目，版本号不存在源码里，只来自 git 标签 `vX.Y.Z`
 - 只有 macOS 的 app 和 DMG 能从本仓库构建。更新源（feed）、Linux 包和 Windows 安装器的发版流程还没有迁移到 Go，
   见 [功能对齐基线](compatibility-baseline.md)。
 - `docs/releases/` 是上游 Kiri 0.1.x 的发版说明，留作对照。
-- `NOTICE` 仍是上游按 Rust 依赖生成的，发版前要按 Go 依赖重新生成。
+- `NOTICE` 由 `python3 scripts/notice.py` 生成：随包 Go 二进制实际链接的模块与 Go 运行时的许可证、
+  `packaging/notice/bundled.txt`（docker CLI、Compose、buildx、Grype、Simple Icons、内核 GPL 全文，手工维护，
+  脚本核对版本与 `packaging/cli-pins.env` 和扫描器一致），以及内核源码提供说明。依赖变动后重新生成；门禁会检查它是否最新。

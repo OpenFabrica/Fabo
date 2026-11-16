@@ -26,4 +26,7 @@ git merge-base --is-ancestor "$tag" "$remote/$branch" || fail "$tag is not on $r
 
 grep -q "^## ${tag#v} · " CHANGELOG.md 2>/dev/null || fail "CHANGELOG.md has no '## ${tag#v} · …' entry"
 
+# NOTICE lists what the binaries link; a dependency change must reach it.
+python3 scripts/notice.py --check || fail "NOTICE is out of date: run python3 scripts/notice.py and commit it"
+
 echo "release-check: $tag ok"
