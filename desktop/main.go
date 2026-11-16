@@ -567,7 +567,6 @@ func (s *desktop) refresh() {
 				if billingErr == nil {
 					s.shares.billing = billing
 				}
-				s.settleShareLogin()
 			}
 
 			if samples != nil {

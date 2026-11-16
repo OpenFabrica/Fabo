@@ -7,7 +7,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -16,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -72,9 +70,7 @@ type shareUI struct {
 	info shareInfo
 	// ok is set once the engine answered, so the page doesn't flash the
 	// signed-out state while it loads.
-	ok bool
-	// waiting is set while the sign-in dialog waits for GitHub approval.
-	waiting        bool
+	ok             bool
 	billing        shareAccount
 	billingChecked time.Time
 	billingURL     string
@@ -160,7 +156,7 @@ func (s *desktop) shareView(c *ui.Context, p palette) {
 		}
 		return
 	case !a.SignedIn:
-		if empty(c, p, "globe", tr("登录后把端口或容器发布到公网", "Sign in to publish a port or container"), tr("登录", "Sign in")) {
+		if empty(c, p, "globe", tr("公网共享内测中，名额需要申请", "Public sharing is in preview; access is by request"), tr("申请或登录", "Request or sign in")) {
 			s.form = form{kind: "share-login"}
 		}
 		return
@@ -682,101 +678,53 @@ func (s *desktop) setShareRelay() bool {
 	return true
 }
 
-// shareLoginForm is the Sign in dialog: GitHub, or a token from the relay's
-// operator; while GitHub waits, the code to type there.
+// shareLoginForm is the Sign in dialog. Sharing is handed out by hand while
+// its demand is being gauged: the dialog leads to the repository to star
+// and to a letter asking for access, and takes the token sent back.
 func (s *desktop) shareLoginForm(c *ui.Context, p palette) (submitted bool) {
-	f := &s.form
-	pending := s.shares.info.Account.Pending
-	if s.shares.waiting && pending != nil {
-		ui.Text(c, tr("在 GitHub 输入此代码", "Enter this code on GitHub")).FontSize(12).TextColor(p.sub)
-		ui.Text(c, pending.Code).Font(mono).FontSize(22).FontWeight(600).LetterSpacing(2).TextColor(p.text).Selectable()
-		ui.Row(c).FillWidth().Gap(8).Children(func() {
-			if button(c.Key("open-github"), p, tr("打开 GitHub", "Open GitHub"), "out", plainButton, false) {
-				c.OpenURL(pending.URI)
-			}
-			if button(c.Key("copy-code"), p, tr("复制代码", "Copy code"), "copy", plainButton, false) {
-				c.WriteClipboard(pending.Code)
+	step := func(n int, text string, action func()) {
+		ui.Row(c.Key(n)).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
+			ui.Box(c).Size(20, 20).Shrink(0).Radius(10).Background(p.soft).Center().Children(func() {
+				ui.Textf(c, "%d", n).FontSize(11).FontWeight(600).FontFeatures("tnum").TextColor(p.sub)
+			})
+			ui.Text(c, text).FontSize(12.5).TextColor(p.text).Grow(1).Width(0).MinWidth(0)
+			if action != nil {
+				action()
 			}
 		})
-		if pending.Error != "" {
-			f.problem = pending.Error
-		} else {
-			ui.Text(c, tr("等待确认…", "Waiting for approval…")).FontSize(12).TextColor(p.muted)
-		}
-		return false
 	}
-	if button(c.Key("github-login"), p, tr("用 GitHub 登录", "Sign in with GitHub"), "", plainButton, s.working["share-github"]) {
-		s.startGitHubLogin()
-	}
-	ui.Divider(c)
-	return input(c, p, "token", tr("Token", "Token"), "ft_…", &f.value, true).Submitted()
-}
-
-// startGitHubLogin asks the engine to begin the device flow, then opens
-// the code page; the engine polls GitHub and the page's refresh notices.
-func (s *desktop) startGitHubLogin() {
-	s.working["share-github"] = true
-	s.run(30*time.Second, func(ctx context.Context) func() {
-		var info struct {
-			Pending *struct {
-				Code, URI string
-			} `json:"pending"`
-		}
-		var raw []byte
-		err := s.engine.request(ctx, http.MethodPost, "/fabo/share/login", map[string]any{"github": true}, &raw)
-		if err == nil && len(raw) > 0 {
-			err = json.Unmarshal(raw, &info)
-		}
-		return func() {
-			delete(s.working, "share-github")
-			if err != nil {
-				s.form.problem = err.Error()
-				return
-			}
-			s.form.problem = ""
-			s.shares.waiting = true
-			if info.Pending != nil {
-				s.shares.info.Account.Pending = &struct {
-					Code  string `json:"code"`
-					URI   string `json:"uri"`
-					Error string `json:"error"`
-				}{Code: info.Pending.Code, URI: info.Pending.URI}
-				if s.window != nil && strings.HasPrefix(info.Pending.URI, "https://") {
-					go mygo.Shell.OpenExternal(info.Pending.URI)
-				}
-			}
+	step(1, tr("给 Fabo 点个 Star", "Star Fabo on GitHub"), func() {
+		if button(c.Key("star"), p, tr("去点 Star", "Star on GitHub"), "out", plainButton, false) {
+			c.OpenURL(repoURL)
 		}
 	})
-	if s.engine.http == nil {
-		delete(s.working, "share-github")
-	}
+	step(2, tr("发邮件申请，附上 GitHub 用户名", "Email a request with your GitHub username"), func() {
+		if button(c.Key("mail"), p, tr("写邮件", "Write email"), "", plainButton, false) {
+			c.OpenURL(shareRequestMail())
+		}
+	})
+	// The address itself, for a mail client the link does not reach.
+	ui.Text(c, contactEmail).Font(mono).FontSize(11.5).TextColor(p.sub).Padding(0, 0, 0, 30).Selectable()
+	step(3, tr("填入收到的 token", "Enter the token you receive"), nil)
+	return input(c, p, "token", "Token", "ft_…", &s.form.value, true).Submitted()
 }
 
-// loginShare submits the Sign in dialog: a token signs in at once; while
-// GitHub waits it just closes.
+// shareRequestMail is the letter that asks for access, ready to send.
+func shareRequestMail() string {
+	q := url.Values{}
+	q.Set("subject", tr("申请 Fabo 公网共享", "Fabo share access request"))
+	q.Set("body", tr("GitHub 用户名：\n打算用来：\n", "GitHub username:\nWhat I will share:\n"))
+	// Mail clients read a query's plus as a plus, not as a space.
+	return "mailto:" + contactEmail + "?" + strings.ReplaceAll(q.Encode(), "+", "%20")
+}
+
+// loginShare submits the Sign in dialog's token.
 func (s *desktop) loginShare() bool {
-	f := &s.form
-	if s.shares.waiting {
-		return true
-	}
-	token := strings.TrimSpace(f.value)
+	token := strings.TrimSpace(s.form.value)
 	if token == "" {
-		f.problem = tr("填写 token，或用 GitHub 登录", "Enter a token, or sign in with GitHub")
+		s.form.problem = tr("请填写 token", "Enter a token")
 		return false
 	}
 	s.do("share-login", engineAction{http.MethodPost, "/fabo/share/login", map[string]any{"token": token}}, tr("已登录", "Signed in"))
 	return true
-}
-
-// settleShareLogin closes the Sign in dialog once GitHub approved.
-func (s *desktop) settleShareLogin() {
-	a := s.shares.info.Account
-	if s.form.kind == "share-login" && s.shares.waiting && a.SignedIn && a.Pending == nil {
-		s.form = form{}
-		s.shares.waiting = false
-		s.notices = append(s.notices, tr("已登录 ", "Signed in as ")+a.Login)
-	}
-	if s.form.kind != "share-login" {
-		s.shares.waiting = false
-	}
 }

@@ -2031,8 +2031,15 @@ flowchart LR
   again. A link the relay closed offers reconnect, which opens a new link
   to the same target and name in its place, and remove. The detail panel
   shows a link's facts and its recent requests, and leads to the container
-  it publishes. Without a relay the page asks for one; signed out it offers
-  GitHub (showing the code to enter) or an operator's token.
+  it publishes. Without a relay the page asks for one. Signed out, it explains
+  that access is by request: the dialog leads to the repository to star and
+  to a ready letter to the author, and takes the token sent back. The
+  window offers no GitHub sign-in; `fabo share login` and the engine's
+  `github` login are unchanged, and whether they work is the relay's
+  choice.
+- **Contact.** Settings lists, under its sections, feedback on GitHub and
+  the author's X account; About adds the author's email, both links, the
+  repository, and thanks to Kiri.
 - **Containers page.** A running container's row and panel carry a share
   button. Not shared, it opens New link with the container chosen and
   typing at the name, so Enter shares it; without a relay or signed out it

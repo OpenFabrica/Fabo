@@ -15,6 +15,17 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+// Where to reach the author and the project. The email is also where
+// requests for share access go.
+const (
+	contactEmail = "nesocks@gmail.com"
+	xHandle      = "@daveylan2"
+	xURL         = "https://x.com/daveylan2"
+	repoURL      = "https://github.com/OpenFabrica/Fabo"
+	issuesURL    = repoURL + "/issues"
+	kiriURL      = "https://github.com/libracoder/kiri"
+)
+
 // settingsTabs are the sections of Settings.
 var settingsTabs = []struct{ id, icon, zh, en string }{
 	{"appearance", "palette", "外观", "Appearance"},
@@ -123,6 +134,15 @@ func (s *desktop) settingsView(c *ui.Context, p palette) {
 					if s.settingsTabButton(c.Key(t.id), p, t.icon, tr(t.zh, t.en), i == s.settingsTab) {
 						s.settingsTab = i
 					}
+				}
+				// Under the sections: where to report a problem and where
+				// the author posts.
+				ui.Box(c).Height(1).FillWidth().Margin(10, 10).Background(p.line)
+				if s.settingsTabButton(c.Key("feedback"), p, "out", tr("GitHub 反馈", "Feedback on GitHub"), false) {
+					c.OpenURL(issuesURL)
+				}
+				if s.settingsTabButton(c.Key("x"), p, "out", "X "+xHandle, false) {
+					c.OpenURL(xURL)
 				}
 			})
 			ui.Column(c.Key("pane-" + tab.id)).Grow(1).Width(0).MinWidth(0).Gap(18).Children(func() {
@@ -847,6 +867,28 @@ func (s *desktop) aboutPane(c *ui.Context, p palette) {
 				ui.Text(c, f.label).Width(130).Shrink(0).FontSize(12.5).TextColor(p.muted)
 				ui.Text(c, f.value).Grow(1).Width(0).MinWidth(0).Font(mono).FontSize(12).TextColor(p.text).Selectable()
 			})
+		}
+	})
+	// The author and the project, each a link.
+	ui.Column(c.Key("contact")).FillWidth().Gap(9).Padding(18, 0, 0).BorderWidth(1, 0, 0, 0).BorderColor(p.line).Children(func() {
+		for i, l := range []struct{ label, text, url string }{
+			{tr("邮箱", "Email"), contactEmail, "mailto:" + contactEmail},
+			{"X", xHandle, xURL},
+			{"GitHub", strings.TrimPrefix(repoURL, "https://"), repoURL},
+			{tr("反馈", "Feedback"), strings.TrimPrefix(issuesURL, "https://"), issuesURL},
+		} {
+			ui.Row(c.Key(i)).FillWidth().Gap(16).Children(func() {
+				ui.Text(c, l.label).Width(130).Shrink(0).FontSize(12.5).TextColor(p.muted)
+				if openLink(c.Key("open"), p, "", l.text, l.url) {
+					c.OpenURL(l.url)
+				}
+			})
+		}
+	})
+	ui.Row(c.Key("thanks")).FillWidth().Gap(6).AlignItems(ui.Center).Children(func() {
+		remark(c, p, tr("Fabo 起源于 Kiri，感谢它的作者和贡献者。", "Fabo grew out of Kiri. Thanks to its author and contributors."))
+		if openLink(c.Key("kiri"), p, "", "libracoder/kiri", kiriURL) {
+			c.OpenURL(kiriURL)
 		}
 	})
 }

@@ -1325,6 +1325,8 @@ func TestScreenshots(t *testing.T) {
 		setShareBillingFixture(f, "paid")
 		s.shares.billingChecked = time.Time{}
 		s.refresh()
+		s.form = form{kind: "share-login"}
+		shot("share-request-"+theme, s)
 		s.openShareForm("shop-api-1")
 		shot("share-new-"+theme, s)
 		s.form.flag = true

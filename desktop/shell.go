@@ -1015,10 +1015,7 @@ func (s *desktop) dialog(c *ui.Context, p palette) {
 			}
 			s.shareUsageForm(c, p)
 		case "share-login":
-			title, ok = tr("登录共享中继", "Sign in to the share relay"), tr("登录", "Sign in")
-			if s.shares.waiting {
-				ok = tr("关闭", "Close")
-			}
+			title, ok = tr("申请公网共享", "Request public sharing"), tr("登录", "Sign in")
 			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
 			submitted = s.shareLoginForm(c, p)
 		case "share-relay":

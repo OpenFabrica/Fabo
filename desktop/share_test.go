@@ -236,13 +236,28 @@ func TestShareFirstRun(t *testing.T) {
 	s.refreshing = false
 	s.refresh()
 	tt.Frame()
-	if !tt.HasText("Sign in to publish a port or container") {
+	if !tt.HasText("Public sharing is in preview; access is by request") {
 		t.Fatalf("signed-out page: %q", tt.Texts())
 	}
-	click(t, tt, "Sign in")
+	click(t, tt, "Request or sign in")
 	if s.form.kind != "share-login" {
 		t.Fatalf("form %q", s.form.kind)
 	}
+	// Access is asked for by starring the repository and writing a letter;
+	// the window offers no self-service sign-in.
+	if _, found := tt.Find("Sign in with GitHub"); found {
+		t.Fatal("the dialog still offers GitHub sign-in")
+	}
+	click(t, tt, "Star on GitHub")
+	click(t, tt, "Write email")
+	if got := tt.OpenedURLs(); len(got) != 2 || got[0] != repoURL || !strings.HasPrefix(got[1], "mailto:"+contactEmail+"?") || strings.Contains(got[1], "+") {
+		t.Fatalf("opened %v", got)
+	}
+	// The buttons took the focus; opening the dialog again puts it back in
+	// the token field.
+	s.form = form{}
+	tt.Frame()
+	click(t, tt, "Request or sign in")
 	tt.Type("ft_secret")
 	tt.Key(0, ui.KeyEnter)
 	if got := f.changed(); len(got) != 2 || !strings.Contains(f.last, `"token":"ft_secret"`) {
@@ -258,33 +273,6 @@ func TestShareFirstRun(t *testing.T) {
 	tt.Frame()
 	if s.form.kind != "share-relay" || s.form.host != "edge.example.com" {
 		t.Fatalf("change relay: %+v", s.form)
-	}
-}
-
-// The GitHub sign-in shows the code while the engine waits, and closes once
-// the account is signed in.
-func TestShareGitHubSignIn(t *testing.T) {
-	f, s := newFakeEngine(t)
-	f.mu.Lock()
-	f.share = `{"account":{"signedIn":false,"server":"edge.example.com","pending":{"code":"ABCD-1234","uri":"https://github.com/login/device"}},"shares":[]}`
-	f.mu.Unlock()
-	tt := ui.NewTester(s.view, 1180, 760)
-	click(t, tt, "Share")
-	tt.Frame()
-	click(t, tt, "Sign in")
-	click(t, tt, "Sign in with GitHub")
-	tt.Frame()
-	if !strings.Contains(f.last, `"github":true`) || !tt.HasText("ABCD-1234") || !tt.HasText("Waiting for approval…") {
-		t.Fatalf("device code: %s %q", f.last, tt.Texts())
-	}
-	f.mu.Lock()
-	f.share = `{"account":{"signedIn":true,"login":"octo","server":"edge.example.com"},"shares":[]}`
-	f.mu.Unlock()
-	s.refreshing = false
-	s.refresh()
-	// The view turns notices into toasts, so look before the next frame.
-	if s.form.kind != "" || !strings.Contains(strings.Join(s.notices, " "), "Signed in as octo") {
-		t.Fatalf("after approval: form %q, notices %q", s.form.kind, s.notices)
 	}
 }
 
