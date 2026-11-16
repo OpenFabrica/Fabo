@@ -238,7 +238,7 @@ func TestShareBillingActions(t *testing.T) {
 				click(t, tt, entry)
 			}
 			tt.Frame()
-			if got := tt.OpenedURLs(); len(got) != 1 || got[0] != "https://edge.fabo.dev/account?ticket=test-ticket" {
+			if got := tt.OpenedURLs(); len(got) != 1 || got[0] != "https://edge.fabo.dev/account?lang=en&ticket=test-ticket" {
 				t.Fatalf("opened %v", got)
 			}
 			if got := f.changed(); len(got) != 1 || got[0] != "POST /fabo/share/billing" {

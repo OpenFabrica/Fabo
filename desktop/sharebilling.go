@@ -235,6 +235,8 @@ func (s *desktop) openShareBilling() {
 		return
 	}
 	account := s.shares.info.Account
+	// The page opens in the window's language; read it here, not in the request goroutine.
+	language := lang
 	s.working["share-billing"] = true
 	s.run(15*time.Second, func(ctx context.Context) func() {
 		var out struct {
@@ -245,6 +247,11 @@ func (s *desktop) openShareBilling() {
 			u, parseErr := url.Parse(out.URL)
 			if parseErr != nil || u.Scheme != "https" || u.Host == "" || u.User != nil {
 				err = fmt.Errorf("invalid billing URL")
+			} else {
+				q := u.Query()
+				q.Set("lang", language)
+				u.RawQuery = q.Encode()
+				out.URL = u.String()
 			}
 		}
 		return func() {
