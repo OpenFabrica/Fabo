@@ -14,16 +14,21 @@ import (
 type shareAccount struct {
 	Billing bool `json:"billing"`
 	Plan    struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
+		ID      string     `json:"id"`
+		Name    string     `json:"name"`
+		Expires *time.Time `json:"expires"`
 	} `json:"plan"`
 	Limits struct {
 		Tunnels *uint64 `json:"tunnels"`
 	} `json:"limits"`
 	Usage struct {
-		Used   uint64    `json:"used"`
-		Cap    *uint64   `json:"cap"`
-		Resets time.Time `json:"resets"`
+		Used    uint64    `json:"used"`
+		Cap     *uint64   `json:"cap"`
+		Resets  time.Time `json:"resets"`
+		History []struct {
+			Month string `json:"month"`
+			Used  uint64 `json:"used"`
+		} `json:"history"`
 	} `json:"usage"`
 }
 
@@ -45,25 +50,130 @@ func (s *desktop) shareBillingToolbar(c *ui.Context, p palette) {
 	ui.Text(c, name).FontSize(11).FontWeight(500).TextColor(ink).Padding(3, 8).Radius(4).Background(bg).Shrink(0)
 	if a.Usage.Cap != nil {
 		fraction := float64(a.Usage.Used) / float64(max(1, *a.Usage.Cap))
-		ink = p.accent
-		if fraction >= 1 {
-			ink = p.err
-		} else if fraction >= .8 {
-			ink = p.warn
-		}
+		ink = shareUsageInk(p, fraction)
 		usage := displaySize(int64(a.Usage.Used)) + " / " + displaySize(int64(*a.Usage.Cap))
-		if s.width < 1000 {
-			ui.Column(c).Width(120).Gap(5).Shrink(0).Children(func() {
-				label(c, usage, ink).FontSize(10)
-				meter(c, p, fraction, 4, ink)
-			})
-		} else {
-			ui.Row(c).Gap(10).AlignItems(ui.Center).Shrink(0).Children(func() {
-				ui.Box(c).Width(120).Children(func() { meter(c, p, fraction, 4, ink) })
-				label(c, usage, ink).FontSize(12)
-			})
+		// The whole meter opens the traffic details, so it reads as one control.
+		b := clickable(c.Key("share-usage")).Label(tr("本月流量 ", "Monthly traffic ")+usage).Tooltip(tr("查看流量", "View traffic")).
+			Padding(4, 6).Radius(6).Shrink(0).AlignItems(ui.Center)
+		if b.Hovered() {
+			b.Background(p.raised)
 		}
+		if b.Clicked() {
+			s.form = form{kind: "share-usage"}
+		}
+		b.Children(func() {
+			if s.width < 1000 {
+				ui.Column(c).Width(120).Gap(5).Shrink(0).Children(func() {
+					label(c, usage, ink).FontSize(10)
+					meter(c, p, fraction, 4, ink)
+				})
+			} else {
+				ui.Row(c).Gap(10).AlignItems(ui.Center).Shrink(0).Children(func() {
+					ui.Box(c).Width(120).Children(func() { meter(c, p, fraction, 4, ink) })
+					label(c, usage, ink).FontSize(12)
+				})
+			}
+		})
 	}
+}
+
+// shareUsageInk colors traffic by how much of the allowance is gone.
+func shareUsageInk(p palette, fraction float64) ui.Color {
+	switch {
+	case fraction >= 1:
+		return p.err
+	case fraction >= .8:
+		return p.warn
+	}
+	return p.accent
+}
+
+// shareUsageForm is the traffic dialog: this month against the allowance,
+// when it resets, the plan's expiry, recent months and the open links.
+func (s *desktop) shareUsageForm(c *ui.Context, p palette) {
+	a := s.shares.billing
+	ui.Text(c, tr("流量", "Traffic")).FontSize(16).FontWeight(600).TextColor(p.text)
+	if a.Usage.Cap != nil {
+		capacity := *a.Usage.Cap
+		fraction := float64(a.Usage.Used) / float64(max(1, capacity))
+		ink := shareUsageInk(p, fraction)
+		ui.Column(c).FillWidth().Gap(8).Children(func() {
+			ui.Row(c).FillWidth().AlignItems(ui.End).Gap(6).Children(func() {
+				ui.Text(c, displaySize(int64(a.Usage.Used))).FontSize(22).FontWeight(600).FontFeatures("tnum").TextColor(ink)
+				ui.Text(c, "/ "+displaySize(int64(capacity))).FontSize(13).TextColor(p.sub).Padding(0, 0, 3)
+				ui.Box(c).Grow(1)
+				ui.Text(c, fmt.Sprintf("%.0f%%", min(1, fraction)*100)).FontSize(12).FontFeatures("tnum").TextColor(p.sub).Padding(0, 0, 3)
+			})
+			meter(c, p, fraction, 6, ink)
+		})
+		remaining := uint64(0)
+		if a.Usage.Used < capacity {
+			remaining = capacity - a.Usage.Used
+		}
+		name := a.Plan.Name
+		if a.Plan.ID == "free" {
+			name = tr("免费版", "Free")
+		}
+		fields := []field{
+			{tr("剩余", "Remaining"), displaySize(int64(remaining))},
+			{tr("套餐", "Plan"), name},
+		}
+		if !a.Usage.Resets.IsZero() {
+			fields = append(fields, field{tr("重置", "Resets"), a.Usage.Resets.Format("2006-01-02")})
+		}
+		if a.Plan.Expires != nil {
+			fields = append(fields, field{tr("到期", "Expires"), a.Plan.Expires.Local().Format("2006-01-02")})
+		}
+		keyValues(c, p, fields)
+	}
+	if len(a.Usage.History) > 1 {
+		shareHistory(c, p, a)
+	}
+	var in, out uint64
+	live := 0
+	for _, l := range s.shares.info.Shares {
+		in, out, live = in+l.In, out+l.Out, live+1
+	}
+	if live > 0 {
+		ui.Text(c, fmt.Sprintf(tr("当前 %d 个链接：流入 %s，流出 %s", "%d open links: %s in, %s out"), live, displaySize(int64(in)), displaySize(int64(out)))).
+			FontSize(12).TextColor(p.sub)
+	}
+}
+
+// shareHistory draws recent months as bars scaled to their own peak, the
+// current month last and in the accent color.
+func shareHistory(c *ui.Context, p palette, a shareAccount) {
+	history := a.Usage.History
+	ui.Column(c).FillWidth().Gap(6).Children(func() {
+		ui.Text(c, tr("近几个月", "Recent months")).FontSize(12).TextColor(p.sub)
+		ui.Box(c.Key("share-history")).FillWidth().Height(64).Draw(func(pt *ui.Painter, r ui.Rect) {
+			var peak uint64 = 1
+			for _, m := range history {
+				peak = max(peak, m.Used)
+			}
+			slot := r.W / float32(len(history))
+			for i, m := range history {
+				h := max(2, float32(m.Used)/float32(peak)*r.H)
+				ink := p.accent.Alpha(.35)
+				if i == len(history)-1 {
+					ink = p.accent
+				}
+				pt.Fill(ui.Rect{X: r.X + float32(i)*slot + slot*.2, Y: r.Y + r.H - h, W: slot * .6, H: h}, ink, 3)
+			}
+		})
+		ui.Row(c).FillWidth().Children(func() {
+			for _, m := range history {
+				month := m.Month
+				if t, err := time.Parse("2006-01", m.Month); err == nil {
+					month = tr(fmt.Sprintf("%d 月", t.Month()), t.Month().String()[:3])
+				}
+				ui.Column(c).Width(0).Grow(1).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, displaySize(int64(m.Used))).Font(mono).FontSize(10).TextColor(p.sub).SingleLine()
+					ui.Text(c, month).FontSize(10.5).TextColor(p.muted).SingleLine()
+				})
+			}
+		})
+	})
 }
 
 // shareQuotaBanner explains why links are waiting and offers an upgrade.

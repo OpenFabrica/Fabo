@@ -160,10 +160,10 @@ func (s *desktop) shareView(c *ui.Context, p palette) {
 	s.shareQuotaBanner(c, p)
 	links := s.shares.info.Shares
 	cols := []column{{tr("目标", "Target"), 0, 1, false}, {tr("地址", "Address"), 0, 1.4, false},
-		{tr("状态", "State"), 110, 0, false}, {tr("请求", "Requests"), 80, 0, true}}
+		{tr("状态", "State"), 110, 0, false}, {tr("请求", "Requests"), 80, 0, true}, {tr("流量", "Traffic"), 90, 0, true}}
 	const actionsWidth = 92
 	if !s.dockMax {
-		tableHeader(c, p, narrowColumns(cols, s.narrow(), 3), actionsWidth, nil)
+		tableHeader(c, p, narrowColumns(cols, s.narrow(), 3, 4), actionsWidth, nil)
 		if len(links) == 0 {
 			if empty(c, p, "share", tr("还没有公开链接", "No public links yet"), tr("新建链接", "New link")) {
 				s.openShareForm("")
@@ -200,6 +200,7 @@ func (s *desktop) shareView(c *ui.Context, p palette) {
 						})
 						if !narrow {
 							cell(rc, cols[3].width, 0).Children(func() { number(rc, fmt.Sprint(l.Requests), p.text) })
+							cell(rc, cols[4].width, 0).Children(func() { number(rc, displaySize(int64(l.In+l.Out)), p.text) })
 						}
 					}, func() {
 						s.shareActions(rc, p, l)

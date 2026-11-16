@@ -652,5 +652,15 @@
   "Upgrade traffic allowance": "升级流量额度",
   "%s allows %d simultaneous links": "%s同时只能开 %d 个链接",
   "Stop an existing link, or upgrade your plan to create more.": "先停止一个链接，或升级套餐后再创建。",
-  "Upgrade connection allowance": "升级连接额度"
+  "Upgrade connection allowance": "升级连接额度",
+  "Traffic": "流量",
+  "Remaining": "剩余",
+  "Resets": "重置",
+  "Expires": "到期",
+  "Plan": "套餐",
+  "Recent months": "近几个月",
+  "View traffic": "查看流量",
+  "Monthly traffic ": "本月流量 ",
+  "From traffic details: ": "从流量详情",
+  "%d open links: %s in, %s out": "当前 %d 个链接：流入 %s，流出 %s"
 }

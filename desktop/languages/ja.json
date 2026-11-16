@@ -652,5 +652,15 @@
   "Upgrade traffic allowance": "通信量の上限を増やす",
   "%s allows %d simultaneous links": "%sで同時に開けるリンクは%d個です",
   "Stop an existing link, or upgrade your plan to create more.": "既存のリンクを停止するか、プランをアップグレードしてください。",
-  "Upgrade connection allowance": "同時接続数を増やす"
+  "Upgrade connection allowance": "同時接続数を増やす",
+  "Traffic": "トラフィック",
+  "Remaining": "残り",
+  "Resets": "リセット",
+  "Expires": "有効期限",
+  "Plan": "プラン",
+  "Recent months": "最近の月",
+  "View traffic": "トラフィックを表示",
+  "Monthly traffic ": "今月のトラフィック ",
+  "From traffic details: ": "トラフィック詳細から: ",
+  "%d open links: %s in, %s out": "現在のリンク %d 件: 受信 %s、送信 %s"
 }

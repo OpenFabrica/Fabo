@@ -652,5 +652,15 @@
   "Upgrade traffic allowance": "Tăng hạn mức lưu lượng",
   "%s allows %d simultaneous links": "%s cho phép %d liên kết đồng thời",
   "Stop an existing link, or upgrade your plan to create more.": "Dừng một liên kết hiện có hoặc nâng cấp gói để tạo thêm.",
-  "Upgrade connection allowance": "Tăng giới hạn kết nối"
+  "Upgrade connection allowance": "Tăng giới hạn kết nối",
+  "Traffic": "Lưu lượng",
+  "Remaining": "Còn lại",
+  "Resets": "Đặt lại",
+  "Expires": "Hết hạn",
+  "Plan": "Gói",
+  "Recent months": "Các tháng gần đây",
+  "View traffic": "Xem lưu lượng",
+  "Monthly traffic ": "Lưu lượng tháng này ",
+  "From traffic details: ": "Từ chi tiết lưu lượng: ",
+  "%d open links: %s in, %s out": "%d liên kết đang mở: vào %s, ra %s"
 }

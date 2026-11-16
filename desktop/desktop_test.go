@@ -1301,6 +1301,9 @@ func TestScreenshots(t *testing.T) {
 			shot("share-billing-"+state+"-"+theme, s)
 			s.form = form{}
 		}
+		s.form = form{kind: "share-usage"}
+		shot("share-billing-usage-"+theme, s)
+		s.form = form{}
 		s.selectRow("")
 		s.navigate(settingsPage)
 		for i, tab := range settingsTabs {

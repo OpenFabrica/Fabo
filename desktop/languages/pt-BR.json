@@ -652,5 +652,15 @@
   "Upgrade traffic allowance": "Aumentar cota de tráfego",
   "%s allows %d simultaneous links": "%s permite %d links simultâneos",
   "Stop an existing link, or upgrade your plan to create more.": "Pare um link existente ou melhore seu plano para criar mais.",
-  "Upgrade connection allowance": "Aumentar limite de conexões"
+  "Upgrade connection allowance": "Aumentar limite de conexões",
+  "Traffic": "Tráfego",
+  "Remaining": "Restante",
+  "Resets": "Reinicia em",
+  "Expires": "Expira",
+  "Plan": "Plano",
+  "Recent months": "Últimos meses",
+  "View traffic": "Ver tráfego",
+  "Monthly traffic ": "Tráfego mensal ",
+  "From traffic details: ": "Dos detalhes de tráfego: ",
+  "%d open links: %s in, %s out": "%d links abertos: %s de entrada, %s de saída"
 }

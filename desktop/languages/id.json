@@ -652,5 +652,15 @@
   "Upgrade traffic allowance": "Tingkatkan kuota trafik",
   "%s allows %d simultaneous links": "%s mengizinkan %d tautan bersamaan",
   "Stop an existing link, or upgrade your plan to create more.": "Hentikan tautan yang ada atau tingkatkan paket untuk membuat lebih banyak.",
-  "Upgrade connection allowance": "Tingkatkan batas koneksi"
+  "Upgrade connection allowance": "Tingkatkan batas koneksi",
+  "Traffic": "Lalu lintas",
+  "Remaining": "Sisa",
+  "Resets": "Direset",
+  "Expires": "Berakhir",
+  "Plan": "Paket",
+  "Recent months": "Bulan terakhir",
+  "View traffic": "Lihat lalu lintas",
+  "Monthly traffic ": "Lalu lintas bulanan ",
+  "From traffic details: ": "Dari rincian lalu lintas: ",
+  "%d open links: %s in, %s out": "%d tautan terbuka: masuk %s, keluar %s"
 }

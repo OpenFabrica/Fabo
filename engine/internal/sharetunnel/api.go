@@ -223,10 +223,17 @@ type Account struct {
 		Warning bool    `json:"warning"`
 	} `json:"limits"`
 	Usage struct {
-		Used   uint64    `json:"used"`
-		Cap    *uint64   `json:"cap,omitempty"`
-		Resets time.Time `json:"resets,omitzero"`
+		Used    uint64       `json:"used"`
+		Cap     *uint64      `json:"cap,omitempty"`
+		Resets  time.Time    `json:"resets,omitzero"`
+		History []UsageMonth `json:"history,omitempty"`
 	} `json:"usage"`
+}
+
+// UsageMonth is one natural month of metered traffic, oldest first in Account.Usage.History.
+type UsageMonth struct {
+	Month string `json:"month"`
+	Used  uint64 `json:"used"`
 }
 
 // Whoami returns the signed-in account and its limits.

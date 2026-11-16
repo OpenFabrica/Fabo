@@ -992,6 +992,13 @@ func (s *desktop) dialog(c *ui.Context, p palette) {
 			dialog.Width(400).Padding(24).Gap(18).Radius(14)
 			ok = tr("升级", "Upgrade")
 			s.shareLimitForm(c, p)
+		case "share-usage":
+			dialog.Width(400).Padding(24).Gap(16).Radius(14)
+			ok = tr("升级", "Upgrade")
+			if s.shares.billing.Plan.ID != "free" {
+				ok = tr("续费", "Renew")
+			}
+			s.shareUsageForm(c, p)
 		case "share-login":
 			title, ok = tr("登录共享中继", "Sign in to the share relay"), tr("登录", "Sign in")
 			if s.shares.waiting {
@@ -1019,12 +1026,20 @@ func (s *desktop) dialog(c *ui.Context, p palette) {
 			ui.Text(c, f.problem).FontSize(12).TextColor(p.err)
 		}
 		ui.Row(c).FillWidth().Gap(8).Justify(ui.End).Padding(4, 0, 0).Children(func() {
-			if button(c.Key("cancel"), p, tr("取消", "Cancel"), "", plainButton, false) {
+			cancel := tr("取消", "Cancel")
+			if f.kind == "share-usage" {
+				cancel = tr("关闭", "Close")
+			}
+			if button(c.Key("cancel"), p, cancel, "", plainButton, false) {
 				open = false
 			}
 			submitLabel := ok
 			if f.kind == "share-limit" {
 				submitLabel = tr("升级连接额度", "Upgrade connection allowance")
+			}
+			if f.kind == "share-usage" {
+				// Distinct from the toolbar button of the same text behind the dialog.
+				submitLabel = tr("从流量详情", "From traffic details: ") + ok
 			}
 			if labeledButton(c.Key("submit"), p, ok, submitLabel, "", primaryButton, false) {
 				submitted = true
@@ -1049,7 +1064,7 @@ func (s *desktop) submit() bool {
 		return s.createMachine()
 	case "share":
 		return s.createShare()
-	case "share-limit":
+	case "share-limit", "share-usage":
 		s.openShareBilling()
 		return true
 	case "share-login":

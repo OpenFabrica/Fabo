@@ -652,5 +652,15 @@
   "Upgrade traffic allowance": "Datenvolumen erhöhen",
   "%s allows %d simultaneous links": "%s erlaubt %d gleichzeitige Links",
   "Stop an existing link, or upgrade your plan to create more.": "Beenden Sie einen bestehenden Link oder wechseln Sie zu einem höheren Tarif.",
-  "Upgrade connection allowance": "Verbindungslimit erhöhen"
+  "Upgrade connection allowance": "Verbindungslimit erhöhen",
+  "Traffic": "Datenverkehr",
+  "Remaining": "Verbleibend",
+  "Resets": "Zurückgesetzt am",
+  "Expires": "Läuft ab",
+  "Plan": "Tarif",
+  "Recent months": "Letzte Monate",
+  "View traffic": "Datenverkehr anzeigen",
+  "Monthly traffic ": "Monatlicher Datenverkehr ",
+  "From traffic details: ": "Aus den Verkehrsdetails: ",
+  "%d open links: %s in, %s out": "%d offene Links: %s eingehend, %s ausgehend"
 }

@@ -652,5 +652,15 @@
   "Upgrade traffic allowance": "Trafik kotasını artır",
   "%s allows %d simultaneous links": "%s aynı anda %d bağlantıya izin verir",
   "Stop an existing link, or upgrade your plan to create more.": "Mevcut bir bağlantıyı durdurun veya daha fazlası için planınızı yükseltin.",
-  "Upgrade connection allowance": "Bağlantı sınırını artır"
+  "Upgrade connection allowance": "Bağlantı sınırını artır",
+  "Traffic": "Trafik",
+  "Remaining": "Kalan",
+  "Resets": "Sıfırlanma",
+  "Expires": "Bitiş",
+  "Plan": "Plan",
+  "Recent months": "Son aylar",
+  "View traffic": "Trafiği göster",
+  "Monthly traffic ": "Aylık trafik ",
+  "From traffic details: ": "Trafik ayrıntılarından: ",
+  "%d open links: %s in, %s out": "%d açık bağlantı: %s gelen, %s giden"
 }

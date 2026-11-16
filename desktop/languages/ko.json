@@ -652,5 +652,15 @@
   "Upgrade traffic allowance": "트래픽 한도 늘리기",
   "%s allows %d simultaneous links": "%s 요금제는 동시에 %d개의 링크를 허용합니다",
   "Stop an existing link, or upgrade your plan to create more.": "기존 링크를 중지하거나 요금제를 업그레이드하여 더 만드세요.",
-  "Upgrade connection allowance": "연결 한도 늘리기"
+  "Upgrade connection allowance": "연결 한도 늘리기",
+  "Traffic": "트래픽",
+  "Remaining": "남은 양",
+  "Resets": "초기화",
+  "Expires": "만료",
+  "Plan": "요금제",
+  "Recent months": "최근 몇 달",
+  "View traffic": "트래픽 보기",
+  "Monthly traffic ": "이번 달 트래픽 ",
+  "From traffic details: ": "트래픽 상세에서: ",
+  "%d open links: %s in, %s out": "현재 링크 %d개: 수신 %s, 송신 %s"
 }

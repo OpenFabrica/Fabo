@@ -652,5 +652,15 @@
   "Upgrade traffic allowance": "升級流量額度",
   "%s allows %d simultaneous links": "%s同時只能開 %d 個連結",
   "Stop an existing link, or upgrade your plan to create more.": "先停止一個連結，或升級方案後再建立。",
-  "Upgrade connection allowance": "升級連線額度"
+  "Upgrade connection allowance": "升級連線額度",
+  "Traffic": "流量",
+  "Remaining": "剩餘",
+  "Resets": "重置",
+  "Expires": "到期",
+  "Plan": "方案",
+  "Recent months": "近幾個月",
+  "View traffic": "查看流量",
+  "Monthly traffic ": "本月流量 ",
+  "From traffic details: ": "從流量詳情",
+  "%d open links: %s in, %s out": "目前 %d 個連結：流入 %s，流出 %s"
 }

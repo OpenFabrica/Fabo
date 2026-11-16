@@ -138,7 +138,12 @@ func setShareBillingFixture(f *fakeEngine, state string) {
 	if state == "quota" {
 		used = cap
 	}
-	f.billing = fmt.Sprintf(`{"billing":true,"plan":{"id":%q,"name":%q},"limits":{"tunnels":%d},"usage":{"used":%d,"cap":%d,"resets":"2026-12-01T00:00:00+08:00"}}`, id, name, tunnels, used, cap)
+	expires := "null"
+	if state == "paid" {
+		expires = `"2027-01-15T00:00:00+08:00"`
+	}
+	history := fmt.Sprintf(`[{"month":"2026-06","used":%d},{"month":"2026-07","used":%d},{"month":"2026-08","used":%d},{"month":"2026-09","used":0},{"month":"2026-10","used":%d},{"month":"2026-11","used":%d}]`, cap/3, cap/2, cap/5, cap*3/4, used)
+	f.billing = fmt.Sprintf(`{"billing":true,"plan":{"id":%q,"name":%q,"expires":%s},"limits":{"tunnels":%d},"usage":{"used":%d,"cap":%d,"resets":"2026-12-01T00:00:00+08:00","history":%s}}`, id, name, expires, tunnels, used, cap, history)
 	f.share = fakeShare(time.Now().Unix())
 	if state == "quota" {
 		f.share = strings.ReplaceAll(f.share, `"state":"live"`, `"state":"waiting","reason":"quota exhausted: monthly traffic"`)
@@ -283,5 +288,35 @@ func TestShareBillingLayout(t *testing.T) {
 	tt.Frame()
 	if s.shares.billing.Billing || tt.HasText("Upgrade") {
 		t.Fatal("sign-out retained billing")
+	}
+}
+
+// TestShareUsageDialog opens traffic details from the toolbar meter and shows per-link traffic.
+func TestShareUsageDialog(t *testing.T) {
+	f, s := newFakeEngine(t)
+	setShareBillingFixture(f, "paid")
+	tt := ui.NewTester(s.view, 1180, 760)
+	click(t, tt, "Share")
+	tt.Frame()
+	// The table's traffic column sums both directions of each link.
+	if m := has(tt, "Traffic", "182 KB"); m != "" {
+		t.Fatalf("missing %q: %v", m, tt.Texts())
+	}
+	click(t, tt, "Monthly traffic 12.0 GB / 50.0 GB")
+	if s.form.kind != "share-usage" {
+		t.Fatalf("form %q", s.form.kind)
+	}
+	if m := has(tt, "Remaining", "38.0 GB", "Resets", "2026-12-01", "Expires", "2027-01-15", "Recent months", "Nov", "Jun", "2 open links: 2 KB in, 180 KB out"); m != "" {
+		t.Fatalf("missing %q: %v", m, tt.Texts())
+	}
+	click(t, tt, "Close")
+	if s.form.kind != "" || len(f.changed()) != 0 {
+		t.Fatal("closing the traffic dialog changed something")
+	}
+	click(t, tt, "Monthly traffic 12.0 GB / 50.0 GB")
+	click(t, tt, "From traffic details: Renew")
+	tt.Frame()
+	if got := f.changed(); len(got) != 1 || got[0] != "POST /fabo/share/billing" {
+		t.Fatalf("requests %v", got)
 	}
 }

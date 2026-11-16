@@ -652,5 +652,15 @@
   "Upgrade traffic allowance": "Увеличить квоту трафика",
   "%s allows %d simultaneous links": "%s: одновременно доступно %d ссылок",
   "Stop an existing link, or upgrade your plan to create more.": "Остановите существующую ссылку или улучшите тариф, чтобы создать новые.",
-  "Upgrade connection allowance": "Увеличить лимит подключений"
+  "Upgrade connection allowance": "Увеличить лимит подключений",
+  "Traffic": "Трафик",
+  "Remaining": "Осталось",
+  "Resets": "Сброс",
+  "Expires": "Истекает",
+  "Plan": "Тариф",
+  "Recent months": "Последние месяцы",
+  "View traffic": "Показать трафик",
+  "Monthly traffic ": "Трафик за месяц ",
+  "From traffic details: ": "Из сведений о трафике: ",
+  "%d open links: %s in, %s out": "Открытых ссылок: %d; входящий %s, исходящий %s"
 }
