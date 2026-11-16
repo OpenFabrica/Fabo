@@ -9,17 +9,12 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/OpenFabrica/Fabo/engine/internal/localengine"
-	"github.com/OpenFabrica/Fabo/engine/internal/shareedge"
-	"github.com/OpenFabrica/Fabo/engine/internal/shareedge/edgetest"
-	"github.com/OpenFabrica/Fabo/engine/internal/sharetunnel"
+	"github.com/OpenFabrica/Fabo/engine/sharetunnel"
 )
 
 func TestParseShareArgs(t *testing.T) {
@@ -57,39 +52,6 @@ func TestShareShorthandLeavesCommandsAlone(t *testing.T) {
 	}
 }
 
-// shareDaemon serves a real PublicShares on a Unix socket, signed in to a
-// real relay, and returns a client for it.
-func shareDaemon(t *testing.T) (*commandClient, *edgetest.Edge) {
-	t.Helper()
-	ca := edgetest.NewCA(t)
-	e := edgetest.Start(t, ca, shareedge.Config{Dev: true}, "")
-	t.Setenv("FABO_SHARE_CA", ca.Path)
-	t.Setenv("FABO_SHARE_CONNECT", e.Addr)
-	t.Setenv("FABO_SHARE_SERVER", "")
-	t.Setenv("FABO_SHARE_TOKEN", "")
-	dir, err := os.MkdirTemp("", "fabo-share")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.RemoveAll(dir) })
-	shares, err := localengine.OpenPublicShares(localengine.PublicShareOptions{ConfigPath: filepath.Join(dir, "share.json"), Version: "test"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	socket := filepath.Join(dir, "s")
-	ln, err := net.Listen("unix", socket)
-	if err != nil {
-		t.Fatal(err)
-	}
-	srv := &http.Server{Handler: shares}
-	go func() { _ = srv.Serve(ln) }()
-	t.Cleanup(func() {
-		_ = srv.Close()
-		shares.Close()
-	})
-	return newCommandClient(socket), e
-}
-
 // syncBuffer is a Buffer safe to read while runShare writes.
 type syncBuffer struct {
 	mu sync.Mutex
@@ -116,101 +78,6 @@ func waitOutput(t *testing.T, out *syncBuffer, want string) {
 			t.Fatalf("no %q in:\n%s", want, out.String())
 		}
 		time.Sleep(20 * time.Millisecond)
-	}
-}
-
-func TestShareCommandEndToEnd(t *testing.T) {
-	c, e := shareDaemon(t)
-	var out bytes.Buffer
-	if err := runShare(context.Background(), c, []string{"status"}, &out, io.Discard); err != nil || !strings.Contains(out.String(), "Not signed in") {
-		t.Fatalf("status before login: %v %q", err, out.String())
-	}
-	out.Reset()
-	if err := runShare(context.Background(), c, []string{"login", "--server", edgetest.EdgeHost, "--dev", "mike"}, &out, io.Discard); err != nil || !strings.Contains(out.String(), "as mike") {
-		t.Fatalf("login: %v %q", err, out.String())
-	}
-	out.Reset()
-	if err := runShare(context.Background(), c, []string{"reserve", "demo"}, &out, io.Discard); err != nil || !strings.Contains(out.String(), "demo is yours: https://demo.share.test") {
-		t.Fatalf("reserve: %v %q", err, out.String())
-	}
-
-	local := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "hi") }))
-	defer local.Close()
-	ctx, cancel := context.WithCancel(context.Background())
-	live := &syncBuffer{}
-	done := make(chan error, 1)
-	go func() { done <- runShare(ctx, c, []string{local.Listener.Addr().String(), "demo"}, live, io.Discard) }()
-	waitOutput(t, live, "● live https://demo.share.test")
-	// A visitor's request shows up as a line.
-	client := &http.Client{Transport: &http.Transport{
-		DisableKeepAlives: true,
-		TLSClientConfig:   e.CA.TLSClientConfig(),
-		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, network, e.Addr)
-		},
-	}}
-	resp, err := client.Get("https://demo.share.test/page")
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp.Body.Close()
-	waitOutput(t, live, "GET    200 /page")
-
-	out.Reset()
-	if err := runShare(context.Background(), c, []string{"status"}, &out, io.Discard); err != nil || !strings.Contains(out.String(), "● https://demo.share.test") {
-		t.Fatalf("status while sharing: %v %q", err, out.String())
-	}
-	// Ctrl+C ends the command quietly, and the daemon closes the link.
-	cancel()
-	if err := <-done; err != nil {
-		t.Fatalf("Ctrl+C: %v", err)
-	}
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		out.Reset()
-		_ = runShare(context.Background(), c, []string{"status", "--json"}, &out, io.Discard)
-		if strings.Contains(out.String(), `"shares":[]`) {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("the link outlived the command: %s", out.String())
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	out.Reset()
-	if err := runShare(context.Background(), c, []string{"names"}, &out, io.Discard); err != nil || !strings.Contains(out.String(), "1 of 3 used") {
-		t.Fatalf("names: %v %q", err, out.String())
-	}
-	out.Reset()
-	if err := runShare(context.Background(), c, []string{"release", "demo"}, &out, io.Discard); err != nil || !strings.Contains(out.String(), "Released `demo`") {
-		t.Fatalf("release: %v %q", err, out.String())
-	}
-	out.Reset()
-	if err := runShare(context.Background(), c, []string{"logout"}, &out, io.Discard); err != nil {
-		t.Fatal(err)
-	}
-	// Sharing while signed out fails with a clear message.
-	err = runShare(context.Background(), c, []string{"3000"}, io.Discard, io.Discard)
-	if err == nil || !strings.Contains(err.Error(), "not signed in") {
-		t.Fatalf("signed-out share: %v", err)
-	}
-}
-
-func TestShareRefusedEndsWithError(t *testing.T) {
-	c, e := shareDaemon(t)
-	if err := runShare(context.Background(), c, []string{"login", "--server", edgetest.EdgeHost, "--dev", "one"}, io.Discard, io.Discard); err != nil {
-		t.Fatal(err)
-	}
-	// The relay revokes the token; the next share is refused.
-	if _, err := e.Revoke("dev:one"); err != nil {
-		t.Fatal(err)
-	}
-	var errOut bytes.Buffer
-	err := runShare(context.Background(), c, []string{"3000"}, io.Discard, &errOut)
-	if err != errTunnelClosed || !strings.Contains(errOut.String(), "✕") {
-		t.Fatalf("refused share: %v %q", err, errOut.String())
 	}
 }
 

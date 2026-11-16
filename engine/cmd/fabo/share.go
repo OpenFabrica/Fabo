@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/OpenFabrica/Fabo/engine/internal/sharetunnel"
+	"github.com/OpenFabrica/Fabo/engine/sharetunnel"
 )
 
 const shareUsage = `usage: fabo share PORT|HOST:PORT|CONTAINER [NAME | --name NAME] [--no-reserve] [--json]

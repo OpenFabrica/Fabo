@@ -30,7 +30,7 @@ import (
 
 // DefaultServer is the edge used when neither the config nor
 // FABO_SHARE_SERVER names one, as `host[:port]`. Release builds set it with
-// -ldflags "-X github.com/OpenFabrica/Fabo/engine/internal/sharetunnel.DefaultServer=…";
+// -ldflags "-X github.com/OpenFabrica/Fabo/engine/sharetunnel.DefaultServer=…";
 // it is empty in source so no relay is assumed.
 var DefaultServer = ""
 

@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/OpenFabrica/Fabo/engine/internal/sharetunnel"
+	"github.com/OpenFabrica/Fabo/engine/sharetunnel"
 )
 
 // recentRequests is how many visitor requests each share keeps for the window.

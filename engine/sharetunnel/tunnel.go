@@ -14,7 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/OpenFabrica/Fabo/engine/internal/sharewire"
+	"github.com/OpenFabrica/Fabo/engine/sharewire"
 )
 
 const (
@@ -100,10 +100,12 @@ type Options struct {
 	// OnEvent gets every event, from the tunnel's goroutines.
 	OnEvent func(Event)
 
-	// idle overrides idleTimeout in tests.
-	idle time.Duration
-	// quotaRetry overrides the five-minute quota wait in tests.
-	quotaRetry time.Duration
+	// IdleTimeout overrides how long a stream may stay silent; zero keeps
+	// the default. The relay's end-to-end tests shorten it.
+	IdleTimeout time.Duration
+	// QuotaRetry overrides the five-minute wait before a link refused for
+	// quota tries again; zero keeps the default. Tests shorten it too.
+	QuotaRetry time.Duration
 }
 
 // DialAddr returns a Dial for a `host:port` target with LocalDialTimeout.
@@ -135,11 +137,11 @@ type Handle struct {
 // Start opens a tunnel on its own goroutines and returns at once; it
 // reconnects by itself until stopped or permanently refused; quota refusals wait for recovery.
 func Start(o Options) *Handle {
-	if o.idle == 0 {
-		o.idle = idleTimeout
+	if o.IdleTimeout == 0 {
+		o.IdleTimeout = idleTimeout
 	}
-	if o.quotaRetry == 0 {
-		o.quotaRetry = 5 * time.Minute
+	if o.QuotaRetry == 0 {
+		o.QuotaRetry = 5 * time.Minute
 	}
 	if o.Name == "" {
 		o.Name = o.Target.Label
@@ -249,7 +251,7 @@ func (h *Handle) run(ctx context.Context, o Options) {
 				finalReason = reason
 			}
 		case endWaiting:
-			delay = o.quotaRetry
+			delay = o.QuotaRetry
 		case endAgain:
 			delay = 200*time.Millisecond + backoff(0)
 		default:
@@ -447,7 +449,7 @@ func (s *session) readLoop() end {
 	br := bufio.NewReaderSize(s.conn, 64*1024)
 	var buf []byte
 	for {
-		_ = s.conn.SetReadDeadline(time.Now().Add(s.o.idle))
+		_ = s.conn.SetReadDeadline(time.Now().Add(s.o.IdleTimeout))
 		frame, err := sharewire.ReadFrame(br, buf)
 		if err != nil {
 			if r := s.failure(); r != "" {

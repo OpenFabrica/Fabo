@@ -31,13 +31,14 @@ STRIP := -s -w
 # The Linux build's CPU: this machine's, unless LINUX_ARCH says otherwise.
 LINUX_ARCH ?= $(shell go env GOARCH)
 
-# The fabo-edge relay `fabo share` uses unless the user picks one
-# (docs/share-edge.md), as host[:port]. Empty in source: no relay is assumed.
+# The fabo-edge relay `fabo share` uses unless the user picks one, as
+# host[:port]. Empty in source: no relay is assumed. The relay itself is
+# kept in its own repository.
 FABO_SHARE_SERVER ?=
 export FABO_SHARE_SERVER
-SHARE_LDFLAGS := $(if $(FABO_SHARE_SERVER),-X github.com/OpenFabrica/Fabo/engine/internal/sharetunnel.DefaultServer=$(FABO_SHARE_SERVER))
+SHARE_LDFLAGS := $(if $(FABO_SHARE_SERVER),-X github.com/OpenFabrica/Fabo/engine/sharetunnel.DefaultServer=$(FABO_SHARE_SERVER))
 
-.PHONY: release-check help check guest kernel disk daemon app app-dev dev dmg linux edge clean
+.PHONY: release-check help check guest kernel disk daemon app app-dev dev dmg linux clean
 
 help:
 	@echo "make check     vet and test engine and desktop; compile the Linux-only tests"
@@ -53,7 +54,6 @@ help:
 	@echo "make dmg       target/Fabo-<version>-$(ARCH).dmg from the app, notarized when"
 	@echo "               FABO_NOTARY_PROFILE names a notarytool profile"
 	@echo "make linux     target/linux/release: fabo, fabo-daemon, fabo-init"
-	@echo "make edge      target/linux/release/fabo-edge, the relay behind fabo share (docs/share-edge.md)"
 	@echo "FABO_SHARE_SERVER=host builds daemon, app, app-dev and linux with that default share relay."
 	@echo "make release-check TAG=vX.Y.Z  stop unless HEAD is exactly that tag, on main, clean"
 	@echo "ARCH=x86_64 builds guest, kernel, daemon, app and dmg for Intel Macs."
@@ -115,11 +115,6 @@ linux:
 	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "$(STRIP) -X main.release=$(VERSION)" -o $(CURDIR)/target/linux/release/fabo ./cmd/fabo
 	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "$(STRIP) -X main.engineRelease=$(VERSION) $(SHARE_LDFLAGS)" -o $(CURDIR)/target/linux/release/fabo-daemon ./cmd/fabo-daemon
 	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "$(STRIP)" -o $(CURDIR)/target/linux/release/fabo-init ./cmd/fabo-init
-
-# The share relay runs on a Linux server, so it is built static for Linux.
-edge:
-	mkdir -p target/linux/release
-	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "$(STRIP) -X main.release=$(VERSION)" -o $(CURDIR)/target/linux/release/fabo-edge ./cmd/fabo-edge
 
 # The release gate from docs/release.md; run it before building a release.
 release-check:

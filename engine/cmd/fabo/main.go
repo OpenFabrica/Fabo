@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/OpenFabrica/Fabo/engine/internal/sharetunnel"
+	"github.com/OpenFabrica/Fabo/engine/sharetunnel"
 )
 
 // release is this build's version, stamped from the git tag by the Makefile

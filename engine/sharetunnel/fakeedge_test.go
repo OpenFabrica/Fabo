@@ -14,8 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/OpenFabrica/Fabo/engine/internal/shareedge/edgetest"
-	"github.com/OpenFabrica/Fabo/engine/internal/sharewire"
+	"github.com/OpenFabrica/Fabo/engine/sharewire"
 )
 
 // fakeEdge is a minimal relay written from upstream's rules, without the
@@ -24,7 +23,7 @@ import (
 // script with a frame reader and writer.
 type fakeEdge struct {
 	addr string
-	ca   *edgetest.CA
+	ca   *testCA
 }
 
 // fakeConn is one session as the fake relay sees it.
@@ -60,7 +59,7 @@ func (f *fakeConn) recv() (sharewire.Msg, error) {
 }
 
 func startFakeEdge(t *testing.T, script func(f *fakeConn, session int)) *fakeEdge {
-	ca := edgetest.NewCA(t)
+	ca := newTestCA(t)
 	ln, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{Certificates: []tls.Certificate{ca.Cert}, NextProtos: []string{sharewire.ALPN}})
 	if err != nil {
 		t.Fatal(err)
@@ -89,7 +88,7 @@ func startFakeEdge(t *testing.T, script func(f *fakeConn, session int)) *fakeEdg
 func (e *fakeEdge) options(t *testing.T, target string, rec *recorder) Options {
 	t.Setenv("FABO_SHARE_CA", e.ca.Path)
 	t.Setenv("FABO_SHARE_CONNECT", e.addr)
-	srv, err := ParseServer(edgetest.EdgeHost)
+	srv, err := ParseServer(testEdgeHost)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +105,7 @@ func TestFakeEdgeUploadAndDownload(t *testing.T) {
 	result := make(chan error, 1)
 	fake := startFakeEdge(t, func(f *fakeConn, _ int) {
 		result <- func() error {
-			if err := f.send(sharewire.Welcome{URL: "https://web-abc123." + edgetest.Domain}); err != nil {
+			if err := f.send(sharewire.Welcome{URL: "https://web-abc123." + testDomain}); err != nil {
 				return err
 			}
 			if err := f.send(sharewire.Open{Stream: 1, Remote: "203.0.113.9:5000"}); err != nil {
@@ -231,7 +230,7 @@ func TestStopWhenRelayStopsReading(t *testing.T) {
 	fake := startFakeEdge(t, func(f *fakeConn, _ int) {
 		// A 64MiB window lets the client send far more than the socket
 		// buffers hold; then the relay never reads again.
-		_ = f.send(sharewire.Welcome{URL: "https://flood-abc123." + edgetest.Domain, Window: 64 << 20})
+		_ = f.send(sharewire.Welcome{URL: "https://flood-abc123." + testDomain, Window: 64 << 20})
 		_ = f.send(sharewire.Open{Stream: 1})
 		_ = f.send(sharewire.Data{Stream: 1, Data: []byte("GET / HTTP/1.1\r\n\r\n")})
 		<-hold
@@ -250,7 +249,7 @@ func TestStopWhenRelayStopsReading(t *testing.T) {
 // TestBadCreditReconnects: zero credit is a protocol error.
 func TestBadCreditReconnects(t *testing.T) {
 	fake := startFakeEdge(t, func(f *fakeConn, n int) {
-		_ = f.send(sharewire.Welcome{URL: "https://web-abc123." + edgetest.Domain})
+		_ = f.send(sharewire.Welcome{URL: "https://web-abc123." + testDomain})
 		if n == 0 {
 			_ = f.send(sharewire.Open{Stream: 1})
 			_ = f.send(sharewire.Window{Stream: 1, Credit: 0})
@@ -278,7 +277,7 @@ func TestBadCreditReconnects(t *testing.T) {
 // TestNotAShareRelay: a server that doesn't select the share ALPN ends the
 // tunnel for good.
 func TestNotAShareRelay(t *testing.T) {
-	ca := edgetest.NewCA(t)
+	ca := newTestCA(t)
 	ln, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{Certificates: []tls.Certificate{ca.Cert}})
 	if err != nil {
 		t.Fatal(err)

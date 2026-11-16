@@ -1977,7 +1977,8 @@ boundaries are documented in [CLI tools](cli-tools.md).
 
 `fabo share PORT|HOST:PORT|CONTAINER` (or `fabo PORT`) and the window's
 Share page give a local service a public HTTPS address through a
-self-hosted `fabo-edge` relay ([deployment](share-edge.md)). The supervisor
+`fabo-edge` relay (kept in its own repository, with its deployment
+notes). The supervisor
 hosts the tunnels in `PublicShares`, beside the domain router, so links
 survive VM sleep; a daemon restart closes them. The launcher passes the
 account file as `-share-config <root>/share.json`; without it the

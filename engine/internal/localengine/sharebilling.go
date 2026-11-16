@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/OpenFabrica/Fabo/engine/internal/sharetunnel"
+	"github.com/OpenFabrica/Fabo/engine/sharetunnel"
 )
 
 // cancelBillingLocked cancels account-specific polling and forgets the previous plan snapshot.

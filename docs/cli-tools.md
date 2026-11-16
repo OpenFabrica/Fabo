@@ -15,7 +15,7 @@
 | `fabo usb fake serial\|mouse [OPTIONS]` | 无硬件 USB 端到端测试 | 与物理设备共用 USB/IP；支持 `--location`、`--stall-once`、`--unplug-after`、`--reports` |
 | `fabo bench [--runs N] [--image IMAGE] [--network none\|bridge] [--only fabo\|orbstack\|docker]` | 容器创建至删除的延迟 | 默认 50 次，另有 5 次预热；输出 p50、p99、均值，分别测 API 和 CLI |
 | `fabo raw pull IMAGE`、`images`、`rmi IMAGE...`、`run [OPTIONS] IMAGE [COMMAND...]` | 绕过 Docker API 使用独立 guest | 当前实例的 `raw/` 目录，独占锁；不连接 daemon、不恢复其容器 |
-| `fabo share PORT\|HOST:PORT\|CONTAINER [NAME \| --name N] [--no-reserve] [--json]`、`fabo PORT [NAME]` | 本机端口或容器的公网 HTTPS 地址 | 隧道由引擎托管，命令那条请求就是租约，退出或 Ctrl+C 即关闭；需要引擎在线和已登录的中继，见 [fabo-edge](share-edge.md) |
+| `fabo share PORT\|HOST:PORT\|CONTAINER [NAME \| --name N] [--no-reserve] [--json]`、`fabo PORT [NAME]` | 本机端口或容器的公网 HTTPS 地址 | 隧道由引擎托管，命令那条请求就是租约，退出或 Ctrl+C 即关闭；需要引擎在线和已登录的中继 |
 | `fabo share login [--server HOST] [--token T \| --dev [LOGIN]]`、`logout`、`status [--json]`、`names`、`reserve\|release NAME` | 共享账号与保留名 | 账号在实例目录的 `share.json`（0600），只对其中继有效；换中继清空 token 并先关闭链接 |
 | `fabo engine restart` | 让引擎换成当前安装的版本 | 替换 app 不会重启已在运行的引擎。macOS：先 `POST /fabo/sleep` 优雅停止工作负载，再 `launchctl kickstart -k` 本实例的 LaunchAgent，等新引擎以本版本号应答；配了重启策略的容器自动拉起。引擎不由本实例的 LaunchAgent 运行时报错。Linux 提示 `sudo systemctl restart fabo` |
 
@@ -107,14 +107,14 @@ macOS 枚举和捕获由 `fabo-daemon usb` 承担，使用 IOUSBHost；CLI 可�
 
 ## Share
 
-`fabo share` 对照上游 `crates/kiri/src/share.rs`，线协议与 `kiri-share-proto` 逐字节一致（`engine/internal/sharewire` 的测试比对上游 Rust 生成的帧）。上游的中继是闭源服务，Fabo 自带 `fabo-edge`，部署和账号见 [fabo-edge](share-edge.md)。
+`fabo share` 对照上游 `crates/kiri/src/share.rs`，线协议与 `kiri-share-proto` 逐字节一致（`engine/sharewire` 的测试比对上游 Rust 生成的帧）。上游的中继是闭源服务；Fabo 的中继 `fabo-edge` 在单独的私有仓库里，本仓库只有线协议和客户端。
 
 - 只有端口或 `host:port` 能用简写 `fabo 3000 [NAME]`；容器名要写 `fabo share web`。简写判定不会和任何 docker / Fabo 子命令冲突（有测试覆盖）。
 - 第二个位置参数或 `--name` 是想要的名字：名字还空着且账号的名额没用完，就先保留（`Reserved https://NAME.DOMAIN for you`）；否则得到 `NAME-xxxxxx`。`--no-reserve` 跳过保留。
 - 输出与上游一致：`● linked`、`● live URL`，每个请求一行 `HH:MM:SS METHOD STATUS PATH N ms SIZE`，以及 `! notice`、`↻ reason — reconnecting in Xs`、`● back online`。`--json` 每行一个事件。中继拒绝或远端关闭时，命令以非零码退出（`the tunnel closed`）。
 - `fabo share login` 默认走 GitHub 设备码：打印代码并打开浏览器，由引擎在后台轮询，命令每 2 秒查询一次结果。`--token` 用于运维发放的 token，`--dev` 只适用于 `-dev` 中继。
 
-验证：sharewire（含上游固定帧）、sharetunnel（对着真实中继和独立手写的假中继，覆盖流控、小窗口、半关闭、慢 stream、停读时 `Stop`、重启后保持地址）、shareedge（名字、限额、撤销、GitHub 按数字 id 绑定账号）、引擎 `/fabo/share`（租约、观察者、换中继、过期登录结果）以及 CLI 端到端测试，均在 `go test -race` 下通过。2026-11-15 用开发版引擎、本机自签名中继和真实 nginx 容器（不带 `-p`）实测：访问、404 透传、请求行、Ctrl+C 回收、`fabo PORT` 简写、窗口路径创建的链接、VM 休眠后首次访问唤醒（0.9 秒返回 200）、token 撤销。尚未在公网服务器和真实 GitHub OAuth App 上验证。
+验证：本仓库有 sharewire（含上游固定帧）和 sharetunnel 对着独立手写的假中继的测试；需要真实中继的测试（流控、小窗口、半关闭、慢 stream、重启后保持地址、额度等待与恢复）在中继仓库的 `e2e` 里，那里引用本仓库的 `engine/sharewire` 和 `engine/sharetunnel`。引擎 `/fabo/share` 的租约、观察者、换中继、过期登录结果，以及 `fabo share` 命令的端到端测试原先依赖进程内的真实中继，中继拆出后本仓库不再覆盖。2026-11-15 用开发版引擎、本机自签名中继和真实 nginx 容器（不带 `-p`）实测：访问、404 透传、请求行、Ctrl+C 回收、`fabo PORT` 简写、窗口路径创建的链接、VM 休眠后首次访问唤醒（0.9 秒返回 200）、token 撤销。尚未在公网服务器和真实 GitHub OAuth App 上验证。
 
 ## 基准与 raw
 
