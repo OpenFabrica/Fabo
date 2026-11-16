@@ -16,7 +16,15 @@ case "$KARCH-$(uname -m)" in
 esac
 apt-get update -qq && apt-get install -y -qq build-essential flex bison bc libssl-dev libelf-dev dwarves curl xz-utils python3 $pkgs >/dev/null
 cd /build
-[ -f "linux-$KVER/Makefile" ] && [ -f "linux-$KVER/scripts/Kbuild.include" ] || { rm -rf "linux-$KVER"; curl -fsSL "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$KVER.tar.xz" | tar xJ; }
+# The source is fetched to a file first: a download cut short resumes on the
+# next try (and the next run, /build being a kept volume) instead of handing
+# tar half an archive.
+[ -f "linux-$KVER/Makefile" ] && [ -f "linux-$KVER/scripts/Kbuild.include" ] || {
+  rm -rf "linux-$KVER"
+  curl -fsSL --retry 8 --retry-all-errors -C - -o "linux-$KVER.tar.xz" "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$KVER.tar.xz"
+  tar xJf "linux-$KVER.tar.xz"
+  rm -f "linux-$KVER.tar.xz"
+}
 cd "linux-$KVER"
 # Fabo's kernel patches. Reverse-apply first so re-runs on a cached tree stay clean.
 for p in /src/patches/*.patch; do
