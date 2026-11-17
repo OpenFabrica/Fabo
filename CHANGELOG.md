@@ -13,6 +13,9 @@
 - Windows 新增 USB 页：经 usbipd-win 把 USB 设备交给容器或还回 Windows，未安装时可一键安装。
 - Windows 设置新增「资源」（WSL 的 CPU 与内存，写入 `.wslconfig`）和「诊断」（打开日志文件夹、生成脱敏报告）。
 - Windows 设置 → 构建可选普通 `docker build` 用 Docker 还是 Fabo；退出或卸载时还原。
+- 新增「调试」页：TCP / UDP / WebSocket 的客户端和服务端、HTTP 客户端和 HTTP Mock，支持文本 / 16 进制收发、多种编码、快捷输入、定时发送、自动回复、群发和日志导出；会话自动保存。
+- 调试客户端可直接连容器端口，未映射的端口也能经容器网络连上；容器详情里可一键调试某个端口。
+- 容器现在可以经 `host.docker.internal` 向本机发 UDP（宿主与虚拟机协议升到 0.6，需同时更新引擎）。
 - Windows 安装包（MSI，x64 与 Arm64）改为由 `make windows` 与 `scripts/windows-msi.ps1` 构建；尚未在 Windows 上验收，不随本版发布。
 
 ## 0.5.2 · 2026-11-16 · stable

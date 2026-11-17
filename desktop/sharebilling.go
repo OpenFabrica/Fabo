@@ -236,7 +236,7 @@ func (s *desktop) openShareBilling() {
 	}
 	account := s.shares.info.Account
 	// The page opens in the window's language; read it here, not in the request goroutine.
-	language := lang
+	language := currentLang()
 	s.working["share-billing"] = true
 	s.run(15*time.Second, func(ctx context.Context) func() {
 		var out struct {

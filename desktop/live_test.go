@@ -3,8 +3,10 @@
 package main
 
 import (
+	"fmt"
 	"image/png"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -252,4 +254,63 @@ func TestLiveEngine(t *testing.T) {
 	})
 	clear(s.picked)
 	shot("restarted")
+}
+
+// TestLiveDebugContainerNetwork runs Debug sessions against a live engine:
+// a TCP and a UDP client of a container's unpublished ports through the
+// engine, and a UDP server here that a container sends to, named by the
+// engine's relay. It needs FABO_LIVE_SOCKET and a running container
+// FABO_LIVE_DEBUG_CONTAINER that answers "pong" on TCP 5432 and listens on
+// UDP 8125, and a running container FABO_LIVE_DEBUG_SENDER with nc.
+func TestLiveDebugContainerNetwork(t *testing.T) {
+	socket := os.Getenv("FABO_LIVE_SOCKET")
+	target, sender := os.Getenv("FABO_LIVE_DEBUG_CONTAINER"), os.Getenv("FABO_LIVE_DEBUG_SENDER")
+	if socket == "" || target == "" || sender == "" {
+		t.Skip("set FABO_LIVE_SOCKET, FABO_LIVE_DEBUG_CONTAINER and FABO_LIVE_DEBUG_SENDER")
+	}
+	t.Setenv("FABO_SOCKET", socket)
+	s := newDesktop(newEngineClient(dialEngine))
+	s.prefs.Lang = "en"
+	s.prefsFile = filepath.Join(t.TempDir(), "desktop.json")
+	s.refresh()
+	s.navigate(debugPage)
+	t.Cleanup(func() {
+		for _, r := range s.debug.runs {
+			r.stop()
+		}
+	})
+	tcp := debugSession{ID: "tcp", Kind: debugClient, Proto: debugTCP, Name: "db", Container: target, Port: 5432, Via: "net"}
+	s.debugState().sessions = []debugSession{tcp}
+	s.startDebug(tcp)
+	waitFor(t, s.debugRunOf("tcp"), "pong", received("pong\n"))
+
+	udp := debugSession{ID: "udp", Kind: debugClient, Proto: debugUDP, Name: "statsd", Container: target, Port: 8125, Via: "net"}
+	s.startDebug(udp)
+	r := s.debugRunOf("udp")
+	waitFor(t, r, "open", func(x debugSnap) bool { return x.state == debugOpen })
+	if err := r.sendClient([]byte("live:1|c"), false); err != nil {
+		t.Fatal(err)
+	}
+
+	port := freePort(t, "udp")
+	server := debugSession{ID: "srv", Kind: debugServer, Proto: debugUDP, Name: "logs", Port: port, AutoReply: true, Reply: "ACK"}
+	s.debug.sessions = append(s.debug.sessions, server)
+	s.debug.cur = server.ID
+	s.startDebug(server)
+	sr := s.debugRunOf("srv")
+	waitFor(t, sr, "listening", func(x debugSnap) bool { return x.state == debugListening })
+	out, err := exec.Command("docker", "exec", sender, "sh", "-c", fmt.Sprintf("echo -n hi | nc -u -w 2 host.docker.internal %d", port)).CombinedOutput()
+	if err != nil || string(out) != "ACK" {
+		t.Fatalf("container got %q, %v", out, err)
+	}
+	tt := ui.NewTester(s.view, 1180, 760)
+	deadline := time.Now().Add(5 * time.Second)
+	for !tt.HasText(sender) && time.Now().Before(deadline) {
+		time.Sleep(100 * time.Millisecond)
+		tt.Advance(200 * time.Millisecond)
+		tt.Frame()
+	}
+	if !tt.HasText(sender) {
+		t.Fatalf("the server does not name its client %s", sender)
+	}
 }

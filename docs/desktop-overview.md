@@ -1826,6 +1826,30 @@ On external macOS VM bridges, the guest redirects TCP to its reserved
 host address. The host relay accepts IPv4 loopback destinations only.
 Internal bridge networks retain their isolated routing.
 
+UDP to the host address, other than DNS on port 53, is relayed too
+(guest protocol 0.6). The same nat chains that redirect TCP redirect UDP
+to port 1026, where `fabo-init` reads the port each container sent to
+from the flow's conntrack entry. Each container address is a flow with its
+own vsock connection to the host, which sends the datagrams to that port
+on the Mac's loopback and relays the answers; conntrack rewrites the
+answers' source to the host address and port the container sent to. A
+flow closes after 60 seconds without traffic; 128 flows may be open at
+once, beside 128 TCP connections. One container port sending to two host
+ports at once gets only the first: both flows would share the redirect's
+reply address. TPROXY would keep the destination without conntrack, but
+the VM's bridges call iptables (`br_netfilter`), which runs prerouting
+before the IP layer drops the socket TPROXY assigns.
+
+Since 0.6 the host-bound header carries the protocol and the container's
+source address and port (`guestwire.HostBound`, after the reserved target
+`0.0.0.0:2`). The daemon records which loopback address each relayed
+connection came from with the container's address, until it closes.
+`GET /fabo/debug/peers?proto=tcp|udp&addr=127.0.0.1:<port>…` answers with
+the container address and name for each address it knows, without waking
+the VM; the Debug page uses it to name the clients of its servers. A Linux
+engine has no relay, so containers arrive with their own addresses and the
+table stays empty.
+
 #### Windows system proxy in WSL
 
 `fabo-win` sends the current system proxy and the relay port map to
@@ -2008,6 +2032,49 @@ session with no device on the Mac's bus (a `fabo usb fake` device) is
 listed too, so it can be detached. On Linux containers already see the
 host's devices, so the page lists them with the path to pass to
 `--device` and has no buttons.
+
+### Debug sessions
+
+The window's Debug page is a socket debugger: TCP, UDP and WebSocket
+clients and servers, an HTTP client and an HTTP mock. Sessions are saved
+in `debug-sessions.json` beside `desktop.json` (configuration only; the
+messages stay in memory, 5000 lines per session). The engine stores none
+of it. Local sessions need no engine.
+
+- A client targets an address, or a container's port. A container port is
+  reached through its published port on the loopback, or through the
+  container network with `POST /fabo/debug/dial`, which works for
+  unpublished ports. The dialog lists published ports and the TCP ports a
+  container listens on (`GET /fabo/containers/{id}/listening`); any other
+  port can be typed. A port that nothing listens on still upgrades, then
+  closes at once.
+- WebSocket and HTTP clients check the server's certificate unless the
+  session is set to skip it, for self-signed development servers.
+- `POST /fabo/debug/dial?container=<name>&port=<n>&proto=tcp|udp` answers
+  `101` and hands over the connection: a raw stream for TCP, and for UDP
+  datagrams framed by their length in two big-endian bytes, both ways (the
+  guest relay's framing). Its answers carry `X-Fabo-Debug: 1`, so a client
+  can tell a missing container (404 with the mark) from an engine without
+  the endpoint (404 without it). It wakes the VM like any request, and the
+  VM does not sleep while the connection is open.
+- A server listens on `127.0.0.1` or, when chosen, every interface. On
+  Linux a loopback server also listens on the gateway of each bridge
+  network, where containers reach `host.docker.internal`; on a Mac the
+  engine relays it to the loopback. Containers reach it at
+  `host.docker.internal:<port>` over TCP and UDP (see Network proxy and
+  host loopback). Its clients are named after their
+  container: by the peers endpoint on macOS, by address on Linux.
+- A TCP or WebSocket server may send a greeting on connect and reply automatically (a
+  configured text, or an echo). WebSocket and HTTP servers may use TLS with
+  given PEM files, or a self-signed certificate for localhost and
+  `host.docker.internal` kept beside the sessions.
+- The HTTP mock matches routes by method and path (`:name` segments, a
+  final `*`), answers with a status, body and optional delay or the files
+  of a folder, and fills `{{path.<name>}}`, `{{uuid}}` and `{{rand}}`.
+- A server marked to listen when Fabo opens starts with the window, before
+  the page is shown (on Linux once the networks are read, or after five
+  seconds); a busy port marks the session failed without retrying. Other
+  sessions start when asked.
 
 ### Public share links
 

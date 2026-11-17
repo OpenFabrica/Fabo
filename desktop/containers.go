@@ -669,6 +669,29 @@ func (s *desktop) containerDock(c *ui.Context, p palette, x container) {
 				c.OpenURL(addr)
 			}
 		}
+		// Debug one of the container's ports: the menu lists them and opens
+		// a new debug session aimed at the chosen one.
+		if x.State == "running" && len(x.Ports) > 0 {
+			var entries []menuEntry
+			seen := map[string]bool{}
+			for _, pm := range x.Ports {
+				kind := pm.Type
+				if kind == "" {
+					kind = "tcp"
+				}
+				key := fmt.Sprintf("%d/%s", pm.Private, kind)
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				pm := pm
+				entries = append(entries, menuEntry{label: tr("调试 ", "Debug ") + key, run: func() {
+					s.navigate(debugPage)
+					s.openDebugFor(x, pm)
+				}})
+			}
+			s.menuButton(c.Key("debug-ports"), p, "debug-ports-"+x.ID, "pulse", p.muted, tr("调试端口", "Debug a port"), entries)
+		}
 		s.shareControl(c, p, "share-dock", x)
 		s.containerActions(c, p, x)
 		if iconButton(c.Key("delete"), p, "trash", tr("删除 ", "Delete ")+x.Name, s.working[x.ID]).Clicked() {

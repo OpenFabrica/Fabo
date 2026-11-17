@@ -56,6 +56,7 @@ var navItems = []navItem{
 	{kubernetesPage, "helm", "Kubernetes", "Kubernetes", false},
 	{usbPage, "usb", "USB 设备", "USB devices", true},
 	{sharePage, "globe", "共享", "Share", false},
+	{debugPage, "pulse", "调试", "Debug", false},
 	{terminalPage, "terminal", "终端", "Terminal", false},
 	{settingsPage, "sliders", "设置", "Settings", false},
 }
@@ -221,6 +222,7 @@ type desktop struct {
 	kube        kubernetesUI
 	imp         importUI
 	shares      shareUI
+	debug       debugUI
 	usb         usbUI
 	// rowHovered is whether the pointer is on the table row being built.
 	rowHovered     bool
@@ -320,6 +322,11 @@ func main() {
 			Content: ui.View(s.view),
 		})
 		s.installTray()
+		// Debug servers marked to listen when Fabo opens start now, not
+		// when the page is first shown; on Linux once the networks are read,
+		// or after a few seconds without them.
+		s.debugAutoListen(false)
+		time.AfterFunc(5*time.Second, func() { s.window.Update(func() { s.debugAutoListen(true) }) })
 		if singleInstance {
 			mygo.App.OnSecondInstance(func(args []string, _ string) {
 				if slices.Contains(args, "-hidden") {
@@ -586,6 +593,7 @@ func (s *desktop) refresh() {
 			}
 			if e4 == nil {
 				s.networks = networks
+				s.debugAutoListen(false)
 			}
 			// On Windows the sizes are WSL's, read from fabo-win by
 			// loadSettings; the engine in WSL reports none.

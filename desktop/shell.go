@@ -59,7 +59,7 @@ func (s *desktop) view(c *ui.Context) {
 		c.OpenURL(s.shares.billingURL)
 		s.shares.billingURL = ""
 	}
-	lang = s.prefs.language(s.locale)
+	lang.Store(s.prefs.language(s.locale))
 	mono = "monospace"
 	if s.prefs.Mono != "" {
 		mono = s.prefs.Mono
@@ -197,7 +197,7 @@ func (s *desktop) toggleSidebar() {
 
 // searchable reports whether the page has a list the title bar's field filters.
 func searchable(page string) bool {
-	return page == containersPage || page == imagesPage || page == volumesPage || page == networksPage || page == kubernetesPage || page == machinesPage || page == usbPage
+	return page == containersPage || page == imagesPage || page == volumesPage || page == networksPage || page == kubernetesPage || page == machinesPage || page == usbPage || page == debugPage
 }
 
 // strip is the window's title bar, on the shell's grey: the traffic lights,
@@ -296,6 +296,11 @@ func (s *desktop) pageSummary() string {
 	case usbPage:
 		if n := s.usbInFabo(); n > 0 {
 			return fmt.Sprintf(tr("%d 个在 Fabo 中", "%d in Fabo"), n)
+		}
+		return ""
+	case debugPage:
+		if n := s.debugLive(); n > 0 {
+			return fmt.Sprintf(tr("%d 个会话活动中", "%d active"), n)
 		}
 		return ""
 	case sharePage:
@@ -410,6 +415,9 @@ func (s *desktop) sidebar(c *ui.Context, p palette) {
 		width = sidebarOpenWidth
 	}
 	counts := map[string]int{containersPage: len(s.containers), imagesPage: len(s.images), volumesPage: len(s.volumes), networksPage: len(s.networks), machinesPage: len(s.machines)}
+	if n := s.debugLive(); n > 0 {
+		counts[debugPage] = n
+	}
 	side := ui.Column(c.Key("sidebar")).Width(width).Shrink(0).Padding(6, 12, 12).Gap(2).Justify(ui.Start)
 	if !open {
 		side.Padding(6, 10, 12).AlignItems(ui.Center)
@@ -634,7 +642,8 @@ func (s *desktop) pageBody(c *ui.Context, p palette) {
 	}
 	// The USB page needs fabo-win only: a device left in WSL can be given
 	// back while the engine is stopped.
-	if s.page != settingsPage && s.page != terminalPage && !(s.page == usbPage && s.hasUSB()) {
+	// Debug sessions to this computer need no engine.
+	if s.page != settingsPage && s.page != terminalPage && s.page != debugPage && !(s.page == usbPage && s.hasUSB()) {
 		switch s.engineState() {
 		case "offline":
 			title := tr("连接不到引擎", "The engine is not answering")
@@ -679,6 +688,8 @@ func (s *desktop) pageBody(c *ui.Context, p palette) {
 		s.shareView(c, p)
 	case usbPage:
 		s.usbView(c, p)
+	case debugPage:
+		s.debugView(c, p)
 	case settingsPage:
 		s.settingsView(c, p)
 	}
@@ -1050,6 +1061,19 @@ func (s *desktop) dialog(c *ui.Context, p palette) {
 			title, ok = tr("共享中继", "Share relay"), tr("保存", "Save")
 			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
 			submitted = s.shareRelayForm(c, p)
+		case "debug":
+			dialog.Width(600)
+			title, ok = tr("新建会话", "New session"), tr("创建", "Create")
+			if s.debug.draft.editing != "" {
+				title, ok = tr("编辑会话", "Edit session"), tr("保存", "Save")
+			}
+			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
+			submitted = s.debugForm(c, p)
+		case "debug-route":
+			dialog.Width(560)
+			title, ok = tr("路由", "Route"), tr("保存", "Save")
+			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
+			submitted = s.debugRouteForm(c, p)
 		case "pull":
 			title, ok = tr("拉取镜像", "Pull an image"), tr("拉取", "Pull")
 			ui.Text(c, title).FontSize(13.5).FontWeight(600).TextColor(p.text)
@@ -1111,6 +1135,10 @@ func (s *desktop) submit() bool {
 		return s.loginShare()
 	case "share-relay":
 		return s.setShareRelay()
+	case "debug":
+		return s.createDebug()
+	case "debug-route":
+		return s.saveRoute()
 	case "run":
 		spec := runSpec{Image: f.image, Name: f.name, Command: f.value}
 		if spec.Image == "" {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync/atomic"
 
 	"github.com/egoist/mygo"
 )
@@ -93,10 +94,20 @@ func languageName(tag string) string {
 	return "English"
 }
 
-// lang is set before building a frame so all of its strings agree.
-var lang = "en"
+// lang is set before building a frame so all of its strings agree. It is
+// atomic because background work phrases messages too: the Debug page's
+// session goroutines report their events as they happen.
+var lang atomic.Value
 
-func tr(zh, en string) string { return textFor(lang, zh, en) }
+// currentLang is the language of the frame being built.
+func currentLang() string {
+	if v, ok := lang.Load().(string); ok {
+		return v
+	}
+	return "en"
+}
+
+func tr(zh, en string) string { return textFor(currentLang(), zh, en) }
 func textFor(language, zh, en string) string {
 	if language == "zh" || language == "zh-Hans" {
 		return zh
