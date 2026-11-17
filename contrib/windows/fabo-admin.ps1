@@ -1,6 +1,6 @@
 # The steps of Fabo on Windows that need an administrator, run elevated by
-# fabo-win (engine/cmd/fabo-win/setup.go; -Dns is for the *.fabo.local
-# rule, not ported to the Go host yet): Windows asks for an
+# fabo-win (engine/cmd/fabo-win/setup.go, and dns_windows.go for -Dns, the
+# *.fabo.local rule): Windows asks for an
 # administrator's approval first. Installed beside fabo-win.exe, which checks
 # it against the SHA-256 it was built with and runs
 #   powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File fabo-admin.ps1 -Wsl -Msi <wsl .msi> -Sha256 <hex>
@@ -44,9 +44,11 @@ if ($Wsl) {
 }
 
 # -Dns: the name-resolution policy (NRPT) rule that sends `.<suffix>`
-# lookups to a DNS answerer on 127.0.0.1 (upstream's dns.rs, not ported yet), added, or
-# removed with -Off. Any rule already there for the suffix goes first, so
-# adding twice leaves one. A failure exits 1.
+# lookups to fabo-win's DNS answerer on 127.0.0.1:53 (engine/cmd/fabo-win/
+# dns.go), added, or removed with -Off. Any rule already there for the
+# suffix goes first, so adding twice leaves one, and a failed add leaves
+# none rather than a stale one. A failure exits 1; fabo-win reads the rule
+# back from the registry either way.
 if ($Dns) {
   $namespace = ".$Suffix"
   Get-DnsClientNrptRule | Where-Object { $_.Namespace -contains $namespace } | Remove-DnsClientNrptRule -Force

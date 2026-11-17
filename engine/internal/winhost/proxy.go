@@ -1,9 +1,13 @@
 package winhost
 
 import (
+	"encoding/json"
 	"net"
 	"net/url"
+	"strconv"
 	"strings"
+
+	"github.com/OpenFabrica/Fabo/engine/internal/hostrelay"
 )
 
 // SystemProxy is Windows' proxy as the engine's PUT /fabo/proxy/system
@@ -50,33 +54,68 @@ func ParseSystemProxy(enabled bool, server, override string, pac bool) SystemPro
 	return p
 }
 
-// WithoutLoopback drops a proxy on Windows' own loopback (127.0.0.1,
-// localhost), which most Windows proxy apps use. Containers and image
-// pulls in WSL cannot reach it without upstream's proxy relay, which is
-// not ported: the engine would send every pull to a port nothing listens
-// on in WSL. Without it they connect directly.
-func (p SystemProxy) WithoutLoopback() SystemProxy {
-	loopback := func(v *string) bool {
-		if v == nil {
-			return false
+// Relayed keeps a proxy on Windows' own loopback (127.0.0.1, localhost),
+// which most Windows proxy apps use, only when the proxy relay leads to its
+// port (relay maps a Windows port to the distro's, from hostrelay.Client).
+// Without it the engine would send every pull to a port nothing listens on
+// in WSL, so such a proxy is dropped and pulls connect directly; upstream
+// pushed it as set.
+func (p SystemProxy) Relayed(relay map[uint16]uint16) SystemProxy {
+	keep := func(v *string) *string {
+		if v == nil || !onLoopback(*v) {
+			return v
 		}
-		raw := *v
-		if !strings.Contains(raw, "://") {
-			raw = "http://" + raw
+		if port, ok := hostrelay.Loopback(*v); ok && relay[port] != 0 {
+			return v
 		}
-		u, err := url.Parse(raw)
-		if err != nil {
-			return false
-		}
-		host := u.Hostname()
-		ip := net.ParseIP(host)
-		return strings.EqualFold(host, "localhost") || (ip != nil && ip.IsLoopback())
+		return nil
 	}
-	if loopback(p.HTTP) {
-		p.HTTP = nil
-	}
-	if loopback(p.HTTPS) {
-		p.HTTPS = nil
-	}
+	p.HTTP, p.HTTPS = keep(p.HTTP), keep(p.HTTPS)
 	return p
+}
+
+// onLoopback reports whether a proxy address names this machine.
+func onLoopback(v string) bool {
+	raw := v
+	if !strings.Contains(raw, "://") {
+		raw = "http://" + raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		_, ok := hostrelay.Loopback(v)
+		return ok
+	}
+	host := u.Hostname()
+	ip := net.ParseIP(host)
+	return strings.EqualFold(host, "localhost") || (ip != nil && ip.IsLoopback())
+}
+
+// Addresses are the proxy's addresses that are set.
+func (p SystemProxy) Addresses() []string {
+	var out []string
+	for _, v := range []*string{p.HTTP, p.HTTPS} {
+		if v != nil {
+			out = append(out, *v)
+		}
+	}
+	return out
+}
+
+// ProxyUpdate is the body of the engine's PUT /fabo/proxy/system: p with
+// the loopback proxies the relay does not reach left out, and the relay
+// map. The map is always present, so a relay that has gone is withdrawn
+// (the engine keeps its old map when the field is missing), and holds no
+// zero port, which the engine refuses.
+func ProxyUpdate(p SystemProxy, relay map[uint16]uint16) []byte {
+	ports := map[string]uint16{}
+	for target, local := range relay {
+		if target != 0 && local != 0 {
+			ports[strconv.Itoa(int(target))] = local
+		}
+	}
+	body, _ := json.Marshal(struct {
+		SystemProxy
+		Relay map[string]uint16 `json:"relay"`
+	}{p.Relayed(relay), ports})
+	return body
 }

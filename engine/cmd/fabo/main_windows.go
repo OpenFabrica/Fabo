@@ -64,6 +64,15 @@ func runWindows(args []string) (int, error) {
 		return runTool(winhost.Tool("wsl.exe"), wslArgs(distro, args))
 	case routeEngine:
 		return 0, controlPost("/engine/" + args[1])
+	case routeDomains:
+		method, path, err := windowsDomains(args[1:])
+		if err != nil {
+			return 2, err
+		}
+		if method == http.MethodGet {
+			return 0, controlGet(path, os.Stdout)
+		}
+		return 0, controlPost(path)
 	case routeUnsupported:
 		return 2, fmt.Errorf("fabo %s is not available on Windows", args[0])
 	}
@@ -128,10 +137,26 @@ func openFabo() error {
 	return winhost.Detached(host)
 }
 
+// controlGet copies the running fabo-win's answer to path into w.
+func controlGet(path string, w io.Writer) error {
+	c := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{DialContext: winhostDial}}
+	resp, err := c.Get("http://fabo-win" + path)
+	if err != nil {
+		return errors.New("Fabo is not running: open Fabo first")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return errors.New(strings.TrimSpace(jsonMessage(msg)))
+	}
+	_, err = io.Copy(w, resp.Body)
+	return err
+}
+
 // controlPost asks the running fabo-win to act.
 func controlPost(path string) error {
 	c := &http.Client{
-		Timeout: 3 * time.Minute,
+		Timeout:   3 * time.Minute,
 		Transport: &http.Transport{DialContext: winhostDial},
 	}
 	resp, err := c.Post("http://fabo-win"+path, "application/json", nil)

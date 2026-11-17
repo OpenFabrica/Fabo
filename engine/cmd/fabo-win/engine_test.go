@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -23,15 +25,15 @@ func TestEngineControlSerializes(t *testing.T) {
 			return nil
 		}
 	}
-	e := &engineControl{alive: up.Load, stop: work(false), restart: work(true)}
+	e := &engineControl{alive: up.Load, stop: work(false), restart: work(true), shutdown: work(false)}
 	startWork := work(true)
 	e.start = func() error { starts.Add(1); return startWork() }
 	var wg sync.WaitGroup
-	for i := range 40 {
+	for i := range 50 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			switch i % 4 {
+			switch i % 5 {
 			case 0:
 				e.ensure(true)
 			case 1:
@@ -40,6 +42,8 @@ func TestEngineControlSerializes(t *testing.T) {
 				e.userStop()
 			case 3:
 				e.userRestart()
+			case 4:
+				e.userRestartWSL()
 			}
 		}()
 	}
@@ -57,5 +61,28 @@ func TestEngineControlSerializes(t *testing.T) {
 	}
 	if e.ensure(false); starts.Load() != before+1 {
 		t.Fatal("an engine that answers was started again")
+	}
+}
+
+// TestRestartWSLStartsTheEngineAgain: the restart shuts WSL down, then
+// starts the engine even after the user had stopped it; a failed shutdown
+// starts nothing.
+func TestRestartWSLStartsTheEngineAgain(t *testing.T) {
+	var steps []string
+	var up bool
+	e := &engineControl{
+		alive:    func() bool { return up },
+		start:    func() error { steps = append(steps, "start"); up = true; return nil },
+		stop:     func() error { up = false; return nil },
+		shutdown: func() error { steps = append(steps, "shutdown"); up = false; return nil },
+	}
+	e.userStop()
+	if err := e.userRestartWSL(); err != nil || !up || e.userStopped.Load() || strings.Join(steps, ",") != "shutdown,start" {
+		t.Fatal(err, up, steps)
+	}
+	steps = nil
+	e.shutdown = func() error { return errors.New("wsl --shutdown failed") }
+	if err := e.userRestartWSL(); err == nil || len(steps) != 0 {
+		t.Fatal(err, steps)
 	}
 }

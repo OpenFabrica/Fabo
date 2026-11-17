@@ -17,6 +17,8 @@
 | `fabo raw pull IMAGE`、`images`、`rmi IMAGE...`、`run [OPTIONS] IMAGE [COMMAND...]` | 绕过 Docker API 使用独立 guest | 当前实例的 `raw/` 目录，独占锁；不连接 daemon、不恢复其容器 |
 | `fabo share PORT\|HOST:PORT\|CONTAINER [NAME \| --name N] [--no-reserve] [--json]`、`fabo PORT [NAME]` | 本机端口或容器的公网 HTTPS 地址 | 隧道由引擎托管，命令那条请求就是租约，退出或 Ctrl+C 即关闭；需要引擎在线和已登录的中继 |
 | `fabo share login [--server HOST] [--token T \| --dev [LOGIN]]`、`logout`、`status [--json]`、`names`、`reserve\|release NAME` | 共享账号与保留名 | 账号在实例目录的 `share.json`（0600），只对其中继有效；换中继清空 token 并先关闭链接 |
+| `fabo domains [local on\|off]`（Windows） | `*.fabo.local` 的 NRPT 规则与 `127.0.0.1:53` 应答 | 转给 fabo-win 的控制管道，开关时弹一次 UAC；Windows 上没有 `https` 子命令，见 [Fabo for Windows](windows.md) |
+| `fabo hostrelay`（WSL 内部） | 把 Windows 回环地址上的代理中继进 WSL | 只由 fabo-win 经 `wsl.exe` 启动，帧走 stdin / stdout；Windows 的 `bin\fabo.exe` 不提供，见 [Fabo for Windows](windows.md) |
 | `fabo engine restart` | 让引擎换成当前安装的版本 | 替换 app 不会重启已在运行的引擎。macOS：先 `POST /fabo/sleep` 优雅停止工作负载，再 `launchctl kickstart -k` 本实例的 LaunchAgent，等新引擎以本版本号应答；配了重启策略的容器自动拉起。引擎不由本实例的 LaunchAgent 运行时报错。Linux 提示 `sudo systemctl restart fabo` |
 
 透传 docker 命令（`fabo ps` 等）前，启动器比较自己与引擎的版本，不一致时在 stderr 提示用 `fabo engine restart` 统一版本，不影响命令输出。开发版启动器（`0.0.0-dev`）不比较。

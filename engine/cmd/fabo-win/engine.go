@@ -21,6 +21,9 @@ type engineControl struct {
 	start   func() error
 	stop    func() error
 	restart func() error
+	// shutdown stops all of WSL (wsl --shutdown), so new .wslconfig
+	// values take effect when it starts again.
+	shutdown func() error
 }
 
 // current is the start or stop in progress, "" when none.
@@ -69,4 +72,20 @@ func (e *engineControl) userRestart() error {
 	e.state.Store("starting")
 	defer e.state.Store("")
 	return e.restart()
+}
+
+// userRestartWSL is Settings → Resources' restart: all of WSL stops, which
+// stops every distro, not only Fabo's, and the engine starts again with
+// the new .wslconfig. Under the same lock as the rest, so the watchdog
+// cannot start WSL again halfway through the shutdown.
+func (e *engineControl) userRestartWSL() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.userStopped.Store(false)
+	e.state.Store("starting")
+	defer e.state.Store("")
+	if err := e.shutdown(); err != nil {
+		return err
+	}
+	return e.start()
 }

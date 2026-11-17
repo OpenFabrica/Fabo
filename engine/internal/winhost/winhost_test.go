@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"unicode/utf16"
+
+	"github.com/OpenFabrica/Fabo/engine/internal/hostrelay"
 )
 
 // utf16le encodes s as wsl.exe prints it.
@@ -89,12 +91,15 @@ func TestParseSystemProxy(t *testing.T) {
 	if *p.HTTP != "proxy:80" || *p.HTTPS != "secure:443" || !p.PAC {
 		t.Fatalf("per scheme = %+v", p)
 	}
-	p = ParseSystemProxy(true, "http=127.0.0.1:7890;https=corp:8080", "", false).WithoutLoopback()
+	p = ParseSystemProxy(true, "http=127.0.0.1:7890;https=corp:8080", "", false).Relayed(nil)
 	if p.HTTP != nil || p.HTTPS == nil || *p.HTTPS != "corp:8080" {
 		t.Fatalf("loopback dropped = %+v", p)
 	}
-	if p := ParseSystemProxy(true, "localhost:1080", "", false).WithoutLoopback(); p.HTTP != nil || p.HTTPS != nil {
+	if p := ParseSystemProxy(true, "localhost:1080", "", false).Relayed(map[uint16]uint16{7890: 4000}); p.HTTP != nil || p.HTTPS != nil {
 		t.Fatalf("localhost dropped = %+v", p)
+	}
+	if p := ParseSystemProxy(true, "http=127.0.0.1:7890;https=localhost", "", false).Relayed(map[uint16]uint16{7890: 4000}); p.HTTP == nil || *p.HTTP != "127.0.0.1:7890" || p.HTTPS != nil {
+		t.Fatalf("relayed kept = %+v", p)
 	}
 	p = ParseSystemProxy(false, "proxy:80", "a", false)
 	if p.HTTP != nil || p.HTTPS != nil || len(p.NoProxy) != 0 {
@@ -106,5 +111,23 @@ func TestParseSystemProxy(t *testing.T) {
 func TestWindowsPathInWSL(t *testing.T) {
 	if got := WindowsPathInWSL(`C:\Users\Me\AppData\Local\Fabo\install.sh`); got != "/mnt/c/Users/Me/AppData/Local/Fabo/install.sh" {
 		t.Fatal(got)
+	}
+}
+
+// TestProxyUpdate: the engine's body always carries a relay map without
+// zero ports, and keeps a loopback proxy only when the relay reaches it.
+func TestProxyUpdate(t *testing.T) {
+	p := ParseSystemProxy(true, "http=127.0.0.1:7890;https=localhost:7891", "corp", false)
+	if got := hostrelay.Targets(p.Addresses()...); len(got) != 2 || got[0] != 7890 || got[1] != 7891 {
+		t.Fatalf("targets = %v", got)
+	}
+	got := string(ProxyUpdate(p, map[uint16]uint16{7890: 41234, 7891: 0}))
+	want := `{"http":"127.0.0.1:7890","https":null,"no_proxy":["corp"],"pac":false,"relay":{"7890":41234}}`
+	if got != want {
+		t.Fatalf("body = %s", got)
+	}
+	got = string(ProxyUpdate(ParseSystemProxy(false, "", "", false), nil))
+	if want = `{"http":null,"https":null,"no_proxy":[],"pac":false,"relay":{}}`; got != want {
+		t.Fatalf("off = %s", got)
 	}
 }

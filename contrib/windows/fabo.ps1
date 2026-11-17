@@ -154,9 +154,15 @@ if ($Uninstall) {
       Where-Object { $_.Path -and $_.Path.StartsWith($dir, [StringComparison]::OrdinalIgnoreCase) } |
       Stop-Process -Force
   }
+  # Before the builder goes (`buildx rm` rewrites buildx's current
+  # builder): docker build's own builder and the `builder` alias back as
+  # they were before "Build with Fabo" took them, from fabo-win
+  # (engine/internal/buildwith). Its state is in $dir, which goes below.
+  Step "docker build given back its own builder" {
+    if (Test-Path $exe) { $p = Start-Process $exe -ArgumentList "--uninstall-builds" -Wait -PassThru; if ($p.ExitCode -ne 0) { throw "fabo-win exited $($p.ExitCode); see $dir\fabo-win.log" } }
+  }
   # Fabo on Windows writes no kubectl context of its own (`fabo k8s` runs
-  # in WSL) and does not run `docker buildx install`, so there is nothing
-  # of either to give back here.
+  # in WSL), so there is none to give back here.
   Step "docker context and builder removed" {
     $docker = Join-Path $bin "docker.exe"
     if (-not (Test-Path $docker)) { $docker = (Get-Command docker.exe -ErrorAction SilentlyContinue).Source }

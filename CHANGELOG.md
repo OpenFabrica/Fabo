@@ -7,6 +7,11 @@
 - 新增 Windows 版：引擎运行在 WSL 2，`fabo-win` 在 `\\.\pipe\fabo` 提供 Docker API（没有其他引擎时也服务 `docker_engine`），首次设置可自动安装 WSL、选择 Fabo Linux 或 Ubuntu、装好 docker CLI / Compose / buildx 并设为默认。
 - Windows 窗口与托盘：设置向导、引擎启动 / 停止、新版本下载与重启安装，登录信息存入 Windows 凭据管理器。
 - Windows 的 `fabo` 命令：docker 子命令、`fabo k8s`、`fabo machine` 等可直接在 PowerShell / cmd 中使用。
+- Windows 容器域名：设置 → 域名可切到 `*.fabo.local`（需管理员同意一次）。
+- Windows 上的本机代理（Clash 等监听 127.0.0.1 的代理）现在会经中继给拉镜像和容器使用。
+- Windows 新增 USB 页：经 usbipd-win 把 USB 设备交给容器或还回 Windows，未安装时可一键安装。
+- Windows 设置新增「资源」（WSL 的 CPU 与内存，写入 `.wslconfig`）和「诊断」（打开日志文件夹、生成脱敏报告）。
+- Windows 设置 → 构建可选普通 `docker build` 用 Docker 还是 Fabo；退出或卸载时还原。
 - Windows 安装包（MSI，x64 与 Arm64）改为由 `make windows` 与 `scripts/windows-msi.ps1` 构建；尚未在 Windows 上验收，不随本版发布。
 
 ## 0.5.2 · 2026-11-16 · stable

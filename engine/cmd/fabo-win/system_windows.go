@@ -137,6 +137,9 @@ func (h *host) setDistro(string) { h.mux.Reset() }
 
 // testContainer runs the test container with the bundle's docker.exe.
 func (h *host) testContainer() (string, error) {
+	// Windows' proxy before the first pull, through the relay when it is
+	// on Windows' loopback: the minute's push may not have come yet.
+	h.syncProxy()
 	docker, err := h.verified("bin/docker.exe")
 	if err != nil {
 		return "", err

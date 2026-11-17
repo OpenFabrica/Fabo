@@ -39,7 +39,8 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   the title strip. A window narrower than 1040 points folds it on its own; unfolding
   it there lasts until the window widens, without changing the saved choice. Kubernetes is a group of its own: its heading shows the cluster's
   state and opens its settings, and Pods and Services open their lists.
-  USB devices are not built yet and stay out of the sidebar; Share lists
+  USB devices is a page on Windows only (devices through usbipd-win, see
+  docs/windows.md); elsewhere it is not built yet and stays out of the sidebar. Share lists
   public share links (see [Public share links](#public-share-links)).
 - **Title strip.** On the right sit the search field of the page's table
   (Command/Ctrl+K focuses it), then Terminal and Settings.
@@ -131,8 +132,13 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   for sign-in, sign-out and authenticated pulls. Kubernetes controls the
   cluster and its network settings through `fabo k8s`. Import brings
   images, volumes and containers over from OrbStack or Docker Desktop (see
-  Importing from another engine). About lists the versions. Diagnostics and
-  the Build with choice are not there yet.
+  Importing from another engine). About lists the versions. On Windows,
+  Builds also chooses whether plain `docker build` builds with Docker or
+  with Fabo (fabo-win's `/buildwith`, `engine/internal/buildwith`), and the
+  window asks once when another engine is on the PC; Resources sizes WSL
+  through `.wslconfig`, and Diagnostics opens the logs folder and saves a
+  redacted report, all through fabo-win (see docs/windows.md). The Mac has
+  `fabo build-with` but no control in the window yet, and no Diagnostics.
 
 ### Importing from another engine
 
@@ -1821,10 +1827,19 @@ Internal bridge networks retain their isolated routing.
 #### Windows system proxy in WSL
 
 `fabo-win` sends the current system proxy and the relay port map to
-`PUT /fabo/proxy/system` over the existing Docker bridge, every minute. The
-Go host has no proxy relay yet (upstream's `relay.rs` / `hostrelay.rs`), so
-its relay map is empty and it leaves a proxy on Windows' own loopback out of
-the snapshot: pulls and containers then connect directly. The Go daemon
+`PUT /fabo/proxy/system` over the existing Docker bridge: every minute,
+after it starts or restarts the engine, before setup's test pull, when the
+window saves proxy settings, and when the relay ends under it. A proxy on
+Windows' own loopback (Windows' setting, or a custom one in use) is reached
+through the proxy relay (`engine/internal/hostrelay`, upstream's
+`relay.rs` / `hostrelay.rs`): `fabo hostrelay` in the distro listens on
+its `127.0.0.1` for each such port and carries the connections back over
+`wsl.exe`'s stdio, and `fabo-win` dials only those ports on Windows. The
+map is always sent, `{}` when there is no relay; a loopback proxy the
+relay does not reach (an older `fabo` in WSL, no answer within 10 seconds)
+is left out of the snapshot, so pulls and containers connect directly.
+When no proxy needs it, and when `fabo-win` quits, the snapshot is sent
+without the relay first and the relay then stops. The Go daemon
 keeps that snapshot in memory. System mode uses Windows settings when a
 snapshot is available and falls back to the Linux environment before the
 first update. Custom mode uses the saved addresses. Both modes use the
@@ -1900,6 +1915,11 @@ reads and changes them through it:
 A closed password prompt changes nothing. A window started without the
 launcher beside it, and Linux, show names as `*.fabo.localhost` with
 nothing to switch.
+
+On Windows, `fabo domains [local on|off]` goes to fabo-win's control pipe:
+fabo-win answers `*.fabo.local` on `127.0.0.1:53` and a name resolution
+policy (NRPT) rule, added or removed through one UAC prompt, sends those
+lookups there. There is no `https` switch on Windows. See docs/windows.md.
 
 The daemon binds both replacement ports before saving the setting or
 closing a previous listener. A container publishing a router's TCP port

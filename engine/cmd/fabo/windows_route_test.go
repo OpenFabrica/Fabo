@@ -25,12 +25,36 @@ func TestRouteWindows(t *testing.T) {
 		{[]string{"machine", "shell", "dev"}, routeShell},
 		{[]string{"engine", "restart"}, routeEngine},
 		{[]string{"engine", "explode"}, routeUsage},
+		{[]string{"domains"}, routeDomains},
+		{[]string{"domains", "local", "on"}, routeDomains},
 		{[]string{"setup"}, routeUnsupported},
+		{[]string{"hostrelay"}, routeUnsupported},
 		{[]string{"context", "use", "fabo"}, routeUnsupported},
 		{[]string{"frobnicate"}, routeUsage},
 	} {
 		if got := routeWindows(c.args); got != c.want {
 			t.Errorf("routeWindows(%q) = %d, want %d", c.args, got, c.want)
+		}
+	}
+}
+
+// TestWindowsDomains maps `fabo domains` to fabo-win's control API.
+func TestWindowsDomains(t *testing.T) {
+	for _, c := range []struct {
+		args         []string
+		method, path string
+		fails        bool
+	}{
+		{nil, "GET", "/domains", false},
+		{[]string{"local", "on"}, "POST", "/domains/on", false},
+		{[]string{"local", "off"}, "POST", "/domains/off", false},
+		{[]string{"https", "on"}, "", "", true},
+		{[]string{"local", "maybe"}, "", "", true},
+		{[]string{"local"}, "", "", true},
+	} {
+		method, path, err := windowsDomains(c.args)
+		if method != c.method || path != c.path || (err != nil) != c.fails {
+			t.Errorf("windowsDomains(%q) = %s %s %v", c.args, method, path, err)
 		}
 	}
 }

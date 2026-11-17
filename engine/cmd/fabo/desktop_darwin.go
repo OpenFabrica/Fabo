@@ -33,7 +33,7 @@ func (i installation) startDaemon(client *http.Client) error {
 // finishDesktop registers the build builder once the engine answers, when
 // setup could not: the engine was not running yet.
 func (i installation) finishDesktop() {
-	if s := newSetup(i); !s.places().ready() {
+	if s := newSetup(i); !s.places().Ready() {
 		_, _ = s.ensureBuilder()
 	}
 }

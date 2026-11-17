@@ -50,7 +50,7 @@ Fabo 是 Go 项目，版本号不存在源码里，只来自 git 标签 `vX.Y.Z`
 ## 现状
 
 - macOS 的 app 和 DMG 能从本仓库构建；Windows 的安装目录用 `make windows` 在任意系统构建，MSI 在 Windows 上用
-  `scripts/windows-msi.ps1` 构建（未签名，尚未实际发布过，见 [Fabo for Windows](windows.md)）。更新源（feed）的托管、
+  `scripts/windows-msi.ps1` 构建（不做代码签名；尚未实际发布过，见 [Fabo for Windows](windows.md)）。更新源（feed）的托管、
   Linux 包的发版流程还没有迁移，见 [功能对齐基线](compatibility-baseline.md)。
 - `docs/releases/` 是上游 Kiri 0.1.x 的发版说明，留作对照。
 - `NOTICE` 由 `python3 scripts/notice.py` 生成：随包 Go 二进制实际链接的模块与 Go 运行时的许可证、

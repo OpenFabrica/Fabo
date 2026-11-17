@@ -136,7 +136,7 @@ func (s *setup) run(args []string) error {
 	switch made, err := s.ensureBuilder(); {
 	case err != nil:
 		fmt.Fprintf(s.out, "docker build: the `%s` builder comes later (%v); opening the app makes it once Fabo is running\n", n.builder, err)
-	case made && s.places().saved() == "fabo":
+	case made && s.places().Saved() == "fabo":
 		fmt.Fprintf(s.out, "docker build uses BuildKit in Fabo (builder `%s`)\n", n.builder)
 	case made:
 		fmt.Fprintln(s.out, "docker build follows docker's context, and builds on Fabo when docker uses Fabo (`fabo build-with fabo` sends every build to Fabo)")
@@ -190,7 +190,7 @@ func (s *setup) uninstall() error {
 		return err
 	}
 	// Docker's builder back as it was, before Fabo's goes.
-	if err := s.places().uninstall(); err != nil {
+	if err := s.places().Uninstall(); err != nil {
 		fmt.Fprintf(s.out, "could not give docker build back its own builder (%v)\n", err)
 	}
 	s.removeBuilder()

@@ -1,6 +1,4 @@
-//go:build linux || darwin
-
-package localengine
+package domaindns
 
 import (
 	"testing"
@@ -30,7 +28,7 @@ func TestDomainDNSAnswersOnlyLocalNames(t *testing.T) {
 				t.Fatal(err)
 			}
 			var reply dnsmessage.Message
-			if err := reply.Unpack(domainDNSAnswer(packet)); err != nil {
+			if err := reply.Unpack(Answer(packet)); err != nil {
 				t.Fatal(err)
 			}
 			if !reply.Response || reply.ID != query.ID || reply.RCode != tc.code || reply.RecursionAvailable {
@@ -50,5 +48,32 @@ func TestDomainDNSAnswersOnlyLocalNames(t *testing.T) {
 				t.Fatalf("unexpected A answer: %+v", reply.Answers[0].Body)
 			}
 		})
+	}
+}
+
+// TestAnswerSurvivesTruncatedQueries feeds every prefix of a valid query
+// and some garbage: anyone on the machine can send to the answerer, and a
+// malformed packet must be dropped, not crash the process.
+func TestAnswerSurvivesTruncatedQueries(t *testing.T) {
+	query := dnsmessage.Message{
+		Header:    dnsmessage.Header{ID: 7},
+		Questions: []dnsmessage.Question{{Name: dnsmessage.MustNewName("web.fabo.local."), Type: dnsmessage.TypeA, Class: dnsmessage.ClassINET}},
+	}
+	packet, err := query.Pack()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range packet {
+		if Answer(packet[:i]) != nil {
+			t.Fatalf("answered a %d-byte prefix", i)
+		}
+	}
+	long := append(append([]byte{0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 64}, make([]byte, 64)...), 0, 0, 1, 0, 1)
+	if Answer(long) != nil {
+		t.Fatal("answered a 64-byte label")
+	}
+	reply := dnsmessage.Message{Header: dnsmessage.Header{ID: 7, Response: true}, Questions: query.Questions}
+	if b, _ := reply.Pack(); Answer(b) != nil {
+		t.Fatal("answered a response")
 	}
 }

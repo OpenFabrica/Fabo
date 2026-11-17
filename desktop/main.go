@@ -38,7 +38,8 @@ const (
 )
 
 // navItem is one entry of the sidebar. The soon entries hold a place for
-// features the window does not have yet.
+// features the window does not have yet (see navSoon: USB is one only
+// without fabo-win).
 type navItem struct {
 	page, icon, zh, en string
 	soon               bool
@@ -53,7 +54,7 @@ var navItems = []navItem{
 	{buildsPage, "hammer", "构建", "Builds", false},
 	{machinesPage, "cpu", "Linux 机器", "Machines", false},
 	{kubernetesPage, "helm", "Kubernetes", "Kubernetes", false},
-	{"usb", "usb", "USB 设备", "USB devices", true},
+	{usbPage, "usb", "USB 设备", "USB devices", true},
 	{sharePage, "globe", "共享", "Share", false},
 	{terminalPage, "terminal", "终端", "Terminal", false},
 	{settingsPage, "sliders", "设置", "Settings", false},
@@ -220,6 +221,7 @@ type desktop struct {
 	kube        kubernetesUI
 	imp         importUI
 	shares      shareUI
+	usb         usbUI
 	// rowHovered is whether the pointer is on the table row being built.
 	rowHovered     bool
 	containerDraft containerSettings
@@ -508,6 +510,9 @@ func (s *desktop) refresh() {
 	if s.page == kubernetesPage || s.page == settingsPage {
 		s.refreshKubernetes()
 	}
+	if s.page == usbPage {
+		s.refreshUSB()
+	}
 	page := s.page
 	wantDisk := page == overviewPage && s.disk == nil
 	// The containers page shows which containers are shared. The account
@@ -582,7 +587,9 @@ func (s *desktop) refresh() {
 			if e4 == nil {
 				s.networks = networks
 			}
-			if resErr == nil {
+			// On Windows the sizes are WSL's, read from fabo-win by
+			// loadSettings; the engine in WSL reports none.
+			if resErr == nil && s.host == nil {
 				s.res = res
 			}
 			if eventsErr == nil && page == overviewPage {
@@ -673,6 +680,11 @@ func (s *desktop) do(key string, a engineAction, done string) {
 			err = host.engine(ctx, action)
 		} else {
 			err = s.engine.request(ctx, a.method, a.path, a.body, nil)
+			if err == nil && host != nil && a.method == http.MethodPost && a.path == "/fabo/proxy" {
+				// A custom proxy on Windows' loopback reaches the engine in
+				// WSL only through fabo-win's relay: have it set up now.
+				host.refreshProxy(ctx)
+			}
 		}
 		return func() {
 			delete(s.working, key)

@@ -20,6 +20,8 @@ import (
 
 	"golang.org/x/sys/windows/registry"
 
+	"github.com/OpenFabrica/Fabo/engine/internal/buildwith"
+	"github.com/OpenFabrica/Fabo/engine/internal/hostrelay"
 	"github.com/OpenFabrica/Fabo/engine/internal/winhost"
 	"github.com/OpenFabrica/Fabo/engine/internal/wslbridge"
 )
@@ -44,10 +46,29 @@ type host struct {
 	mux          *wslbridge.Mux
 	setup        *setup
 	updates      *updater
+	names        *localNames
+	usb          *usbManager
 	setupPending atomic.Bool
 	engine       *engineControl
+	builds       *builds
 	dockerEngine atomic.Bool
 	otherEngine  atomic.Value // string
+	// pipeHeld: docker_engine is served by something Fabo did not
+	// recognise (it could not take the name).
+	pipeHeld atomic.Bool
+	// pipeLooked is closed once serveDockerEngine has first looked at who
+	// serves docker_engine.
+	pipeLooked chan struct{}
+	lookedOnce sync.Once
+	// otherCLIOnce and otherCLISeen cache otherCLI.
+	otherCLIOnce sync.Once
+	otherCLISeen bool
+
+	// relay carries connections from WSL to a proxy on Windows' loopback.
+	relay *hostrelay.Client
+	// proxyKick asks pushProxy to push now; proxyMu keeps pushes in order.
+	proxyKick chan struct{}
+	proxyMu   sync.Mutex
 
 	quitOnce sync.Once
 	quitting chan struct{}
@@ -121,15 +142,19 @@ func (h *host) serveDockerEngine() {
 			said = msg
 		}
 	}
+	looked := func() { h.lookedOnce.Do(func() { close(h.pipeLooked) }) }
 	for {
 		if other := winhost.Running(otherEngines...); other != "" {
 			h.otherEngine.Store(other)
+			looked()
 			say(fmt.Sprintf("%s left to %s", winhost.DockerEnginePipe, other))
 			time.Sleep(5 * time.Second)
 			continue
 		}
 		h.otherEngine.Store("")
 		l, err := winhost.ListenPipe(winhost.DockerEnginePipe)
+		h.pipeHeld.Store(err != nil)
+		looked()
 		if err != nil {
 			say(fmt.Sprintf("%s left to whatever serves it: %v", winhost.DockerEnginePipe, err))
 			time.Sleep(5 * time.Second)
@@ -247,7 +272,7 @@ func (h *host) syncEngine(distro string) (bool, error) {
 
 // newEngineControl wires the engine's operations in WSL to one lock.
 func (h *host) newEngineControl() *engineControl {
-	return &engineControl{alive: h.engineAlive, start: h.startInWSL, stop: h.stopInWSL, restart: h.restartInWSL}
+	return &engineControl{alive: h.engineAlive, start: h.startInWSL, stop: h.stopInWSL, restart: h.restartInWSL, shutdown: h.shutdownWSL}
 }
 
 // ensureEngine starts the engine unless it answers (setup's engine step).
@@ -293,6 +318,8 @@ func (h *host) startInWSL() error {
 	}
 	for range 100 {
 		if h.engineAlive() {
+			// The engine keeps Windows' proxy in memory only.
+			h.kickProxy()
 			return nil
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -329,8 +356,12 @@ func (h *host) restartInWSL() error {
 		}
 	}
 	h.mux.Reset()
+	// The relay too, so it also runs the `fabo` just synced; the push that
+	// follows starts it again and gives the new engine its ports.
+	h.relay.Close()
 	for range 100 {
 		if h.engineAlive() {
+			h.kickProxy()
 			return nil
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -371,28 +402,139 @@ func systemProxy() winhost.SystemProxy {
 	return winhost.ParseSystemProxy(enable == 1, server, override, err == nil && pac != "")
 }
 
-// pushProxy tells the engine what Windows' proxy is, now and every minute.
-// A proxy on Windows' own 127.0.0.1 cannot be reached from WSL without
-// upstream's proxy relay (crates/kiri-win/src/relay.rs), which is not
-// ported yet: such a proxy is left out (WithoutLoopback), so pulls and
-// containers connect directly instead of to a port nothing listens on.
+// pushProxy tells the engine what Windows' proxy is, now, every minute,
+// and whenever kickProxy asks: the engine keeps it in memory only, so this
+// follows Windows' setting and survives an engine restart.
 func (h *host) pushProxy() {
 	for {
-		if !h.setupPending.Load() && h.distro() != "" {
-			body, _ := json.Marshal(struct {
-				winhost.SystemProxy
-				Relay map[string]uint16 `json:"relay"`
-			}{systemProxy().WithoutLoopback(), map[string]uint16{}})
-			// The engine keeps it in memory only: sent again every minute,
-			// it survives an engine restart and follows changes.
-			_ = h.engineRequest(http.MethodPut, "/fabo/proxy/system", body)
-		}
+		h.syncProxy()
 		select {
 		case <-h.quitting:
 			return
+		case <-h.proxyKick:
 		case <-time.After(time.Minute):
 		}
 	}
+}
+
+// kickProxy makes pushProxy push soon (after the engine starts, after the
+// relay ended under it), without waiting for it.
+func (h *host) kickProxy() {
+	select {
+	case h.proxyKick <- struct{}{}:
+	default:
+	}
+}
+
+// syncProxy pushes Windows' proxy to the engine once. A proxy on Windows'
+// own loopback (Windows' setting, or Settings → Network's custom one) is
+// reached through the relay (upstream crates/kiri-win/src/relay.rs): the
+// relay listens for its port in WSL and the engine gets the port map. One
+// the relay cannot reach is left out, so pulls connect directly.
+func (h *host) syncProxy() {
+	h.proxyMu.Lock()
+	defer h.proxyMu.Unlock()
+	select {
+	case <-h.quitting:
+		// withdrawProxy has run or is about to: start nothing again.
+		return
+	default:
+	}
+	distro := h.distro()
+	// Without an engine there is nobody to tell, and starting the relay
+	// would only keep WSL running.
+	if distro == "" || !h.engineAlive() {
+		return
+	}
+	sys := systemProxy()
+	targets := hostrelay.Targets(append(sys.Addresses(), h.customProxy()...)...)
+	if len(targets) == 0 {
+		// Withdraw first, then stop the relay, so the engine never holds a
+		// port that no longer leads anywhere.
+		h.putProxy(sys, nil)
+		h.relay.Close()
+		return
+	}
+	h.putProxy(sys, h.relay.Ports(distro, targets))
+}
+
+// putProxy sends PUT /fabo/proxy/system.
+func (h *host) putProxy(sys winhost.SystemProxy, relay map[uint16]uint16) {
+	if err := h.engineRequest(http.MethodPut, "/fabo/proxy/system", winhost.ProxyUpdate(sys, relay)); err != nil {
+		h.logf("proxy: %v", err)
+	}
+}
+
+// customProxy is Settings → Network's proxy when it is the one in use:
+// the engine relays a custom proxy on Windows' loopback too.
+func (h *host) customProxy() []string {
+	var v struct {
+		Settings struct {
+			Mode  string `json:"mode"`
+			HTTP  string `json:"http"`
+			HTTPS string `json:"https"`
+		} `json:"settings"`
+	}
+	if h.engineGet("/fabo/proxy", &v) != nil || v.Settings.Mode != "custom" {
+		return nil
+	}
+	return []string{v.Settings.HTTP, v.Settings.HTTPS}
+}
+
+// withdrawProxy is fabo-win quitting: the engine is told the relay is gone
+// (keeping proxies it can reach on its own), and the relay stops.
+func (h *host) withdrawProxy() {
+	h.proxyMu.Lock()
+	defer h.proxyMu.Unlock()
+	if h.distro() != "" && h.engineAlive() {
+		h.putProxy(systemProxy(), nil)
+	}
+	h.relay.Close()
+}
+
+// refreshProxy is the control API's POST /proxy: the window saved proxy
+// settings, and a custom proxy on Windows' loopback needs the relay now.
+func (h *host) refreshProxy() { h.syncProxy() }
+
+// startRelay runs `wsl.exe -d <distro> -u root -- fabo hostrelay`. Its
+// stderr is discarded: stdout carries only frames.
+func (h *host) startRelay(distro string) (*hostrelay.Process, error) {
+	c := winhost.Quiet("wsl.exe", "-d", distro, "-u", "root", "--", winhost.WSLFabo, "hostrelay")
+	in, err := c.StdinPipe()
+	if err != nil {
+		return nil, err
+	}
+	out, err := c.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := c.Start(); err != nil {
+		return nil, err
+	}
+	return &hostrelay.Process{
+		In: in, Out: bufio.NewReaderSize(out, 64<<10),
+		Kill: func() { _ = c.Process.Kill() },
+		Wait: c.Wait,
+	}, nil
+}
+
+// engineGet reads one JSON answer from the engine through Fabo's pipe.
+func (h *host) engineGet(path string, out any) error {
+	c := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return winhost.DialPipe(h.pipe, 2*time.Second)
+		}},
+	}
+	resp, err := c.Get("http://docker" + path)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("GET %s: %s", path, resp.Status)
+	}
+	return json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(out)
 }
 
 // engineRequest sends one request to the engine through Fabo's pipe.
@@ -443,11 +585,48 @@ func (h *host) setupAction(action string, value json.RawMessage) error {
 	return h.setup.action(action, value)
 }
 
+// buildWith is GET /buildwith: which builder docker build uses.
+func (h *host) buildWith() buildwith.Status { return h.builds.status() }
+
+// chooseBuildWith is the window's choice of builder for docker build.
+func (h *host) chooseBuildWith(with string) error { return h.builds.choose(with) }
+
+// otherCLI is otherDocker, looked at once: PATH does not change under a
+// running process, and the window asks for the status often.
+func (h *host) otherCLI() bool {
+	h.otherCLIOnce.Do(func() { h.otherCLISeen = h.otherDocker() })
+	return h.otherCLISeen
+}
+
+// otherBuildEngine names the engine besides Fabo for the build-with
+// question: one installed, else what holds docker_engine instead of Fabo.
+// The pipe is never opened to find out (that would take one of its
+// server's instances); serveDockerEngine has seen who holds it.
+func (h *host) otherBuildEngine() string {
+	other, _ := h.otherEngine.Load().(string)
+	held := buildwith.WindowsEngineName(other)
+	// A docker CLI of its own on PATH (setup's otherDocker) points at some
+	// other engine too: asked, as upstream's setup asks, not taken unasked.
+	if held == "" && (h.pipeHeld.Load() || h.otherCLI()) {
+		held = "Docker"
+	}
+	return buildwith.WindowsOtherEngine(os.Getenv, func(p string) bool {
+		info, err := os.Stat(p)
+		return err == nil && info.Mode().IsRegular()
+	}, held)
+}
+
 // updateState and updateAction are the control API's update endpoints.
 func (h *host) updateState() updateView { return h.updates.state() }
 
 // updateAction runs one update action.
 func (h *host) updateAction(action string) error { return h.updates.action(action) }
+
+// domains reads *.fabo.local's state for the control API.
+func (h *host) domains() domainsView { return h.names.view() }
+
+// setDomains turns *.fabo.local on or off for the control API.
+func (h *host) setDomains(on bool) error { return h.names.set(on) }
 
 // quit ends fabo-win: docker commands stop working until Fabo opens again.
 func (h *host) quit() {

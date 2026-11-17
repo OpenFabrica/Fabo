@@ -36,6 +36,9 @@ var settingsTabs = []struct{ id, icon, zh, en string }{
 	{"registries", "layers", "镜像仓库", "Registries"},
 	{"kubernetes", "helm", "Kubernetes", "Kubernetes"},
 	{"import", "import", "导入", "Import"},
+	// Only on Windows, where fabo-win makes the report; elsewhere the
+	// section after it shows instead.
+	{"diagnostics", "file", "诊断", "Diagnostics"},
 	{"about", "info", "关于", "About"},
 }
 
@@ -74,12 +77,19 @@ func (s *desktop) loadSettings() {
 	s.settingsFor = strconv.FormatBool(s.connected)
 	s.run(8*time.Second, func(ctx context.Context) func() {
 		e := s.engine
+		host := s.host
 		var res vmResources
 		var proxy proxyInfo
 		var domains domainInfo
 		var builder builderInfo
 		var version versionInfo
-		resErr := e.get(ctx, "/fabo/resources", &res)
+		// On Windows the VM is WSL's, sized in .wslconfig through fabo-win.
+		var resErr error
+		if host != nil {
+			res, resErr = host.resources(ctx)
+		} else {
+			resErr = e.get(ctx, "/fabo/resources", &res)
+		}
 		proxyErr := e.get(ctx, "/fabo/proxy", &proxy)
 		domainsErr := e.get(ctx, "/fabo/domains", &domains)
 		builderErr := e.get(ctx, "/fabo/builder", &builder)
@@ -95,8 +105,19 @@ func (s *desktop) loadSettings() {
 		return func() {
 			// An engine running directly on Linux answers with zero CPUs:
 			// there is no VM to size.
+			if host != nil {
+				s.win.resErr = ""
+				if resErr != nil {
+					s.win.resErr = resErr.Error()
+				}
+			}
 			if s.resOK = resErr == nil && res.CPUs > 0; s.resOK {
 				s.res, s.cpus, s.memory = res, float64(res.CPUs), float64(res.Memory)/1024
+				// WSL's default is half of what Windows reports, rarely a
+				// whole GB: the slider works in whole GB.
+				if host != nil {
+					s.memory = math.Round(s.memory)
+				}
 				s.netMode = max(0, indexOf(vmNetworkModes, res.Network))
 			}
 			if s.proxyOK = proxyErr == nil && proxy.Settings.Mode != ""; s.proxyOK {
@@ -127,10 +148,18 @@ func (s *desktop) settingsView(c *ui.Context, p palette) {
 	}
 	s.settingsTab = min(max(s.settingsTab, 0), len(settingsTabs)-1)
 	tab := settingsTabs[s.settingsTab]
+	// Diagnostics is fabo-win's: without it the section is not offered.
+	if tab.id == "diagnostics" && s.host == nil {
+		s.settingsTab++
+		tab = settingsTabs[s.settingsTab]
+	}
 	ui.Scroll(c.Key("settings")).Fill().Grow(1).MinHeight(0).Children(func() {
 		ui.Row(c).FillWidth().MaxWidth(940).Padding(4, 28, 32, 16).Gap(32).AlignItems(ui.Start).Children(func() {
 			ui.Column(c.Key("tabs")).Width(168).Shrink(0).Gap(2).Children(func() {
 				for i, t := range settingsTabs {
+					if t.id == "diagnostics" && s.host == nil {
+						continue
+					}
 					if s.settingsTabButton(c.Key(t.id), p, t.icon, tr(t.zh, t.en), i == s.settingsTab) {
 						s.settingsTab = i
 					}
@@ -154,6 +183,10 @@ func (s *desktop) settingsView(c *ui.Context, p palette) {
 				case "network":
 					s.networkPane(c, p)
 				case "builds":
+					if s.host != nil && s.win.buildKnown {
+						heading(c, p, "docker build")
+						s.buildWithRows(c, p)
+					}
 					heading(c, p, "BuildKit")
 					s.builderRows(c, p)
 				case "domains":
@@ -164,6 +197,8 @@ func (s *desktop) settingsView(c *ui.Context, p palette) {
 					s.kubernetesPane(c, p)
 				case "import":
 					s.importPane(c, p)
+				case "diagnostics":
+					s.diagnosticsPane(c, p)
 				case "about":
 					s.aboutPane(c, p)
 				}
@@ -477,6 +512,10 @@ func (s *desktop) restartVM() {
 
 // resourcesPane switches the engine on and off and sizes its VM.
 func (s *desktop) resourcesPane(c *ui.Context, p palette) {
+	if s.host != nil {
+		s.wslResourcesPane(c, p)
+		return
+	}
 	heading(c, p, tr("Linux 虚拟机", "Linux VM"))
 	if !s.connected {
 		remark(c, p, tr("引擎未连接，无法读取资源设置。", "The engine is not reachable, so its resources cannot be read."))
@@ -510,14 +549,7 @@ func (s *desktop) resourcesPane(c *ui.Context, p palette) {
 		return
 	}
 	r := s.res
-	pref(c, p, tr("CPU", "CPUs"), fmt.Sprintf(tr("与 %s 共用：只有容器忙的时候虚拟机才占用它们。", "Shared with %s: the VM only uses them while containers are busy."), osName()), func() {
-		ui.StepSlider(c.Key("cpus"), &s.cpus, 1, float64(max(1, r.MaxCPUs)), 1).Label(tr("CPU", "CPUs")).Width(200).Cursor(ui.CursorPointer)
-		ui.Text(c, fmt.Sprintf(tr("%.0f 核", "%.0f"), s.cpus)).Width(52).Font(mono).FontSize(12).FontFeatures("tnum").TextColor(p.text)
-	})
-	pref(c, p, tr("内存", "Memory"), fmt.Sprintf(tr("虚拟机最多可用的内存。容器需要多少才用多少，其余还给 %s。", "The most the VM may take. It uses memory only as containers need it and gives the rest back to %s."), osName()), func() {
-		ui.StepSlider(c.Key("memory"), &s.memory, 1, float64(max(1, r.MaxMemory/1024)), 1).Label(tr("内存", "Memory")).Width(200).Cursor(ui.CursorPointer)
-		ui.Text(c, fmt.Sprintf("%.0f GB", s.memory)).Width(52).Font(mono).FontSize(12).FontFeatures("tnum").TextColor(p.text)
-	})
+	s.resourceSliders(c, p, r)
 
 	cpus, memory := int(s.cpus), int(s.memory)*1024
 	changed := cpus != r.CPUs || memory != r.Memory
@@ -540,6 +572,144 @@ func (s *desktop) resourcesPane(c *ui.Context, p palette) {
 		if button(c.Key("save"), p, tr("保存", "Save"), "", primaryButton, !changed || s.working["resources"]) {
 			s.do("resources", engineAction{http.MethodPost, "/fabo/resources", map[string]int{"cpus": cpus, "memory_mib": memory}},
 				tr("已保存，虚拟机下次启动时生效", "Saved. The VM uses these from its next start"))
+		}
+	})
+}
+
+// resourceSliders are the CPU and memory settings of the Resources pane,
+// for the Mac's VM and for WSL's alike.
+func (s *desktop) resourceSliders(c *ui.Context, p palette, r vmResources) {
+	pref(c, p, tr("CPU", "CPUs"), fmt.Sprintf(tr("与 %s 共用：只有容器忙的时候虚拟机才占用它们。", "Shared with %s: the VM only uses them while containers are busy."), osName()), func() {
+		ui.StepSlider(c.Key("cpus"), &s.cpus, 1, float64(max(1, r.MaxCPUs)), 1).Label(tr("CPU", "CPUs")).Width(200).Cursor(ui.CursorPointer)
+		ui.Text(c, fmt.Sprintf(tr("%.0f 核", "%.0f"), s.cpus)).Width(52).Font(mono).FontSize(12).FontFeatures("tnum").TextColor(p.text)
+	})
+	pref(c, p, tr("内存", "Memory"), fmt.Sprintf(tr("虚拟机最多可用的内存。容器需要多少才用多少，其余还给 %s。", "The most the VM may take. It uses memory only as containers need it and gives the rest back to %s."), osName()), func() {
+		ui.StepSlider(c.Key("memory"), &s.memory, 1, float64(max(1, r.MaxMemory/1024)), 1).Label(tr("内存", "Memory")).Width(200).Cursor(ui.CursorPointer)
+		ui.Text(c, fmt.Sprintf("%.0f GB", s.memory)).Width(52).Font(mono).FontSize(12).FontFeatures("tnum").TextColor(p.text)
+	})
+}
+
+// wslResourcesPane sizes WSL's VM on Windows: processors and memory under
+// [wsl2] in .wslconfig, which fabo-win reads and writes. They are WSL's
+// own, shared by every distro, and apply when WSL restarts.
+func (s *desktop) wslResourcesPane(c *ui.Context, p palette) {
+	heading(c, p, "WSL")
+	if !s.resOK {
+		text := tr("正在读取 .wslconfig…", "Reading .wslconfig…")
+		if s.win.resErr != "" {
+			text = tr("无法读取 .wslconfig：", "Could not read .wslconfig: ") + s.win.resErr
+		}
+		remark(c, p, text)
+		return
+	}
+	r := s.res
+	s.resourceSliders(c, p, r)
+	cpus, memory := int(s.cpus), int(s.memory)*1024
+	// Compared in whole GB, as the slider shows it: an unaligned value
+	// (WSL's default, or memory=6000MB) is not a change until moved.
+	changed := cpus != r.CPUs || int(s.memory) != int(math.Round(float64(r.Memory)/1024))
+	// WSL's VM keeps the size it started with until WSL restarts.
+	stale := r.Awake && (r.RunningCPUs != r.CPUs || r.RunningMemory != r.Memory)
+	ui.Row(c.Key("apply")).FillWidth().Gap(10).AlignItems(ui.Center).Children(func() {
+		running := tr("WSL 未运行，下次启动时使用这些设置。", "WSL is not running; it starts with these next time.")
+		if r.Awake {
+			running = fmt.Sprintf(tr("当前以 %d 核、最多 %.0f GB 运行。", "Running now with %d CPUs and up to %.0f GB."), r.RunningCPUs, float64(r.RunningMemory)/1024)
+		}
+		ui.Text(c, running).Grow(1).Width(0).MinWidth(0).FontSize(12).TextColor(p.muted)
+		if stale && !changed && button(c.Key("restart"), p, tr("重启 WSL 以生效", "Restart WSL to apply"), "restart", plainButton, s.working["engine"]) {
+			s.pending = &confirmation{
+				title: tr("重启 WSL？", "Restart WSL?"),
+				body: tr("WSL 会完全停止：所有 WSL 发行版都会关闭，不只是 Fabo 的。之后 Fabo 的引擎重新启动，容器按各自的重启策略恢复。",
+					"WSL stops completely: every WSL distro shuts down, not only Fabo's. Fabo's engine then starts again, and containers come back as their restart policies say."),
+				ok: tr("重启", "Restart"), run: s.restartWSL,
+			}
+		}
+		if button(c.Key("save"), p, tr("保存", "Save"), "", primaryButton, !changed || s.working["resources"]) {
+			s.saveWSLResources(cpus, memory)
+		}
+	})
+	remark(c, p, tr("保存在用户目录的 .wslconfig 的 [wsl2] 中，所有 WSL 发行版共用；文件里的其他内容保持不变。", "Kept under [wsl2] in .wslconfig in your user folder and shared by every WSL distro; the rest of the file stays as it is."))
+}
+
+// saveWSLResources writes the sizes to .wslconfig through fabo-win.
+func (s *desktop) saveWSLResources(cpus, memory int) {
+	host := s.host
+	s.working["resources"] = true
+	s.run(30*time.Second, func(ctx context.Context) func() {
+		err := host.setResources(ctx, cpus, memory)
+		return func() {
+			delete(s.working, "resources")
+			s.settle(err, tr("已保存到 .wslconfig，WSL 下次启动时生效", "Saved in .wslconfig. WSL uses these from its next start"))
+		}
+	})
+}
+
+// restartWSL shuts WSL down through fabo-win, which starts the engine
+// again, so the new sizes take effect.
+func (s *desktop) restartWSL() {
+	host := s.host
+	s.working["engine"] = true
+	s.run(3*time.Minute, func(ctx context.Context) func() {
+		err := host.restartWSL(ctx)
+		return func() {
+			delete(s.working, "engine")
+			s.settle(err, tr("WSL 已按新设置重启", "WSL restarted with the new resources"))
+		}
+	})
+}
+
+// diagnosticsPane opens Fabo's logs folder and makes a diagnostic report,
+// both through fabo-win (Windows only).
+func (s *desktop) diagnosticsPane(c *ui.Context, p palette) {
+	heading(c, p, tr("诊断", "Diagnostics"))
+	if s.host == nil {
+		return
+	}
+	pref(c, p, tr("日志", "Logs"), tr("Fabo 在 Windows 上的日志 fabo-win.log。引擎的日志在 WSL 里，会写进诊断报告。", "fabo-win.log, Fabo's log on Windows. The engine's log is in WSL and goes into the report."), func() {
+		if button(c.Key("open-logs"), p, tr("打开日志文件夹", "Open logs folder"), "folder", plainButton, s.working["diag-logs"]) {
+			s.openLogs()
+		}
+	})
+	pref(c, p, tr("诊断报告", "Diagnostic report"), tr("把两份日志和版本信息保存到桌面。令牌、密码、邮箱和用户名会先去掉，发给别人前仍请过目。", "Saves both logs and the versions to the Desktop. Tokens, passwords, e-mail addresses and your user name are taken out first; read it before you send it."), func() {
+		ui.Checkbox(c.Key("report-containers"), &s.win.reportContainers, tr("包含容器列表", "Include containers"))
+		if button(c.Key("make-report"), p, tr("生成报告", "Make report"), "file", primaryButton, s.working["diag-report"]) {
+			s.makeReport()
+		}
+	})
+	if s.win.reportPath != "" {
+		remark(c, p, fmt.Sprintf(tr("已保存：%s", "Saved: %s"), s.win.reportPath))
+	}
+}
+
+// openLogs shows the logs folder in Explorer.
+func (s *desktop) openLogs() {
+	host := s.host
+	s.working["diag-logs"] = true
+	s.run(10*time.Second, func(ctx context.Context) func() {
+		err := host.openLogs(ctx)
+		return func() {
+			delete(s.working, "diag-logs")
+			if err != nil {
+				s.notices = append(s.notices, err.Error())
+			}
+		}
+	})
+}
+
+// makeReport has fabo-win save a redacted report to the Desktop.
+func (s *desktop) makeReport() {
+	host, containers := s.host, s.win.reportContainers
+	s.working["diag-report"] = true
+	s.run(2*time.Minute, func(ctx context.Context) func() {
+		path, err := host.diagReport(ctx, containers)
+		return func() {
+			delete(s.working, "diag-report")
+			if err != nil {
+				s.notices = append(s.notices, err.Error())
+				return
+			}
+			s.win.reportPath = path
+			s.notices = append(s.notices, tr("诊断报告已保存到桌面", "Diagnostic report saved to the Desktop"))
 		}
 	})
 }
@@ -723,9 +893,11 @@ func (s *desktop) setNames(kind string, on bool) {
 }
 
 // domainsPane is Settings → Domains: which suffix container names carry,
-// whether they open over HTTPS, and the ports they answer on. The first two
-// are the launcher's to change; without one (Linux, or a window started on
-// its own) names are *.fabo.localhost and there is nothing to switch.
+// whether they open over HTTPS (macOS only), and the ports they answer on.
+// The first two are the launcher's to change (on Windows bin\fabo.exe hands
+// *.fabo.local to fabo-win, which answers the names); without one (Linux,
+// or a window started on its own) names are *.fabo.localhost and there is
+// nothing to switch.
 func (s *desktop) domainsPane(c *ui.Context, p palette) {
 	heading(c, p, tr("域名", "Domains"))
 	suffix := "fabo.localhost"
@@ -748,25 +920,33 @@ func (s *desktop) domainsPane(c *ui.Context, p palette) {
 				s.setNames("local", idx == 1)
 			}
 		})
-		hint = fmt.Sprintf(tr("信任 Fabo 的证书，让 https://myapp.%s 可用。%s 会询问你的密码。该证书只能为 Fabo 自己的域名担保。",
-			"Trust Fabo's certificate so https://myapp.%s works. %s asks for your password. The certificate can only vouch for Fabo's own names."), suffix, osName())
-		if s.names.HTTPS {
-			hint = tr("开启：容器以 https:// 打开，使用 Fabo 自己的证书，该证书只为 .fabo.local 和 .fabo.localhost 域名担保。",
-				"On: containers open at https:// with Fabo's own certificate, which only vouches for .fabo.local and .fabo.localhost names.")
-		}
-		pref(c, p, "HTTPS", hint, func() {
-			idx := 0
+		// HTTPS with Fabo's certificate is the Mac's only: on Windows fabo-win
+		// answers the names but no certificate is trusted.
+		if s.host == nil {
+			hint := fmt.Sprintf(tr("信任 Fabo 的证书，让 https://myapp.%s 可用。%s 会询问你的密码。该证书只能为 Fabo 自己的域名担保。",
+				"Trust Fabo's certificate so https://myapp.%s works. %s asks for your password. The certificate can only vouch for Fabo's own names."), suffix, osName())
 			if s.names.HTTPS {
-				idx = 1
+				hint = tr("开启：容器以 https:// 打开，使用 Fabo 自己的证书，该证书只为 .fabo.local 和 .fabo.localhost 域名担保。",
+					"On: containers open at https:// with Fabo's own certificate, which only vouches for .fabo.local and .fabo.localhost names.")
 			}
-			if choice(c.Key("https"), p, "HTTPS", &idx, tr("关闭", "Off"), tr("开启", "On")) && !s.working["names"] {
-				s.setNames("https", idx == 1)
-			}
-		})
+			pref(c, p, "HTTPS", hint, func() {
+				idx := 0
+				if s.names.HTTPS {
+					idx = 1
+				}
+				if choice(c.Key("https"), p, "HTTPS", &idx, tr("关闭", "Off"), tr("开启", "On")) && !s.working["names"] {
+					s.setNames("https", idx == 1)
+				}
+			})
+		}
 	}
 	s.domainPorts(c, p, suffix)
 	about := fmt.Sprintf(tr("Compose 服务可通过 <service>.<project>.%s 访问。", "Compose services answer at <service>.<project>.%s."), suffix)
-	if s.namesOK {
+	switch {
+	case s.namesOK && s.host != nil:
+		about += " " + tr("更改此项需要管理员批准，因为它会添加或删除 Windows 对 .fabo.local 的名称解析策略（NRPT）规则。",
+			"Changing this needs an administrator's approval, since it adds or removes Windows' name resolution policy (NRPT) rule for .fabo.local.")
+	case s.namesOK:
 		about += " " + tr("更改此项需要管理员权限（管理员密码），因为它会添加或删除 /etc/resolver/fabo.local。",
 			"Changing this needs admin rights (an administrator password), since it adds or removes /etc/resolver/fabo.local.")
 	}

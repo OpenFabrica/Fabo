@@ -43,6 +43,7 @@ const usage = `usage: fabo [ui [-view PAGE] [-start]]   open the desktop window
        fabo migrate [OPTIONS]       import an offline Kiri store
        fabo mcp                          read-only Model Context Protocol server for agents, on stdin/stdout
        fabo bridge [--socket PATH]       (in WSL) carry fabo-win.exe's Docker API connections to the engine
+       fabo hostrelay                    (in WSL) carry connections to a proxy on Windows' loopback for fabo-win.exe
 `
 
 func main() {
@@ -93,6 +94,8 @@ func main() {
 		err = machineCommand(args[1:])
 	case args[0] == "bridge":
 		err = bridgeCommand(args[1:])
+	case args[0] == "hostrelay":
+		err = hostrelayCommand(args[1:])
 	case args[0] == "engine":
 		err = engineCommand(args[1:])
 	case handlesDocker(args[0]):

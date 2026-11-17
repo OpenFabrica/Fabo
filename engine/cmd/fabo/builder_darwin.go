@@ -69,7 +69,7 @@ func (s *setup) ensureBuilder() (bool, error) {
 	// Which builder plain `docker build` uses needs this builder to exist.
 	// A flavored app never takes the machine's builds unasked: it runs
 	// beside an installed app, which is the one that may.
-	if err := s.places().apply(s.otherEngine(), !s.in.names.flavored); err != nil {
+	if err := s.places().Apply(s.otherEngine(), !s.in.names.flavored); err != nil {
 		fmt.Fprintf(s.out, "docker build: could not set which builder it uses (%v)\n", err)
 	}
 	return true, nil
@@ -93,5 +93,5 @@ func (s *setup) removeBuilder() {
 		cmd.Stdout, cmd.Stderr = nil, nil
 		_ = cmd.Run()
 	}
-	_ = os.Remove(s.places().instance(s.in.names.builder))
+	_ = os.Remove(s.places().Instance(s.in.names.builder))
 }

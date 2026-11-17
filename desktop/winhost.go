@@ -160,6 +160,42 @@ func (h *hostClient) updateAction(ctx context.Context, action string) error {
 	return h.call(ctx, http.MethodPost, "/update/"+action, nil, nil)
 }
 
+// refreshProxy has fabo-win push the proxy to the engine now, relaying a
+// proxy on Windows' loopback; best effort, as the minute's push follows.
+func (h *hostClient) refreshProxy(ctx context.Context) {
+	_ = h.call(ctx, http.MethodPost, "/proxy", nil, nil)
+}
+
+// resources reads WSL's CPUs and memory from fabo-win (.wslconfig).
+func (h *hostClient) resources(ctx context.Context) (vmResources, error) {
+	var r vmResources
+	return r, h.call(ctx, http.MethodGet, "/resources", nil, &r)
+}
+
+// setResources saves WSL's CPUs and memory in .wslconfig.
+func (h *hostClient) setResources(ctx context.Context, cpus, memoryMiB int) error {
+	return h.call(ctx, http.MethodPost, "/resources", map[string]int{"cpus": cpus, "memory_mib": memoryMiB}, nil)
+}
+
+// restartWSL shuts WSL down and starts the engine again.
+func (h *hostClient) restartWSL(ctx context.Context) error {
+	return h.call(ctx, http.MethodPost, "/resources/restart", nil, nil)
+}
+
+// diagReport saves a diagnostic report to the Desktop and returns where.
+func (h *hostClient) diagReport(ctx context.Context, containers bool) (string, error) {
+	var out struct {
+		Path string `json:"path"`
+	}
+	err := h.call(ctx, http.MethodPost, "/diag/report", map[string]bool{"containers": containers}, &out)
+	return out.Path, err
+}
+
+// openLogs shows Fabo's logs folder in Explorer.
+func (h *hostClient) openLogs(ctx context.Context) error {
+	return h.call(ctx, http.MethodPost, "/diag/folder", nil, nil)
+}
+
 // quit ends fabo-win, which also stops serving docker.
 func (h *hostClient) quit() {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

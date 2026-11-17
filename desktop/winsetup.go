@@ -21,6 +21,17 @@ type winState struct {
 	acting string
 	// updateLater hides the update strip until the window opens again.
 	updateLater bool
+	// build is which builder docker build uses (winbuilds.go); buildKnown
+	// once read, buildAsked once the window's question was answered, and
+	// buildActing while a choice is on its way.
+	build                               hostBuildWith
+	buildKnown, buildAsked, buildActing bool
+	// resErr is why WSL's resources could not be read from .wslconfig.
+	resErr string
+	// reportContainers: the diagnostic report lists the containers too.
+	reportContainers bool
+	// reportPath is where the last report was saved, as fabo-win wrote it.
+	reportPath string
 }
 
 // setupSteps are the rail's steps, with the host's step names each covers.
@@ -48,6 +59,7 @@ func (s *desktop) refreshHost() {
 	}
 	s.win.polling = true
 	host := s.host
+	buildKnown, onSettings := s.win.buildKnown, s.page == settingsPage
 	s.run(5*time.Second, func(ctx context.Context) func() {
 		st, err := host.status(ctx)
 		var setup hostSetup
@@ -58,6 +70,14 @@ func (s *desktop) refreshHost() {
 		if err == nil && !st.SetupPending {
 			upd, _ = host.update(ctx)
 		}
+		// Read once for the window's question, and while Settings shows it.
+		var build hostBuildWith
+		buildErr := err
+		if err == nil && !st.SetupPending && (!buildKnown || onSettings) {
+			build, buildErr = host.buildWith(ctx)
+		} else if buildErr == nil {
+			buildErr = errSkipped
+		}
 		return func() {
 			s.win.polling = false
 			if err != nil {
@@ -65,6 +85,10 @@ func (s *desktop) refreshHost() {
 			}
 			was := s.win.status.SetupPending
 			s.win.status, s.win.known, s.win.update = st, true, upd
+			// A choice on its way is shown as made until it lands.
+			if buildErr == nil && !s.win.buildActing {
+				s.win.build, s.win.buildKnown = build, true
+			}
 			if st.SetupPending {
 				s.win.setup = setup
 			}

@@ -1,6 +1,9 @@
 package main
 
-import "slices"
+import (
+	"errors"
+	"slices"
+)
 
 // The `fabo` command on Windows (bin\fabo.exe) runs nothing itself: docker
 // commands go to the bundled docker.exe on Fabo's pipe, the engine's own
@@ -20,6 +23,7 @@ const (
 	routeWSL                  // the engine's commands, in the WSL distro
 	routeShell                // fabo machine shell NAME: docker exec here
 	routeEngine               // fabo engine restart|start|stop: fabo-win
+	routeDomains              // fabo domains [local on|off]: fabo-win
 	routeUnsupported
 )
 
@@ -28,7 +32,7 @@ const (
 var wslCommands = []string{"k8s", "machine", "usb", "import", "raw", "share", "bench"}
 
 // macOnly are the launcher's commands that have no Windows meaning.
-var macOnly = []string{"setup", "build-with", "domains", "context", "daemon", "migrate", "bridge", "debug", "pack", "unpack", "mcp"}
+var macOnly = []string{"setup", "build-with", "context", "daemon", "migrate", "bridge", "hostrelay", "debug", "pack", "unpack", "mcp"}
 
 // routeWindows decides where args go.
 func routeWindows(args []string) windowsRoute {
@@ -45,6 +49,8 @@ func routeWindows(args []string) windowsRoute {
 			return routeEngine
 		}
 		return routeUsage
+	case "domains":
+		return routeDomains
 	case "machine":
 		if len(args) >= 3 && args[1] == "shell" {
 			return routeShell
@@ -70,6 +76,22 @@ func windowsDocker(command string) bool {
 		"events", "exec", "export", "history", "image", "images", "info", "inspect", "kill", "load", "login", "logout", "logs",
 		"manifest", "network", "pause", "port", "ps", "pull", "push", "rename", "restart", "rm", "rmi", "run", "save", "search",
 		"start", "stats", "stop", "system", "tag", "top", "unpause", "update", "version", "volume", "wait"}, command)
+}
+
+// windowsDomains is the control-pipe request for `fabo domains [local
+// on|off]`: the state as JSON (the window reads it as the Mac launcher's),
+// or switching *.fabo.local, which fabo-win does since it answers the
+// names. HTTPS with Fabo's certificate is the Mac's only.
+func windowsDomains(args []string) (method, path string, err error) {
+	switch {
+	case len(args) == 0:
+		return "GET", "/domains", nil
+	case len(args) == 2 && args[0] == "https":
+		return "", "", errors.New("HTTPS with Fabo's certificate is not available on Windows")
+	case len(args) == 2 && args[0] == "local" && (args[1] == "on" || args[1] == "off"):
+		return "POST", "/domains/" + args[1], nil
+	}
+	return "", "", errors.New("usage: fabo domains [local on|off]")
 }
 
 // wslEngineScript starts the engine if it is not up (Fabo Linux's
@@ -107,6 +129,7 @@ const windowsUsage = `usage: fabo [ui]                         open Fabo
        fabo --version                    this build's version
        fabo COMMAND                     docker commands on Fabo: run, ps, exec, compose, ...
        fabo engine start|stop|restart    the engine in WSL; restart also installs this version's engine
+       fabo domains [local on|off]       container names at <name>.fabo.local (Windows asks for approval)
        fabo machine create NAME [--distro D] [--systemd] | list | shell NAME [-- CMD...]
        fabo machine start|stop|restart|delete NAME
        fabo k8s start [--use] | stop | status | delete | set [--lan on|off] [--tls-san NAME,…] [--port N]

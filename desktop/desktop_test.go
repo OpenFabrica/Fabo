@@ -1209,6 +1209,24 @@ func TestNamesAndHTTPSAreSwitchedThroughTheLauncher(t *testing.T) {
 	}
 }
 
+// On Windows the names switch stays, explained by the NRPT rule, and the
+// HTTPS one is gone: fabo-win answers the names but trusts no certificate.
+func TestDomainsOnWindowsHaveNoHTTPS(t *testing.T) {
+	_, s := newFakeEngine(t)
+	s.launcher = (&fakeLauncher{}).run
+	s.host = newHostClient(func(context.Context) (net.Conn, error) { return nil, errors.New("no fabo-win") })
+	s.navigate(settingsPage)
+	s.settingsTab = 4
+	tt := ui.NewTester(s.view, 1180, 760)
+	if m := has(tt, "Off: containers answer at <name>.fabo.localhost, which needs no setup.",
+		"Compose services answer at <service>.<project>.fabo.localhost. Changing this needs an administrator's approval, since it adds or removes Windows' name resolution policy (NRPT) rule for .fabo.local."); m != "" {
+		t.Fatalf("missing %q in %q", m, tt.Texts())
+	}
+	if tt.HasText("Trust Fabo's certificate") || tt.HasText("/etc/resolver") {
+		t.Fatalf("macOS-only settings shown on Windows: %q", tt.Texts())
+	}
+}
+
 // Without a launcher there is nothing to switch: names are *.fabo.localhost.
 func TestDomainsWithoutALauncherOfferNoSwitch(t *testing.T) {
 	_, s := newFakeEngine(t)
@@ -1368,6 +1386,16 @@ func TestScreenshots(t *testing.T) {
 		s.prefs.NavCollapsed = true
 		s.selectRow("")
 		shot("collapsed-"+theme, s)
+		// The USB page on Windows: the list with a device's panel, and
+		// usbipd-win missing.
+		u, _ := newUSBDesktop(t, sampleUSB())
+		u.prefs.Theme, u.prefs.Lang = theme, "zh"
+		shot("usb-"+theme, u)
+		u.selectRow("1-3")
+		shot("usb-dock-"+theme, u)
+		m, _ := newUSBDesktop(t, hostUSB{Missing: true})
+		m.prefs.Theme, m.prefs.Lang = theme, "zh"
+		shot("usb-missing-"+theme, m)
 	}
 }
 

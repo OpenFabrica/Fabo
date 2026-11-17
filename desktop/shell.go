@@ -131,6 +131,7 @@ func (s *desktop) view(c *ui.Context) {
 	})
 	s.confirm(c, p)
 	s.dialog(c, p)
+	s.buildAsk(c, p)
 	s.reviewWindow(c, p)
 	s.switchDialog(c, p)
 	s.announceShares(c)
@@ -196,7 +197,7 @@ func (s *desktop) toggleSidebar() {
 
 // searchable reports whether the page has a list the title bar's field filters.
 func searchable(page string) bool {
-	return page == containersPage || page == imagesPage || page == volumesPage || page == networksPage || page == kubernetesPage || page == machinesPage
+	return page == containersPage || page == imagesPage || page == volumesPage || page == networksPage || page == kubernetesPage || page == machinesPage || page == usbPage
 }
 
 // strip is the window's title bar, on the shell's grey: the traffic lights,
@@ -234,12 +235,21 @@ func (s *desktop) strip(c *ui.Context, p palette) {
 	})
 }
 
+// hintTitle is a page title inside the search hint: lowercased, unless it
+// starts with an acronym such as USB.
+func hintTitle(title string) string {
+	if len(title) >= 2 && title[0] >= 'A' && title[0] <= 'Z' && title[1] >= 'A' && title[1] <= 'Z' {
+		return title
+	}
+	return strings.ToLower(title)
+}
+
 // searchField filters the current page's list from the title strip. It
 // shows ⌘K, the shortcut that focuses it, until something is typed and the
 // field's own clear button takes that place.
 func (s *desktop) searchField(c *ui.Context, p palette) {
 	ui.Box(c.Key("search-box")).Width(340).Shrink(1).MinWidth(160).Height(30).Children(func() {
-		hint := tr("搜索", "Search ") + strings.ToLower(pageTitle(s.page)) + "…"
+		hint := tr("搜索", "Search ") + hintTitle(pageTitle(s.page)) + "…"
 		field := ui.SearchField(c.Key("search-"+s.page), &s.search).Placeholder(hint).Label(tr("搜索", "Search")).
 			Fill().Radius(8).Background(p.panel).Border(1, p.line).Bind(&s.searchBox)
 		if field.Changed() {
@@ -283,6 +293,11 @@ func (s *desktop) pageSummary() string {
 			total += img.Size
 		}
 		return displaySize(total)
+	case usbPage:
+		if n := s.usbInFabo(); n > 0 {
+			return fmt.Sprintf(tr("%d 个在 Fabo 中", "%d in Fabo"), n)
+		}
+		return ""
 	case sharePage:
 		if !s.shares.ok || !s.shares.info.Account.SignedIn {
 			return ""
@@ -402,7 +417,7 @@ func (s *desktop) sidebar(c *ui.Context, p palette) {
 	side.Children(func() {
 		for _, n := range navItems {
 			// Terminal and Settings live in the title strip.
-			if n.soon || n.page == terminalPage || n.page == settingsPage {
+			if s.navSoon(n) || n.page == terminalPage || n.page == settingsPage {
 				continue
 			}
 			if n.page == kubernetesPage {
@@ -612,12 +627,14 @@ func (s *desktop) cpuNow() float32 {
 // pageBody shows the current page, or why it cannot be shown.
 func (s *desktop) pageBody(c *ui.Context, p palette) {
 	for _, n := range navItems {
-		if n.page == s.page && n.soon {
+		if n.page == s.page && s.navSoon(n) {
 			empty(c, p, n.icon, tr(n.zh, n.en)+tr(" · 即将提供", " · coming soon"), "")
 			return
 		}
 	}
-	if s.page != settingsPage && s.page != terminalPage {
+	// The USB page needs fabo-win only: a device left in WSL can be given
+	// back while the engine is stopped.
+	if s.page != settingsPage && s.page != terminalPage && !(s.page == usbPage && s.hasUSB()) {
 		switch s.engineState() {
 		case "offline":
 			title := tr("连接不到引擎", "The engine is not answering")
@@ -660,6 +677,8 @@ func (s *desktop) pageBody(c *ui.Context, p palette) {
 		s.kubernetesView(c, p)
 	case sharePage:
 		s.shareView(c, p)
+	case usbPage:
+		s.usbView(c, p)
 	case settingsPage:
 		s.settingsView(c, p)
 	}

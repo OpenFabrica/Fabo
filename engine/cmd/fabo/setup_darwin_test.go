@@ -264,42 +264,42 @@ func TestBuildWithFaboIsTakenAndGivenBackExactly(t *testing.T) {
 	s := sandbox(t, "com.openfabrica.fabo")
 	p := s.places()
 	config := `{"aliases":{"builder":"mine"},"auths":{}}`
-	write(t, p.config(), config)
-	write(t, p.current(), `{"Key":"default","Name":"desktop","Global":false}`)
+	write(t, p.Config(), config)
+	write(t, p.Current(), `{"Key":"default","Name":"desktop","Global":false}`)
 
 	// Nothing to take until Fabo's builder exists.
-	if err := p.apply("", true); err != nil {
+	if err := p.Apply("", true); err != nil {
 		t.Fatal(err)
 	}
-	if p.saved() != "fabo" || read(t, p.current()) != `{"Key":"default","Name":"desktop","Global":false}` {
-		t.Fatalf("took the builds without a builder: %s", read(t, p.current()))
+	if p.Saved() != "fabo" || read(t, p.Current()) != `{"Key":"default","Name":"desktop","Global":false}` {
+		t.Fatalf("took the builds without a builder: %s", read(t, p.Current()))
 	}
-	write(t, p.instance(p.builder), `{"Name":"fabo-build","Driver":"docker-container","Nodes":[{"Name":"fabo-build0","Endpoint":"fabo"}]}`)
-	if err := p.apply("", true); err != nil {
+	write(t, p.Instance(p.Builder), `{"Name":"fabo-build","Driver":"docker-container","Nodes":[{"Name":"fabo-build0","Endpoint":"fabo"}]}`)
+	if err := p.Apply("", true); err != nil {
 		t.Fatal(err)
 	}
-	cfg, _ := readJSON(p.config())
-	cur, _ := readJSON(p.current())
+	cfg, _ := readJSON(p.Config())
+	cur, _ := readJSON(p.Current())
 	if cfg["aliases"].(object)["builder"] != "buildx" || cur["Name"] != "fabo-build" || cur["Global"] != true {
 		t.Fatalf("config = %v, current = %v", cfg, cur)
 	}
 	// The builder named after the context is a copy of Fabo's.
-	shadow, _ := readJSON(p.instance("fabo"))
-	if shadow["Name"] != "fabo" || !p.copied(shadow) {
+	shadow, _ := readJSON(p.Instance("fabo"))
+	if shadow["Name"] != "fabo" || !p.Copied(shadow) {
 		t.Fatalf("shadow = %v", shadow)
 	}
 
-	if err := p.choose("docker"); err != nil {
+	if err := p.Choose("docker"); err != nil {
 		t.Fatal(err)
 	}
-	cfg, _ = readJSON(p.config())
-	if cfg["aliases"].(object)["builder"] != "mine" || read(t, p.current()) != `{"Key":"default","Name":"desktop","Global":false}` {
-		t.Fatalf("not given back: %v, %s", cfg, read(t, p.current()))
+	cfg, _ = readJSON(p.Config())
+	if cfg["aliases"].(object)["builder"] != "mine" || read(t, p.Current()) != `{"Key":"default","Name":"desktop","Global":false}` {
+		t.Fatalf("not given back: %v, %s", cfg, read(t, p.Current()))
 	}
-	if err := p.uninstall(); err != nil {
+	if err := p.Uninstall(); err != nil {
 		t.Fatal(err)
 	}
-	if exists(p.instance("fabo")) || exists(p.state) {
+	if exists(p.Instance("fabo")) || exists(p.State) {
 		t.Error("uninstall left the copy or build.json")
 	}
 }
@@ -308,17 +308,17 @@ func TestBuildsAreNotTakenUnaskedBesideAnotherEngine(t *testing.T) {
 	for name, other := range map[string]string{"another engine": "OrbStack", "a flavored app": ""} {
 		s := sandbox(t, "com.openfabrica.fabo")
 		p := s.places()
-		write(t, p.instance(p.builder), `{"Name":"fabo-build","Nodes":[{"Name":"fabo-build0"}]}`)
-		if err := p.apply(other, other != ""); err != nil {
+		write(t, p.Instance(p.Builder), `{"Name":"fabo-build","Nodes":[{"Name":"fabo-build0"}]}`)
+		if err := p.Apply(other, other != ""); err != nil {
 			t.Fatal(err)
 		}
-		if p.saved() != "" || exists(p.current()) || exists(p.config()) {
+		if p.Saved() != "" || exists(p.Current()) || exists(p.Config()) {
 			t.Errorf("%s: took the builds unasked", name)
 		}
 		// A builder of that name that is not Fabo's copy is left alone.
 		theirs := `{"Name":"fabo","Nodes":[{"Name":"remote0"}]}`
-		write(t, p.instance(p.context), theirs)
-		if err := p.apply(other, false); err != nil || read(t, p.instance(p.context)) != theirs {
+		write(t, p.Instance(p.Context), theirs)
+		if err := p.Apply(other, false); err != nil || read(t, p.Instance(p.Context)) != theirs {
 			t.Errorf("%s: replaced a builder that is not Fabo's copy", name)
 		}
 	}
@@ -391,21 +391,21 @@ func TestFaboLinksLeaveAnExistingKiriCommand(t *testing.T) {
 func TestBuildWithFaboKeepsPersistedBuilderChoice(t *testing.T) {
 	s := sandbox(t, "com.openfabrica.fabo.dev")
 	p := s.places()
-	write(t, p.instance(p.builder), `{"Name":"fabo-dev-build","Nodes":[{"Name":"fabo-dev-build0"}]}`)
+	write(t, p.Instance(p.Builder), `{"Name":"fabo-dev-build","Nodes":[{"Name":"fabo-dev-build0"}]}`)
 	if err := s.buildWith([]string{"fabo"}); err != nil {
 		t.Fatal(err)
 	}
-	if p.saved() != "fabo" {
+	if p.Saved() != "fabo" {
 		t.Fatal("changed the stored builder choice")
 	}
-	current, err := readJSON(p.current())
+	current, err := readJSON(p.Current())
 	if err != nil || current["Name"] != "fabo-dev-build" {
 		t.Fatalf("builder = %v, %v", current, err)
 	}
 	if err := s.buildWith([]string{"docker"}); err != nil {
 		t.Fatal(err)
 	}
-	if p.saved() != "docker" {
+	if p.Saved() != "docker" {
 		t.Fatal("could not switch back to Docker")
 	}
 }
