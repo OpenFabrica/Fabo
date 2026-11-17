@@ -22,7 +22,7 @@ echo "$ALPINE_SHA256  $cache/$ALPINE" | sha256sum -c - >/dev/null || { rm -f "$c
 root=$(mktemp -d)
 trap 'rm -rf "$root"' EXIT
 tar --no-same-owner -xzf "$cache/$ALPINE" -C "$root"
-install -m 755 "$bin/fabo" "$bin/fabo-init" "$repo/contrib/wsl/fabo-linux/fabo-start" "$root/usr/local/bin/"
+install -m 755 "$bin/fabo" "$repo/contrib/wsl/fabo-linux/fabo-start" "$root/usr/local/bin/"
 install -d "$root/usr/libexec/fabo" "$root/etc/fabo"
 install -m 755 "$bin/fabo-daemon" "$bin/fabo-init" "$root/usr/libexec/fabo/"
 printf "auto\n" > "$root/etc/fabo/wsl-engine"

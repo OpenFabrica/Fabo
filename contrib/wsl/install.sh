@@ -5,7 +5,7 @@ set -eu
 mode=${1:-install}
 case "$mode" in install|--sync|--restart) ;; *) echo "usage: install.sh [--sync|--restart]" >&2; exit 2 ;; esac
 here=$(cd "$(dirname "$0")" && pwd)
-for name in fabo fabo-init fabo-start fabo-daemon fabo-init; do
+for name in fabo fabo-start fabo-daemon fabo-init; do
   [ -f "$here/$name" ] || { echo "Missing WSL bundle file: $name" >&2; exit 1; }
 done
 install -d /usr/local/bin /usr/libexec/fabo /etc/fabo
@@ -19,7 +19,7 @@ copy() {
     copied=true
   fi
 }
-for name in fabo fabo-init fabo-start; do copy "$name" /usr/local/bin; done
+for name in fabo fabo-start; do copy "$name" /usr/local/bin; done
 for name in fabo-daemon fabo-init; do copy "$name" /usr/libexec/fabo; done
 if [ "$mode" = --sync ]; then
   if "$copied"; then echo copied; fi

@@ -42,6 +42,7 @@ const usage = `usage: fabo [ui [-view PAGE] [-start]]   open the desktop window
        fabo raw run [OPTIONS] IMAGE [COMMAND...] | pull IMAGE | images | rmi IMAGE...
        fabo migrate [OPTIONS]       import an offline Kiri store
        fabo mcp                          read-only Model Context Protocol server for agents, on stdin/stdout
+       fabo bridge [--socket PATH]       (in WSL) carry fabo-win.exe's Docker API connections to the engine
 `
 
 func main() {
@@ -90,6 +91,8 @@ func main() {
 		err = rawCommand(args[1:])
 	case args[0] == "machine":
 		err = machineCommand(args[1:])
+	case args[0] == "bridge":
+		err = bridgeCommand(args[1:])
 	case args[0] == "engine":
 		err = engineCommand(args[1:])
 	case handlesDocker(args[0]):
