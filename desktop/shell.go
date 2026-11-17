@@ -86,6 +86,15 @@ func (s *desktop) view(c *ui.Context) {
 	theme.Text, theme.TextMuted = p.text, p.muted
 	c.SetTheme(&theme)
 
+	if s.host != nil && s.win.status.SetupPending {
+		// First run on Windows: setup is the whole window until it is done.
+		s.setupPage(c, p)
+		for _, notice := range s.notices {
+			c.Toast(notice)
+		}
+		s.notices = nil
+		return
+	}
 	s.reapClosedSessions()
 	s.syncLogStreams()
 	s.importWatch()

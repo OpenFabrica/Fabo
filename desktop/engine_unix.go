@@ -47,3 +47,10 @@ func engineHost() string {
 	}
 	return "unix://" + socket
 }
+
+// dialHost is nil: only Windows has a host process (fabo-win).
+var dialHost func(context.Context) (net.Conn, error)
+
+// singleInstance is false: the macOS app and Linux packages open the
+// window once themselves.
+const singleInstance = false

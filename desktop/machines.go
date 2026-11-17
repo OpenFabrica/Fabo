@@ -493,6 +493,10 @@ func launcherBesideExecutable() string {
 	if err != nil {
 		return ""
 	}
+	if runtime.GOOS == "windows" {
+		// The Windows install keeps the `fabo` command in bin\ beside docker.exe.
+		return filepath.Join(filepath.Dir(exe), "bin", "fabo.exe")
+	}
 	return filepath.Join(filepath.Dir(exe), "fabo")
 }
 

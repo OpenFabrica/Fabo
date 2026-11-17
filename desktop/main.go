@@ -232,7 +232,10 @@ type desktop struct {
 	containerLogs, podLogs *liveLogs
 	// logsCleared holds when each container's logs were last cleared, so a
 	// reopened stream starts there instead of replaying the engine's tail.
-	logsCleared      map[string]time.Time
+	logsCleared map[string]time.Time
+	// host is fabo-win's control API on Windows; nil elsewhere.
+	host             *hostClient
+	win              winState
 	closingTerminals []*terminalSession
 	closingLogs      []*liveLogs
 }
@@ -265,7 +268,13 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(signals)
+	// On Windows, fabo-win opens the window whenever Fabo is opened again:
+	// the running window comes forward instead of a second one.
+	if singleInstance && !mygo.App.RequestSingleInstanceLock() {
+		return
+	}
 	s := newDesktop(newEngineClient(dialEngine))
+	s.host = newHostClient(dialHost)
 	s.ctx, s.launcher = ctx, findLauncher()
 	if s.launcher != nil {
 		s.launcherPath = launcherBesideExecutable()
@@ -305,6 +314,11 @@ func main() {
 			Content: ui.View(s.view),
 		})
 		s.installTray()
+		if singleInstance {
+			mygo.App.OnSecondInstance(func([]string, string) {
+				mygo.RunOnMain(func() { s.window.Show(); s.window.Focus() })
+			})
+		}
 		s.window.OnClosed(func() { mygo.App.Quit() })
 		mygo.App.OnQuit(func() { cancel(); s.closeInteractive() })
 		go func() {
@@ -326,6 +340,15 @@ func main() {
 				mygo.RunOnMain(s.refresh)
 			}
 		}()
+		if s.host != nil {
+			// fabo-win's state, faster while setup's progress moves.
+			s.refreshHost()
+			go func() {
+				for range time.Tick(700 * time.Millisecond) {
+					mygo.RunOnMain(s.refreshHost)
+				}
+			}()
+		}
 	})
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)
@@ -397,7 +420,14 @@ func (s *desktop) installTray() {
 		return
 	}
 	quitting := false
-	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) { quitting = true })
+	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) {
+		quitting = true
+		// Quitting Fabo on Windows ends fabo-win too, as the tray's Quit
+		// says: docker stops answering until Fabo opens again.
+		if s.host != nil {
+			s.host.quit()
+		}
+	})
 	s.window.OnClose(func(e *mygo.CloseEvent) {
 		if !quitting {
 			e.PreventDefault()
@@ -626,8 +656,15 @@ func (s *desktop) memoryUse() (used, total int64) {
 // answer comes; done is announced when it succeeds.
 func (s *desktop) do(key string, a engineAction, done string) {
 	s.working[key] = true
+	host := s.host
 	s.run(2*time.Minute, func(ctx context.Context) func() {
-		err := s.engine.request(ctx, a.method, a.path, a.body, nil)
+		var err error
+		if action := hostEngineAction(a.path); host != nil && action != "" {
+			// The engine in WSL has no VM: fabo-win starts and stops it.
+			err = host.engine(ctx, action)
+		} else {
+			err = s.engine.request(ctx, a.method, a.path, a.body, nil)
+		}
 		return func() {
 			delete(s.working, key)
 			s.settle(err, done)
