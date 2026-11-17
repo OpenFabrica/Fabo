@@ -715,5 +715,11 @@
   " · %d s left": " · noch %d s",
   "Docker tools": "Docker-Werkzeuge",
   "Linux": "Linux",
-  "Fabo's Windows service is not running: open Fabo again from the Start menu": "Der Windows-Dienst von Fabo läuft nicht: Öffne Fabo erneut über das Startmenü"
+  "Fabo's Windows service is not running: open Fabo again from the Start menu": "Der Windows-Dienst von Fabo läuft nicht: Öffne Fabo erneut über das Startmenü",
+  "Fabo %s is available,": "Fabo %s ist verfügbar,",
+  "this is %s.": "dies ist %s.",
+  "Download": "Herunterladen",
+  "Downloading Fabo %s ": "Fabo %s wird heruntergeladen ",
+  "Fabo %s is downloaded,": "Fabo %s ist heruntergeladen,",
+  "restart Fabo to finish updating; quitting installs it too.": "starte Fabo neu, um das Update abzuschließen; beim Beenden wird es ebenfalls installiert."
 }

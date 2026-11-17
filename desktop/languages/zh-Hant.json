@@ -715,5 +715,11 @@
   " · %d s left": " · 剩餘 %d 秒",
   "Docker tools": "Docker 工具",
   "Linux": "Linux",
-  "Fabo's Windows service is not running: open Fabo again from the Start menu": "Fabo 的 Windows 服務沒有執行，請從開始功能表重新開啟 Fabo"
+  "Fabo's Windows service is not running: open Fabo again from the Start menu": "Fabo 的 Windows 服務沒有執行，請從開始功能表重新開啟 Fabo",
+  "Fabo %s is available,": "Fabo %s 可用，",
+  "this is %s.": "目前是 %s。",
+  "Download": "下載",
+  "Downloading Fabo %s ": "正在下載 Fabo %s ",
+  "Fabo %s is downloaded,": "Fabo %s 已下載，",
+  "restart Fabo to finish updating; quitting installs it too.": "重新啟動 Fabo 即可完成更新；結束時也會安裝。"
 }

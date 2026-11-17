@@ -19,6 +19,8 @@ type winState struct {
 	linux int
 	// acting is the setup action in flight, so its button waits.
 	acting string
+	// updateLater hides the update strip until the window opens again.
+	updateLater bool
 }
 
 // setupSteps are the rail's steps, with the host's step names each covers.

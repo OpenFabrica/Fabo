@@ -174,3 +174,26 @@ func TestSetupScreenshots(t *testing.T) {
 		}
 	}
 }
+
+// TestUpdateStrip offers a newer version and sends the download to fabo-win.
+func TestUpdateStrip(t *testing.T) {
+	s, f := newSetupDesktop(t, "done")
+	f.mu.Lock()
+	f.status.SetupPending = false
+	f.mu.Unlock()
+	s.refreshHost()
+	s.win.update = hostUpdate{State: "available", Current: "0.5.2", Latest: "0.6.0"}
+	tt := ui.NewTester(s.view, 1180, 760)
+	tt.Frame()
+	if !tt.HasText("Fabo 0.6.0 is available,") {
+		t.Fatal("update strip not shown")
+	}
+	if err := tt.Click("Download"); err != nil {
+		t.Fatal(err)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.actions) == 0 || f.actions[len(f.actions)-1] != "/update/download" {
+		t.Fatalf("actions = %v", f.actions)
+	}
+}

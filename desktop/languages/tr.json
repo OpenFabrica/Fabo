@@ -715,5 +715,11 @@
   " · %d s left": " · %d sn kaldı",
   "Docker tools": "Docker araçları",
   "Linux": "Linux",
-  "Fabo's Windows service is not running: open Fabo again from the Start menu": "Fabo'nun Windows hizmeti çalışmıyor: Fabo'yu Başlat menüsünden yeniden açın"
+  "Fabo's Windows service is not running: open Fabo again from the Start menu": "Fabo'nun Windows hizmeti çalışmıyor: Fabo'yu Başlat menüsünden yeniden açın",
+  "Fabo %s is available,": "Fabo %s kullanılabilir,",
+  "this is %s.": "bu sürüm %s.",
+  "Download": "İndir",
+  "Downloading Fabo %s ": "Fabo %s indiriliyor ",
+  "Fabo %s is downloaded,": "Fabo %s indirildi,",
+  "restart Fabo to finish updating; quitting installs it too.": "güncellemeyi bitirmek için Fabo'yu yeniden başlatın; çıkmak da onu kurar."
 }

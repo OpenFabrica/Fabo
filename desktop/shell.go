@@ -122,7 +122,7 @@ func (s *desktop) view(c *ui.Context) {
 					}
 				})
 				// One strip at a time: an engine to restart comes first.
-				if !s.engineStrip(c, p) {
+				if !s.engineStrip(c, p) && !s.updateStrip(c, p) {
 					s.importStrip(c, p)
 				}
 				s.switchCardView(c, p)

@@ -715,5 +715,11 @@
   " · %d s left": " · sisa %d dtk",
   "Docker tools": "Alat Docker",
   "Linux": "Linux",
-  "Fabo's Windows service is not running: open Fabo again from the Start menu": "Layanan Windows Fabo tidak berjalan: buka Fabo lagi dari menu Start"
+  "Fabo's Windows service is not running: open Fabo again from the Start menu": "Layanan Windows Fabo tidak berjalan: buka Fabo lagi dari menu Start",
+  "Fabo %s is available,": "Fabo %s tersedia,",
+  "this is %s.": "ini versi %s.",
+  "Download": "Unduh",
+  "Downloading Fabo %s ": "Mengunduh Fabo %s ",
+  "Fabo %s is downloaded,": "Fabo %s sudah diunduh,",
+  "restart Fabo to finish updating; quitting installs it too.": "mulai ulang Fabo untuk menyelesaikan pembaruan; keluar juga akan memasangnya."
 }

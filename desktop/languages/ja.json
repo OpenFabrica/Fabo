@@ -715,5 +715,11 @@
   " · %d s left": " · 残り %d 秒",
   "Docker tools": "Docker ツール",
   "Linux": "Linux",
-  "Fabo's Windows service is not running: open Fabo again from the Start menu": "Fabo の Windows サービスが動作していません。スタート メニューから Fabo を開き直してください"
+  "Fabo's Windows service is not running: open Fabo again from the Start menu": "Fabo の Windows サービスが動作していません。スタート メニューから Fabo を開き直してください",
+  "Fabo %s is available,": "Fabo %s が利用可能です。",
+  "this is %s.": "現在は %s です。",
+  "Download": "ダウンロード",
+  "Downloading Fabo %s ": "Fabo %s をダウンロード中 ",
+  "Fabo %s is downloaded,": "Fabo %s をダウンロードしました。",
+  "restart Fabo to finish updating; quitting installs it too.": "Fabo を再起動すると更新が完了します。終了時にもインストールされます。"
 }

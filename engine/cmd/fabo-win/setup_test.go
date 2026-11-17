@@ -74,7 +74,7 @@ func (f *fakeSystem) startFaboLinux() error {
 	f.mu.Unlock()
 	return nil
 }
-func (f *fakeSystem) setDistro(d string)  { f.record("distro " + d) }
+func (f *fakeSystem) setDistro(d string) { f.record("distro " + d) }
 func (f *fakeSystem) ensureEngine() error {
 	f.record("ensure")
 	f.mu.Lock()
