@@ -1,4 +1,4 @@
-# Installs target/Fabo-<version>-x86_64.msi (-arm64.msi on Windows on Arm) silently (no launch, so first-run
+# Installs target/windows/Fabo-<version>-x86_64.msi (-arm64.msi on Windows on Arm) silently (no launch, so first-run
 # setup does not touch WSL), checks the per-user install, uninstalls silently
 # and checks it is gone. Safe on a PC where Fabo's setup never completed:
 # the uninstall step only undoes setup when setup.json exists.
@@ -10,14 +10,14 @@ $ErrorActionPreference = 'Continue'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 # This PC's own MSI: arm64 on Windows on Arm (native PowerShell says ARM64 there).
 $arch = if (@($env:PROCESSOR_ARCHITEW6432, $env:PROCESSOR_ARCHITECTURE) -contains 'ARM64') { 'arm64' } else { 'x86_64' }
-if (-not $Msi) { $Msi = (Get-ChildItem (Join-Path $root "target\Fabo-*-$arch.msi") | Sort-Object LastWriteTime | Select-Object -Last 1).FullName }
-$logs = Join-Path $root 'target\msi-verify'
+if (-not $Msi) { $Msi = (Get-ChildItem (Join-Path $root "target\windows\Fabo-*-$arch.msi") | Sort-Object LastWriteTime | Select-Object -Last 1).FullName }
+$logs = Join-Path $root 'target\windows\msi-verify'
 New-Item -ItemType Directory -Force $logs | Out-Null
 
 $dir = Join-Path $env:LOCALAPPDATA 'Fabo'
 $exe = Join-Path $dir 'fabo-win.exe'
 $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Fabo.lnk'
-$files = 'fabo-win.exe', 'fabo', 'fabo-init', 'fabo-linux.tar.gz', 'install.sh', 'fabo.ps1', 'setup-tools.ps1', 'fabo-admin.ps1', 'bin\docker.exe', 'bin\cli-plugins\docker-compose.exe', 'bin\cli-plugins\docker-buildx.exe'
+$files = 'fabo-win.exe', 'fabo-desktop.exe', 'ghostty-vt.dll', 'fabo', 'fabo-daemon', 'fabo-init', 'fabo-start', 'fabo-linux.tar.gz', 'install.sh', 'fabo.ps1', 'setup-tools.ps1', 'fabo-admin.ps1', 'bin\docker.exe', 'bin\fabo.exe', 'bin\cli-plugins\docker-compose.exe', 'bin\cli-plugins\docker-buildx.exe'
 
 $elevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 "msi: $Msi"
@@ -35,7 +35,7 @@ function ArpEntry {
 }
 
 $script:failed = $false
-Get-Process fabo-win -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process fabo-win, fabo-desktop -ErrorAction SilentlyContinue | Stop-Process -Force
 $p = Start-Process msiexec -ArgumentList "/i `"$Msi`" /qn /norestart /l*v `"$logs\install.log`"" -Wait -PassThru
 Check "msiexec /i exit code $($p.ExitCode)" ($p.ExitCode -eq 0)
 foreach ($f in $files) { Check "installed $f" (Test-Path (Join-Path $dir $f)) }

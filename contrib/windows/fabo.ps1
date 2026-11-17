@@ -1,6 +1,7 @@
 # Fabo on Windows: installs the Linux engine into a WSL2 distro, and
 # fabo-win.exe, which serves the Docker API on \\.\pipe\fabo for the Windows
-# docker CLI (as the `fabo` context) and carries it into WSL. It brings the
+# docker CLI (as the `fabo` context) and carries it into WSL, with
+# fabo-desktop.exe, the window it opens. It brings the
 # docker CLI, Compose and buildx too, as Fabo.app does, so no other Docker
 # is needed. Per user: no admin, no service, no change to WSL's or Windows'
 # network settings.
@@ -10,7 +11,7 @@
 # The MSI (installer/windows) lays the same files in %LOCALAPPDATA%\Fabo and
 # runs `-Uninstall -IfSetUp` when removed: nothing happens unless first-run
 # setup completed, and the distro setup chose is taken from setup.json.
-# fabo-win.exe runs `-Update` (update.rs) when it quits for an update it
+# fabo-win.exe runs `-Update` (engine/cmd/fabo-win/update.go) when it quits for an update it
 # downloaded: once that process is gone the staged MSI upgrades Fabo
 # silently and the new Fabo opens.
 # Fabo becomes docker's default engine (the current context, and the builder
@@ -126,7 +127,7 @@ function Get-WslBasePath([string]$Name) {
   }
 }
 
-Get-Process fabo-win -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process fabo-win, fabo-desktop -ErrorAction SilentlyContinue | Stop-Process -Force
 if ($Uninstall) {
   if ($IfSetUp) {
     # From the MSI: %LOCALAPPDATA%\Fabo is about to go, so the log lives in %TEMP%.
@@ -153,16 +154,9 @@ if ($Uninstall) {
       Where-Object { $_.Path -and $_.Path.StartsWith($dir, [StringComparison]::OrdinalIgnoreCase) } |
       Stop-Process -Force
   }
-  # Before the builder goes: docker build's own builder back as it was
-  # before Fabo changed it (crates/kiri/src/buildwith.rs), from fabo-win.
-  Step "docker build given back its own builder" {
-    if (Test-Path $exe) { $p = Start-Process $exe -ArgumentList "--uninstall-builds" -Wait -PassThru; if ($p.ExitCode -ne 0) { throw "fabo-win exited $($p.ExitCode)" } }
-  }
-  # The cluster's `fabo` kubectl context out of ~\.kube\config, the rest
-  # of the file kept (crates/kiri/src/kubeconfig.rs), from fabo-win.
-  Step "kubectl context removed" {
-    if (Test-Path $exe) { $p = Start-Process $exe -ArgumentList "--uninstall-kubeconfig" -Wait -PassThru; if ($p.ExitCode -ne 0) { throw "fabo-win exited $($p.ExitCode)" } }
-  }
+  # Fabo on Windows writes no kubectl context of its own (`fabo k8s` runs
+  # in WSL) and does not run `docker buildx install`, so there is nothing
+  # of either to give back here.
   Step "docker context and builder removed" {
     $docker = Join-Path $bin "docker.exe"
     if (-not (Test-Path $docker)) { $docker = (Get-Command docker.exe -ErrorAction SilentlyContinue).Source }
@@ -176,7 +170,7 @@ if ($Uninstall) {
   Step "Compose and buildx taken out of $dockerConfig" { Set-FaboPlugins $false }
   Step "$bin taken off PATH" { Set-FaboPath $false }
   # Both ways it was ever set: the Startup-folder shortcut, and the Run
-  # value setup's "Start Fabo when I sign in" writes (setup.rs).
+  # value setup's "Start Fabo when I sign in" writes (engine/cmd/fabo-win).
   Step "start at sign-in removed" {
     Remove-Item $link -Force -ErrorAction SilentlyContinue
     Remove-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "Fabo" -ErrorAction SilentlyContinue
@@ -233,11 +227,14 @@ if ($LASTEXITCODE -ne 0) { throw "install.sh failed in $Distro" }
 
 New-Item -ItemType Directory -Force $dir, $plugins | Out-Null
 if ([IO.Path]::GetFullPath($Bundle).TrimEnd("\") -ne [IO.Path]::GetFullPath($dir).TrimEnd("\")) {
-  foreach ($file in @("fabo", "fabo-init", "fabo-daemon", "fabo-init", "fabo-start", "install.sh")) {
+  foreach ($file in @("fabo", "fabo-daemon", "fabo-init", "fabo-start", "install.sh", "fabo.ps1", "fabo-desktop.exe", "ghostty-vt.dll")) {
     Copy-Item (Join-Path $Bundle $file) $dir -Force
   }
 }
 Copy-Item (Join-Path $Bundle "fabo-win.exe") $exe -Force
+# What setup would have recorded: `fabo k8s` and the uninstaller read the
+# distro from here.
+[IO.File]::WriteAllText($setupJson, (@{ done = $true; linux = "ubuntu"; distro = $Distro } | ConvertTo-Json), (New-Object Text.UTF8Encoding $false))
 Copy-Item (Join-Path $Bundle "bin\docker.exe"), (Join-Path $Bundle "bin\fabo.exe") $bin -Force
 Copy-Item (Join-Path $Bundle "bin\cli-plugins\*.exe") $plugins -Force
 Set-FaboPath $true
@@ -260,10 +257,9 @@ $docker = (Get-Command docker.exe).Source
 & $docker buildx inspect fabo-build 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) { & $docker buildx create --name fabo-build --driver docker-container --driver-opt default-load=true fabo 2>$null | Out-Null }
 
-# The default engine. `docker build` picks its builder by context name:
-# fabo-win makes the `fabo` one a copy of Fabo's, and which builder plain
-# `docker build` uses beside Docker Desktop is asked in its window
-# (crates/kiri/src/buildwith.rs).
+# The default engine. With the `fabo` context in use, plain `docker build`
+# builds on Fabo's engine; `docker buildx build --builder fabo-build` uses
+# the BuildKit container. Beside Docker Desktop, Docker stays the default.
 $desktop = Test-Path (Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe")
 if ($Default -or -not $desktop) {
   & $docker context use fabo | Out-Null

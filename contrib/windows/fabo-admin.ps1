@@ -1,5 +1,6 @@
 # The steps of Fabo on Windows that need an administrator, run elevated by
-# fabo-win (crates/kiri-win/src/setup.rs and dns.rs): Windows asks for an
+# fabo-win (engine/cmd/fabo-win/setup.go; -Dns is for the *.fabo.local
+# rule, not ported to the Go host yet): Windows asks for an
 # administrator's approval first. Installed beside fabo-win.exe, which checks
 # it against the SHA-256 it was built with and runs
 #   powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File fabo-admin.ps1 -Wsl -Msi <wsl .msi> -Sha256 <hex>
@@ -7,7 +8,7 @@
 # A script file with parameters, not script text in fabo-win.exe handed to
 # PowerShell encoded: an elevated, hidden PowerShell fed an encoded script
 # is what malware droppers do, and Defender's heuristics quarantined a
-# fabo-win.exe that carried that (as update.rs says of fabo.ps1 -Update).
+# Kiri build that carried that (upstream's update.rs says so of -Update).
 param(
   [switch]$Wsl,
   [string]$Msi,
@@ -24,7 +25,7 @@ $ErrorActionPreference = "Stop"
 # user-writable folder, so a process at the user's own integrity could swap
 # it between fabo-win's SHA-256 check and this run: it is checked again
 # here, as admin, on a copy the user cannot touch, and must be signed by
-# Microsoft. setup.rs reads the exit code: 22 the copy does not match
+# Microsoft. setup.go reads the exit code: 22 the copy does not match
 # -Sha256, 23 not validly signed by Microsoft, 20 Virtual Machine Platform
 # failed, 21 the WSL installer failed, 3010 done but Windows must restart.
 if ($Wsl) {
@@ -43,9 +44,9 @@ if ($Wsl) {
 }
 
 # -Dns: the name-resolution policy (NRPT) rule that sends `.<suffix>`
-# lookups to fabo-win's DNS answerer on 127.0.0.1 (dns.rs), added, or
+# lookups to a DNS answerer on 127.0.0.1 (upstream's dns.rs, not ported yet), added, or
 # removed with -Off. Any rule already there for the suffix goes first, so
-# adding twice leaves one. A failure exits 1, which dns.rs reports.
+# adding twice leaves one. A failure exits 1.
 if ($Dns) {
   $namespace = ".$Suffix"
   Get-DnsClientNrptRule | Where-Object { $_.Namespace -contains $namespace } | Remove-DnsClientNrptRule -Force

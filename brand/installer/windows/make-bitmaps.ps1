@@ -14,7 +14,7 @@
 #   make-bitmaps.ps1 -Stamp -Version 0.1.0 -Out <dir>
 #     Copies the committed art to <dir> and writes the version under the
 #     lockup with System.Drawing: no browser, so a CI runner does it from
-#     the checkout. `cargo xtask msi` runs this.
+#     the checkout. scripts/windows-msi.ps1 runs this.
 param(
     [switch]$Stamp,
     [string]$Version = '0.1.0',

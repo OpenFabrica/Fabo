@@ -38,7 +38,7 @@ FABO_SHARE_SERVER ?=
 export FABO_SHARE_SERVER
 SHARE_LDFLAGS := $(if $(FABO_SHARE_SERVER),-X github.com/OpenFabrica/Fabo/engine/sharetunnel.DefaultServer=$(FABO_SHARE_SERVER))
 
-.PHONY: release-check help check guest kernel disk daemon app app-dev dev dmg linux clean
+.PHONY: release-check help check guest kernel disk daemon app app-dev dev dmg linux windows clean
 
 help:
 	@echo "make check     vet and test engine and desktop; compile the Linux- and Windows-only tests"
@@ -54,6 +54,9 @@ help:
 	@echo "make dmg       target/Fabo-<version>-$(ARCH).dmg from the app, notarized when"
 	@echo "               FABO_NOTARY_PROFILE names a notarytool profile"
 	@echo "make linux     target/linux/release: fabo, fabo-daemon, fabo-init"
+	@echo "make windows   target/windows/fabo-windows-\$$WIN_ARCH: the folder the MSI installs (x86_64 or arm64),"
+	@echo "               checked against installer/windows/fabo.wxs; the MSI itself is built on Windows"
+	@echo "               (scripts/windows-msi.ps1, docs/windows.md). FABO_UPDATE_URL sets its update feed"
 	@echo "FABO_SHARE_SERVER=host builds daemon, app, app-dev and linux with that default share relay."
 	@echo "make release-check TAG=vX.Y.Z  stop unless HEAD is exactly that tag, on main, clean"
 	@echo "ARCH=x86_64 builds guest, kernel, daemon, app and dmg for Intel Macs."
@@ -120,6 +123,13 @@ linux:
 	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "$(STRIP) -X main.release=$(VERSION)" -o $(CURDIR)/target/linux/release/fabo ./cmd/fabo
 	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "$(STRIP) -X main.engineRelease=$(VERSION) $(SHARE_LDFLAGS)" -o $(CURDIR)/target/linux/release/fabo-daemon ./cmd/fabo-daemon
 	GOOS=linux GOARCH=$(LINUX_ARCH) CGO_ENABLED=0 go -C engine build -trimpath -ldflags "$(STRIP)" -o $(CURDIR)/target/linux/release/fabo-init ./cmd/fabo-init
+
+# The Windows bundle, cross-built on any OS; WiX makes the MSI from it on
+# Windows (docs/windows.md).
+WIN_ARCH ?= x86_64
+windows:
+	scripts/windows-bundle.sh $(WIN_ARCH) $(VERSION)
+	python3 -I scripts/check-wxs.py target/windows/fabo-windows-$(WIN_ARCH)
 
 # The release gate from docs/release.md; run it before building a release.
 release-check:

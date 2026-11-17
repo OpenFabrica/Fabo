@@ -1,4 +1,4 @@
-# Setup step 4, run by fabo-win (crates/kiri-win/src/setup.rs): the docker
+# Setup step 4, run by fabo-win (engine/cmd/fabo-win/setup.go): the docker
 # CLI, Compose, buildx and the `fabo` command into %LOCALAPPDATA%\Fabo\bin,
 # the `fabo` context and Fabo's builder, and, if asked, Fabo as docker's
 # default. Prints "TASK <n>" as each task finishes, for the setup screen.
@@ -89,8 +89,7 @@ if ($LASTEXITCODE -ne 0) {
 if ($Default) {
   $out = Docker context use fabo
   if ($LASTEXITCODE -ne 0) { throw "could not make fabo the default context: $out" }
-  # `docker build` then uses the builder named after the context, which
-  # fabo-win makes a copy of Fabo's (crates/kiri/src/buildwith.rs): no
+  # `docker build` then builds on Fabo's engine, the context's own. No
   # BUILDX_BUILDER, which would send every build to Fabo whatever docker uses.
 }
 "TASK 4"

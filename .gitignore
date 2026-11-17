@@ -23,3 +23,6 @@ CLAUDE.local.md
 desktop/.mygo/
 desktop/build/
 /desktop/desktop
+
+# Windows resource objects scripts/windows-bundle.sh writes for one build.
+*.syso

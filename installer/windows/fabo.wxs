@@ -1,22 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Fabo for Windows: a per-user MSI around the bundle `cargo xtask windows`
-  builds (target/fabo-windows-x86_64). It lays the bundle in %LOCALAPPDATA%\Fabo,
-  the folder fabo-win.exe uses anyway, adds a Start menu entry and an
+  Fabo for Windows: a per-user MSI around the bundle scripts/windows-bundle.sh
+  builds (target/windows/fabo-windows-x86_64). It lays the bundle in
+  %LOCALAPPDATA%\Fabo, the folder fabo-win.exe uses anyway, adds a Start menu entry and an
   Apps & features row, and opens Fabo at the end: Fabo's own first-run setup
   then installs WSL if needed, imports the engine, and puts the docker CLI on
   PATH, per user, with no administrator rights. Removing it runs
   fabo.ps1 -Uninstall -IfSetUp (engine out of WSL, PATH and docker context
   undone) and deletes the folder.
 
-  Build (or `cargo xtask msi`, which builds the bundle first):
+  Build on Windows with scripts/windows-msi.ps1 (docs/windows.md), which runs:
     wix build -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext
-      -d Version=<version> -d Bundle=..\..\target\fabo-windows-x86_64 -d Size="152.6 MB"
-      -loc fabo.wxl -o ..\..\target\Fabo-<version>-x86_64.msi fabo.wxs
+      -d Version=<version> -d Bundle=..\..\target\windows\fabo-windows-x86_64 -d Size="215.0 MB"
+      -loc fabo.wxl -o ..\..\target\windows\Fabo-<version>-x86_64.msi fabo.wxs
+  scripts/check-wxs.py checks this file against a bundle on any OS.
 
-  Windows on Arm (`cargo xtask msi`, arch arm64) is the same source with
-  -arch arm64, -d Bundle=..\..\target\fabo-windows-aarch64 and -o
-  ..\..\target\Fabo-<version>-arm64.msi: the Platform is Arm64, the custom action
+  Windows on Arm is the same source with -arch arm64,
+  -d Bundle=..\..\target\windows\fabo-windows-arm64 and -o
+  ..\..\target\windows\Fabo-<version>-arm64.msi: the Platform is Arm64, the custom action
   DLL Wix4UtilCA_A64 ($(sys.BUILDARCHSHORT)), and nothing else differs. A
   per-user install has no Program Files folder to choose, so there is no
   ProgramFiles64Folder/ProgramFilesArm64 question either.
@@ -25,19 +26,22 @@
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
 
-  <!-- The version comes from Cargo.toml; cargo xtask msi passes it. -->
-  <?ifndef Version ?><?error Pass -d Version=x.y.z (cargo xtask msi does, from Cargo.toml) ?><?endif?>
-  <?ifndef Bundle ?><?define Bundle = "..\..\target\fabo-windows-x86_64" ?><?endif?>
-  <!-- What the install takes on disk, as the ready page says it: xtask measures the bundle. -->
+  <!-- The version comes from the git tag; scripts/windows-msi.ps1 passes it. -->
+  <?ifndef Version ?><?error Pass -d Version=x.y.z (scripts/windows-msi.ps1 does) ?><?endif?>
+  <?ifndef Bundle ?><?define Bundle = "..\..\target\windows\fabo-windows-x86_64" ?><?endif?>
+  <!-- What the install takes on disk, as the ready page says it: windows-msi.ps1 measures the bundle. -->
   <?ifndef Size ?><?define Size = "" ?><?endif?>
   <?define Name = "Fabo" ?>
   <?define Manufacturer = "Fabo" ?>
-  <?define Url = "https://runkiri.com" ?>
+  <?define Url = "https://github.com/OpenFabrica/Fabo" ?>
   <?define Description = "Tiny, fast container runtime" ?>
   <?define Keywords = "containers, docker, wsl, runtime" ?>
 
   <!--
     The UpgradeCode never changes; it is what makes a newer MSI replace an older one.
+    It is Fabo's own, not upstream Kiri's: with Kiri's, a Fabo MSI would take
+    an installed Kiri for an older Fabo and remove it. fabo-win's updater
+    checks it (upgradeCode in engine/cmd/fabo-win/update.go).
     The x64 and arm64 MSIs share it, on purpose: both install the same files
     into the same %LOCALAPPDATA%\Fabo with the same HKCU keys and component
     GUIDs, so two products side by side would fight over one folder. Shared,
@@ -50,7 +54,7 @@
   <Package Name="$(Name)"
            Manufacturer="$(Manufacturer)"
            Version="$(Version)"
-           UpgradeCode="7C2E4B9A-5D13-4F8E-9B6A-0E1D3C5A7F21"
+           UpgradeCode="839A68B8-98E7-4BBD-B1DE-DAB0B047B7D4"
            Scope="perUser"
            Language="1033"
            Codepage="1252"
@@ -77,7 +81,7 @@
     <!--
       The folder tree util:RemoveFolderEx deletes on uninstall: Fabo's own
       %LOCALAPPDATA%\Fabo, with what the app wrote there (setup.json, logs,
-      the WebView2 cache, and wsl\fabo\ext4.vhdx, the Fabo Linux distro's
+      downloads, a staged update, and wsl\fabo\ext4.vhdx, the Fabo Linux distro's
       disk, which fabo.ps1 unregisters first). The registry value goes into
       FABODIR_FOUND and is copied to FABODIR only when this product is
       already installed and not being replaced: in a major upgrade
@@ -94,7 +98,7 @@
     <SetProperty Id="FABODIR" Value="[FABODIR_FOUND]" After="SetFABODIR_HOME" Sequence="execute" Condition="Installed AND NOT UPGRADINGPRODUCTCODE" />
     <SetProperty Id="FABODIR" Action="ResetFABODIR" Value="{}" After="SetFABODIR" Sequence="execute" Condition="NOT (FABODIR ~= FABODIR_HOME)" />
 
-    <!-- %LOCALAPPDATA%\Fabo: fabo-win.exe keeps setup.json, logs and the WebView2 cache here too. -->
+    <!-- %LOCALAPPDATA%\Fabo: fabo-win.exe keeps setup.json, its log and downloads here too. -->
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="INSTALLFOLDER" Name="$(Name)">
         <Directory Id="BinFolder" Name="bin">
@@ -111,12 +115,15 @@
       anything.
     -->
     <ComponentGroup Id="FaboComponents">
-      <Component Id="FaboApp" Directory="INSTALLFOLDER" Guid="2B7D9F41-6A3C-4E85-B1D2-8C4F6A0E3B57">
+      <Component Id="FaboApp" Directory="INSTALLFOLDER" Guid="17FB18D7-6CEA-446F-98A2-450A7E15639C">
         <RegistryValue Root="HKCU" Key="Software\$(Manufacturer)" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
         <RegistryValue Root="HKCU" Key="Software\$(Manufacturer)" Name="Version" Type="string" Value="$(Version)" />
         <File Id="FaboWinExe" Source="$(Bundle)\fabo-win.exe" />
+        <!-- The window and tray; the terminal's libghostty-vt loads from beside it. -->
+        <File Id="FaboDesktopExe" Source="$(Bundle)\fabo-desktop.exe" />
+        <File Id="GhosttyVtDll" Source="$(Bundle)\ghostty-vt.dll" />
+        <!-- The Linux engine, for a distro of the user's own and for updates (install.sh). -->
         <File Id="FaboEngine" Source="$(Bundle)\fabo" />
-        <File Id="FaboInit" Source="$(Bundle)\fabo-init" />
         <File Id="FaboDaemon" Source="$(Bundle)\fabo-daemon" />
         <File Id="FaboInit" Source="$(Bundle)\fabo-init" />
         <File Id="FaboStart" Source="$(Bundle)\fabo-start" />
@@ -138,14 +145,14 @@
         <util:RemoveFolderEx On="uninstall" Property="FABODIR" />
         <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
       </Component>
-      <Component Id="FaboDockerCli" Directory="BinFolder" Guid="9E5A1C73-0B2D-4F6E-A8C1-3D7B5E9F2A64">
+      <Component Id="FaboDockerCli" Directory="BinFolder" Guid="DD3D4B27-87B9-4ED0-B7DA-314B02B1DD3D">
         <RegistryValue Root="HKCU" Key="Software\$(Manufacturer)" Name="Bin" Type="string" Value="[BinFolder]" KeyPath="yes" />
         <File Id="DockerExe" Source="$(Bundle)\bin\docker.exe" />
-        <!-- `fabo` in PowerShell, cmd and Git Bash (crates/kiri/src/wsl.rs). -->
+        <!-- `fabo` in PowerShell, cmd and Git Bash (engine/cmd/fabo/main_windows.go). -->
         <File Id="FaboCliExe" Source="$(Bundle)\bin\fabo.exe" />
         <RemoveFolder Id="RemoveBinFolder" Directory="BinFolder" On="uninstall" />
       </Component>
-      <Component Id="FaboDockerPlugins" Directory="PluginsFolder" Guid="4F8B2D16-7C9E-4A3B-9D5F-1E6C8A0B4D72">
+      <Component Id="FaboDockerPlugins" Directory="PluginsFolder" Guid="E7E1941A-FEBF-4879-89EF-BA0D486E5AD1">
         <RegistryValue Root="HKCU" Key="Software\$(Manufacturer)" Name="Plugins" Type="string" Value="[PluginsFolder]" KeyPath="yes" />
         <File Id="ComposeExe" Source="$(Bundle)\bin\cli-plugins\docker-compose.exe" />
         <File Id="BuildxExe" Source="$(Bundle)\bin\cli-plugins\docker-buildx.exe" />
@@ -157,8 +164,9 @@
       <ComponentGroupRef Id="FaboComponents" />
     </Feature>
 
-    <!-- A running Fabo is closed before its files are replaced or removed. -->
+    <!-- A running Fabo, the host and the window, is closed before its files are replaced or removed. -->
     <util:CloseApplication Id="CloseFaboWin" Target="fabo-win.exe" CloseMessage="yes" TerminateProcess="1" RebootPrompt="no" />
+    <util:CloseApplication Id="CloseFaboDesktop" Target="fabo-desktop.exe" CloseMessage="yes" TerminateProcess="1" RebootPrompt="no" />
 
     <!--
       Uninstall: undo what first-run setup did (engine in WSL, PATH, docker
@@ -189,7 +197,7 @@
       through the stock VerifyReadyDlg.
       The art is committed in brand\installer\windows: wix-dialog.bmp (night
       panel at the left, white under the text) and wix-banner.bmp (chalk,
-      the lockup at the right). `cargo xtask msi` stamps the version onto a
+      the lockup at the right). scripts/windows-msi.ps1 stamps the version onto a
       copy of the dialog (make-bitmaps.ps1 -Stamp, no browser needed, so CI
       builds from the checkout) and points Assets at it. The texts are in
       fabo.wxl.
