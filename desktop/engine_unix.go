@@ -6,6 +6,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 )
@@ -54,3 +55,6 @@ var dialHost func(context.Context) (net.Conn, error)
 // singleInstance is false: the macOS app and Linux packages open the
 // window once themselves.
 const singleInstance = false
+
+// hideConsole does nothing outside Windows.
+func hideConsole(*exec.Cmd) {}

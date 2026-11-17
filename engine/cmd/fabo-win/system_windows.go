@@ -82,7 +82,7 @@ func (h *host) resumeAfterRestart() error {
 	if err != nil {
 		return err
 	}
-	return winhost.SetRun(`Software\Microsoft\Windows\CurrentVersion\RunOnce`, "FaboSetup", strconv.Quote(exe))
+	return winhost.SetRun(`Software\Microsoft\Windows\CurrentVersion\RunOnce`, "FaboSetup", `"`+exe+`"`)
 }
 
 // restartWindows restarts the PC now (setup's "Restart now").
@@ -232,7 +232,8 @@ func (h *host) setAutostart(on bool) error {
 		if err != nil {
 			return err
 		}
-		command = strconv.Quote(exe) + " --background"
+		// A command line, not a Go string: the path in plain double quotes.
+		command = `"` + exe + `" --background`
 	}
 	return winhost.SetRun(winhost.RunKey, winhost.RunValue, command)
 }

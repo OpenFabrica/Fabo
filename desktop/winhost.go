@@ -167,6 +167,15 @@ func (h *hostClient) quit() {
 	_ = h.call(ctx, http.MethodPost, "/quit", nil, nil)
 }
 
+// canPack reports whether the window offers pack and unpack. Windows' fabo
+// command cannot: the Linux fabo in WSL would read and write paths that
+// are not the Windows user's.
+func (s *desktop) canPack() bool { return s.launcher != nil && s.host == nil }
+
+// canImport reports whether the window offers importing from OrbStack or
+// Docker Desktop, which the macOS launcher reads; Windows has neither.
+func (s *desktop) canImport() bool { return s.launcher != nil && s.host == nil }
+
 // hostEngineAction maps the window's engine actions to the host's: the
 // engine in WSL has no VM to wake or stop, so fabo-win starts and stops it.
 func hostEngineAction(path string) string {

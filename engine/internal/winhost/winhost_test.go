@@ -89,6 +89,13 @@ func TestParseSystemProxy(t *testing.T) {
 	if *p.HTTP != "proxy:80" || *p.HTTPS != "secure:443" || !p.PAC {
 		t.Fatalf("per scheme = %+v", p)
 	}
+	p = ParseSystemProxy(true, "http=127.0.0.1:7890;https=corp:8080", "", false).WithoutLoopback()
+	if p.HTTP != nil || p.HTTPS == nil || *p.HTTPS != "corp:8080" {
+		t.Fatalf("loopback dropped = %+v", p)
+	}
+	if p := ParseSystemProxy(true, "localhost:1080", "", false).WithoutLoopback(); p.HTTP != nil || p.HTTPS != nil {
+		t.Fatalf("localhost dropped = %+v", p)
+	}
 	p = ParseSystemProxy(false, "proxy:80", "a", false)
 	if p.HTTP != nil || p.HTTPS != nil || len(p.NoProxy) != 0 {
 		t.Fatalf("disabled = %+v", p)

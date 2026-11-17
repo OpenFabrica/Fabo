@@ -64,6 +64,7 @@ func main() {
 	// A staged update goes in before anything else, once: if the helper
 	// left to install it failed, Fabo starts as it is and the window
 	// offers the update again rather than quitting on every launch.
+	h.engine = h.newEngineControl()
 	h.updates = newUpdater(h)
 	if h.updates.installStagedAtLaunch() {
 		return
@@ -72,7 +73,7 @@ func main() {
 		// Another fabo-win serves the pipe: open its window instead.
 		if running(*pipe) {
 			if !*background {
-				h.openDesktop()
+				h.openDesktop(false)
 			}
 			return
 		}
@@ -91,9 +92,9 @@ func main() {
 	go h.watchEngine()
 	go h.pushProxy()
 	go h.updates.loop()
-	if !*background {
-		h.openDesktop()
-	}
+	// The window and tray: shown, or in the tray only when Windows starts
+	// Fabo at sign-in, unless setup still has to be finished.
+	h.openDesktop(*background && !h.setupPending.Load())
 	<-h.quitting
 	// The window asked to quit: a staged update goes in now.
 	h.updates.installStagedAtQuit()

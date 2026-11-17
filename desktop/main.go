@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -262,6 +263,9 @@ var release = "0.0.0-dev"
 func main() {
 	initial := flag.String("view", containersPage, "initial page")
 	wake := flag.Bool("start", false, "start the Fabo engine")
+	// -hidden starts in the tray only: fabo-win passes it when Windows
+	// starts Fabo at sign-in.
+	hidden := flag.Bool("hidden", false, "start with the window hidden, in the tray")
 	flag.Parse()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -310,13 +314,16 @@ func main() {
 			Title: "Fabo", Width: 1180, Height: 760, MinWidth: 860, MinHeight: 520,
 			TitleBarStyle: mygo.TitleBarHidden, TitleBarHeight: stripHeight,
 			TrafficLightPosition: &mygo.Point{X: 14, Y: 13},
-			BackgroundColor:      "light-dark(#F4F6F9, #0E1115)", StateKey: "main",
+			BackgroundColor:      "light-dark(#F4F6F9, #0E1115)", StateKey: "main", Hidden: *hidden,
 			Content: ui.View(s.view),
 		})
 		s.installTray()
 		if singleInstance {
-			mygo.App.OnSecondInstance(func([]string, string) {
-				mygo.RunOnMain(func() { s.window.Show(); s.window.Focus() })
+			mygo.App.OnSecondInstance(func(args []string, _ string) {
+				if slices.Contains(args, "-hidden") {
+					return
+				}
+				mygo.RunOnMain(func() { s.window.Show(); s.window.Focus(); s.refresh() })
 			})
 		}
 		s.window.OnClosed(func() { mygo.App.Quit() })
@@ -367,7 +374,9 @@ func findLauncher() func(ctx context.Context, args ...string) ([]byte, error) {
 		return nil
 	}
 	return func(ctx context.Context, args ...string) ([]byte, error) {
-		out, err := exec.CommandContext(ctx, path, args...).Output()
+		cmd := exec.CommandContext(ctx, path, args...)
+		hideConsole(cmd)
+		out, err := cmd.Output()
 		// The launcher explains a failure on stderr as "fabo: <reason>".
 		var failed *exec.ExitError
 		if errors.As(err, &failed) {

@@ -1,6 +1,10 @@
 package winhost
 
-import "strings"
+import (
+	"net"
+	"net/url"
+	"strings"
+)
 
 // SystemProxy is Windows' proxy as the engine's PUT /fabo/proxy/system
 // takes it (engine/internal/localengine/proxy_wsl.go).
@@ -42,6 +46,37 @@ func ParseSystemProxy(enabled bool, server, override string, pac bool) SystemPro
 		if host = strings.TrimSpace(host); host != "" && host != "<local>" {
 			p.NoProxy = append(p.NoProxy, host)
 		}
+	}
+	return p
+}
+
+// WithoutLoopback drops a proxy on Windows' own loopback (127.0.0.1,
+// localhost), which most Windows proxy apps use. Containers and image
+// pulls in WSL cannot reach it without upstream's proxy relay, which is
+// not ported: the engine would send every pull to a port nothing listens
+// on in WSL. Without it they connect directly.
+func (p SystemProxy) WithoutLoopback() SystemProxy {
+	loopback := func(v *string) bool {
+		if v == nil {
+			return false
+		}
+		raw := *v
+		if !strings.Contains(raw, "://") {
+			raw = "http://" + raw
+		}
+		u, err := url.Parse(raw)
+		if err != nil {
+			return false
+		}
+		host := u.Hostname()
+		ip := net.ParseIP(host)
+		return strings.EqualFold(host, "localhost") || (ip != nil && ip.IsLoopback())
+	}
+	if loopback(p.HTTP) {
+		p.HTTP = nil
+	}
+	if loopback(p.HTTPS) {
+		p.HTTPS = nil
 	}
 	return p
 }

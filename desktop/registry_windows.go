@@ -168,10 +168,9 @@ func (wincredRegistryCredentials) list() (map[string]string, error) {
 		if c == nil || c.Type != credTypeGeneric || c.TargetName == nil || !c.docker() {
 			continue
 		}
-		target := windows.UTF16PtrToString(c.TargetName)
-		if strings.HasPrefix(target, "LegacyGeneric:target=") {
-			continue
-		}
+		// With CRED_ENUMERATE_ALL_CREDENTIALS, generic credentials may be
+		// listed as LegacyGeneric:target=<name>.
+		target := strings.TrimPrefix(windows.UTF16PtrToString(c.TargetName), "LegacyGeneric:target=")
 		if key, err := registryKey(target); err == nil {
 			user := ""
 			if c.UserName != nil {

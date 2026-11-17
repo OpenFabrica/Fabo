@@ -251,11 +251,13 @@ func (s *desktop) containersView(c *ui.Context, p palette) {
 		if importing {
 			importLabel = tr("导入中…", "Importing…")
 		}
-		if wide >= 680 {
-			if button(c.Key("unpack"), p, importLabel, "import", plainButton, importing || s.launcher == nil) {
+		if s.host != nil {
+			// Windows' fabo command cannot unpack (canPack): no button at all.
+		} else if wide >= 680 {
+			if button(c.Key("unpack"), p, importLabel, "import", plainButton, importing || !s.canPack()) {
 				s.unpack()
 			}
-		} else if wide >= 420 && iconButton(c.Key("unpack"), p, "import", tr("导入容器包", "Import a package"), importing || s.launcher == nil).Clicked() {
+		} else if wide >= 420 && iconButton(c.Key("unpack"), p, "import", tr("导入容器包", "Import a package"), importing || !s.canPack()).Clicked() {
 			s.unpack()
 		}
 		run := tr("运行容器", "Run container")
@@ -602,10 +604,10 @@ func (s *desktop) containerRow(c *ui.Context, p palette, row containerRow) {
 			menuEntry{label: tr("日志", "Logs"), run: show(1)},
 			menuEntry{label: tr("终端", "Terminal"), run: show(2)},
 			menuEntry{label: tr("文件", "Files"), run: show(3)})
-		if s.launcherPath != "" {
+		if s.launcherPath != "" && s.host == nil {
 			entries = append(entries, menuEntry{label: tr("调试终端", "Debug Shell"), disabled: x.bucket() != "running", run: func() { s.openDebugShell(x) }})
 		}
-		if s.launcher != nil {
+		if s.canPack() {
 			entries = append(entries, menuEntry{label: tr("打包…", "Pack…"), disabled: s.working["pack"], run: func() { s.pack([]string{x.Name}, "", x.Name) }})
 		}
 		entries = append(entries,

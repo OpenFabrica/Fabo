@@ -138,7 +138,7 @@ func (s *desktop) importInit() {
 // what the other engines have, so the strip and the switch offer show
 // without opening Settings.
 func (s *desktop) importWatch() {
-	if s.launcher == nil || !s.connected {
+	if !s.canImport() || !s.connected {
 		return
 	}
 	s.importInit()
@@ -506,7 +506,7 @@ func countWords(counts [3]int) string {
 // stopped.
 func (s *desktop) importPane(c *ui.Context, p palette) {
 	heading(c, p, tr("导入", "Import"))
-	if s.launcher == nil {
+	if !s.canImport() {
 		remark(c, p, tr("导入需要本安装的 fabo 命令。", "Importing needs this installation's fabo command."))
 		return
 	}

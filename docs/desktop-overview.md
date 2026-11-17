@@ -1823,8 +1823,8 @@ Internal bridge networks retain their isolated routing.
 `fabo-win` sends the current system proxy and the relay port map to
 `PUT /fabo/proxy/system` over the existing Docker bridge, every minute. The
 Go host has no proxy relay yet (upstream's `relay.rs` / `hostrelay.rs`), so
-its relay map is empty and a proxy on Windows' own loopback is not reachable
-from containers. The Go daemon
+its relay map is empty and it leaves a proxy on Windows' own loopback out of
+the snapshot: pulls and containers then connect directly. The Go daemon
 keeps that snapshot in memory. System mode uses Windows settings when a
 snapshot is available and falls back to the Linux environment before the
 first update. Custom mode uses the saved addresses. Both modes use the

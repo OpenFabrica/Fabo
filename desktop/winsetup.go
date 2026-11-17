@@ -41,6 +41,11 @@ func (s *desktop) refreshHost() {
 	if s.host == nil || s.win.polling {
 		return
 	}
+	// In the tray with setup done, nothing on screen needs fabo-win's state;
+	// each read would also ping the engine through the bridge.
+	if s.window != nil && !s.window.IsVisible() && s.win.known && !s.win.status.SetupPending {
+		return
+	}
 	s.win.polling = true
 	host := s.host
 	s.run(5*time.Second, func(ctx context.Context) func() {

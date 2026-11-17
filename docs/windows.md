@@ -18,7 +18,7 @@ flowchart LR
 | 文件（安装在 `%LOCALAPPDATA%\Fabo`） | 来源 | 作用 |
 | --- | --- | --- |
 | `fabo-win.exe` | `engine/cmd/fabo-win` | 常驻宿主，无窗口（`-H windowsgui`）。服务 `\\.\pipe\fabo`；没有其他引擎时也服务 `\\.\pipe\docker_engine`，Docker Desktop 等启动后让出；控制管道 `\\.\pipe\fabo-win`；首次设置、引擎启停与守护、Windows 代理推送、更新 |
-| `fabo-desktop.exe`、`ghostty-vt.dll` | `desktop/` | MyGo 窗口与托盘。设置未完成时整窗显示首次设置；引擎启停走控制管道；凭据存 Windows 凭据管理器；单实例 |
+| `fabo-desktop.exe`、`ghostty-vt.dll` | `desktop/` | MyGo 窗口与托盘。设置未完成时整窗显示首次设置；引擎启停走控制管道；凭据存 Windows 凭据管理器；单实例；登录自启时带 `-hidden` 只进托盘。Windows 上不提供打包 / 解包、调试终端和从 OrbStack / Docker Desktop 导入（`bin\fabo.exe` 做不到），子进程不弹控制台 |
 | `bin\fabo.exe` | `engine/cmd/fabo/*_windows.go` | `fabo` 命令：docker 子命令交给同目录 `docker.exe`，`k8s`、`machine`、`usb`、`import`、`raw`、`share`、`bench` 交给 WSL 里的 Linux `fabo`，`engine start/stop/restart` 交给 fabo-win |
 | `bin\docker.exe`、`bin\cli-plugins\` | `packaging/cli-pins.env` | docker CLI、Compose、buildx，按 SHA-256 固定 |
 | `fabo-linux.tar.gz` | `scripts/fabo-linux.sh` | Fabo Linux：Alpine minirootfs 加 Linux 引擎，导入为 WSL 发行版 `fabo` |
@@ -34,6 +34,7 @@ flowchart LR
 ### 引擎在 WSL 里的生命周期
 
 - 有 systemd 的发行版（Ubuntu）用 `install.sh` 装的 `fabo.service`；Fabo Linux 没有 systemd，用 `fabo-start start|stop|restart`。
+- 启动、停止、重启、守护和设置里的拉起共用一把锁，依次执行（两个 `fabo-start` 重叠会让后一个删掉前一个刚建的 socket）。
 - fabo-win 每 15 秒检查一次引擎（经自己的管道 `GET /_ping`），设置已完成、用户没点停止时自动拉起。拉起前用 `install.sh --sync` 把安装目录里本版本的引擎同步进 WSL（只复制不同的文件）。
 - `fabo engine restart`（窗口里「重启引擎」）同步后重启引擎，并重开桥，使 `fabo bridge` 也换成新版本。
 - WSL 里的引擎是宿主进程 agent，没有 VM 可唤醒，所以窗口的「启动」「停止」由 fabo-win 在 WSL 里执行，而不是调用引擎的 `/fabo/wake`、`/fabo/stop`。
@@ -42,8 +43,8 @@ flowchart LR
 
 步骤与上游 `setup.rs` 一致，状态存在 `%LOCALAPPDATA%\Fabo\setup.json`，重启 Windows 后从断点继续：
 
-1. WSL：从 GitHub 下载固定版本的 WSL MSI 并校验 SHA-256；`fabo-admin.ps1 -Wsl` 以管理员身份在用户不可写的副本上再校验一次哈希和 Microsoft 签名，开启「虚拟机平台」并安装；需要重启时登记 RunOnce，重启后 Fabo 自动打开继续。
-2. Linux：Fabo Linux（随包，导入为 `fabo`）或 Ubuntu（已有的直接用，否则下载固定的 Ubuntu 26.04 WSL 镜像），后者跑 `install.sh` 装引擎。
+1. WSL：从 GitHub 下载固定版本的 WSL MSI 并校验 SHA-256（固定值已与 GitHub 资产 digest 核对）；`fabo-admin.ps1 -Wsl` 以管理员身份在用户不可写的副本上再校验一次哈希和 Microsoft 签名，开启「虚拟机平台」并安装；需要重启时登记 RunOnce，重启后 Fabo 自动打开继续。
+2. Linux：Fabo Linux（随包，导入为 `fabo`）或 Ubuntu（已有的直接用，否则下载固定的 Ubuntu 26.04.1 WSL 镜像，固定值已与 ubuntu.com 的 SHA256SUMS 核对），后者跑 `install.sh` 装引擎。
 3. 引擎：启动并经管道跑 `docker run --rm alpine echo hello`，失败时显示引擎自己的错误。
 4. Docker 工具：`setup-tools.ps1` 把 `bin` 加到用户 PATH 末尾、Compose / buildx 写进 `cliPluginsExtraDirs`（先备份 `config.json`）、建 `fabo` context 与 `fabo-build` builder，可选设为默认。
 5. 就绪：可选「登录时启动 Fabo」（`HKCU\...\Run` 的 `Fabo`，运行 `fabo-win.exe --background`）。
@@ -99,11 +100,11 @@ powershell -ExecutionPolicy Bypass -File scripts\windows-msi.ps1 -Version 0.6.0 
 | 6 | 管道安全 | 另一个本地用户打不开 `\\.\pipe\fabo`；先占用管道名时 fabo-win 拒绝启动并写日志 |
 | 7 | docker_engine 让位 | 无 Docker Desktop 时 SDK（如 Python docker）直连成功；启动 Docker Desktop 后 Fabo 让出，已有连接不断 |
 | 8 | WSL 启停 | `wsl --shutdown` 后 15 秒内引擎自动恢复；窗口「停止」后不再自动拉起，「启动」恢复；Windows 重启后（开启登录自启）docker 可用 |
-| 9 | 窗口 | 设置向导各步、托盘打开 / 退出（退出后 docker 不再可用）、再次打开 Fabo 只出一个窗口、终端（`ghostty-vt.dll`）可用、15 种语言 |
-| 10 | 凭据 | 设置 → 仓库登录后 `cmdkey /list` 能看到 `Docker Credentials` 条目；配置 `"credsStore": "wincred"` 的 docker CLI 能读到同一条；拉私有镜像 |
+| 9 | 窗口 | 设置向导各步、托盘打开 / 退出（退出后 docker 不再可用）、再次打开 Fabo 只出一个窗口、登录自启时只出现托盘不弹窗口、运行 `fabo` / `docker` 子进程时不闪控制台、终端（`ghostty-vt.dll`）可用、15 种语言 |
+| 10 | 凭据 | 设置 → 仓库登录后 `cmdkey /list` 能看到条目，设置页的账号列表也列出它（`CredEnumerate` 返回的目标名可能带 `LegacyGeneric:target=` 前缀，代码已去掉）；配置 `"credsStore": "wincred"` 的 docker CLI 能读到同一条；拉私有镜像 |
 | 11 | `bin\fabo.exe` | `fabo version`、`fabo compose up`、`fabo k8s status`、`fabo machine shell NAME`、`fabo engine restart`、Ctrl+C 传给 docker |
 | 12 | 更新 | 用自建 HTTPS feed：可用 → 下载 → 立即重启后版本更新、引擎提示重启；伪造 UpgradeCode / 平台 / 旧版本的 MSI 被拒；退出时安装 |
-| 13 | 系统代理 | 设置 Windows 代理后容器内能经代理出网（非回环代理）；回环代理见下方缺口 |
+| 13 | 系统代理 | 非回环的 Windows 代理：拉镜像和容器出网都经过它；127.0.0.1 上的代理（Clash 等）：被跳过，直连仍可拉 `alpine` |
 | 14 | 卸载清理 | 卸载后 `fabo` 发行版注销、PATH / context / Run 项清除、`%LOCALAPPDATA%\Fabo` 删除；升级时数据保留 |
 | 15 | `tests/wsl.sh` | 在 Windows 上整套重跑 |
 
@@ -112,9 +113,10 @@ powershell -ExecutionPolicy Bypass -File scripts\windows-msi.ps1 -Version 0.6.0 
 | 功能 | 上游位置 | 现状 |
 | --- | --- | --- |
 | `*.fabo.local` 名称（NRPT 规则加 127.0.0.1:53 DNS 应答） | `crates/kiri-win/src/dns.rs` | 未移植；`fabo-admin.ps1 -Dns` 已在，Go 宿主未调用 |
-| Windows 回环地址上的代理中继（`fabo hostrelay`） | `crates/kiri-win/src/relay.rs`、`crates/kiri/src/hostrelay.rs` | 未移植；fabo-win 推送代理时中继端口表为空，代理在 Windows 的 127.0.0.1 上时容器用不到 |
+| Windows 回环地址上的代理中继（`fabo hostrelay`） | `crates/kiri-win/src/relay.rs`、`crates/kiri/src/hostrelay.rs` | 未移植；代理在 Windows 的 127.0.0.1 上时 fabo-win 不把它推给引擎，拉镜像和容器直连 |
 | USB（usbipd-win） | `crates/kiri-win/src/usb.rs` | 未移植；`fabo usb` 只能看到已手动 `usbipd attach --wsl` 的设备 |
 | 设置 → 资源（`.wslconfig` 的 CPU / 内存） | `crates/kiri-win/src/wslconfig.rs` | 未移植 |
 | 诊断日志 / 报告 | `crates/kiri-win/src/diag.rs` | 未移植；日志在 `fabo-win.log` 与 WSL 的 `/var/log/fabo.log` |
 | 设置里「用 Docker 还是 Fabo 构建」 | `crates/kiri/src/buildwith.rs` | Windows 上未提供；设为默认时 `docker build` 用 Fabo 引擎 |
+| 打包 / 解包、调试终端、从其他引擎导入 | `crates/kiri/src/pack.rs`、`debug.rs`、`import.rs` | Windows 窗口里隐藏；需要 Windows 侧实现（路径在 Windows，工具在 WSL） |
 | MSI 与 exe 签名 | — | 未签名；更新只靠 HTTPS feed 与 SHA-256 |

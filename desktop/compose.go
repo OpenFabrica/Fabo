@@ -115,7 +115,7 @@ func (s *desktop) projectDock(c *ui.Context, p palette, name string, members []c
 		if pr.workDir != "" && iconButton(c.Key("open-dir"), p, "folder", tr("打开项目目录", "Open the project folder"), false).Clicked() {
 			c.OpenURL((&url.URL{Scheme: "file", Path: pr.workDir}).String())
 		}
-		if s.launcher != nil && iconButton(c.Key("pack-project"), p, "archive", tr("打包项目", "Pack the project"), s.working["pack"]).Clicked() {
+		if s.canPack() && iconButton(c.Key("pack-project"), p, "archive", tr("打包项目", "Pack the project"), s.working["pack"]).Clicked() {
 			s.pack(nil, name, name)
 		}
 		if iconButton(c.Key("delete-all"), p, "trash", tr("删除项目的全部容器", "Delete the project's containers"), false).Clicked() {
@@ -275,6 +275,7 @@ func composeUp(ctx context.Context, pr composeProject) error {
 		args = append([]string{"compose"}, args...)
 	}
 	cmd := exec.CommandContext(ctx, tool, args...)
+	hideConsole(cmd)
 	cmd.Dir = pr.workDir
 	cmd.Env = append(os.Environ(), "DOCKER_HOST="+engineHost())
 	out, err := cmd.CombinedOutput()

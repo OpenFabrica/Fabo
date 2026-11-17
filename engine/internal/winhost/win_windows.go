@@ -235,11 +235,12 @@ func (c *PipeConn) CloseWrite() error {
 }
 
 // Alive reports whether the client still has its end open, without
-// reading from it.
+// reading from it. A connection it cannot ask counts as alive: "gone"
+// would close a connection that is only waiting for credit.
 func (c *PipeConn) Alive() bool {
 	f, ok := c.Conn.(interface{ Fd() uintptr })
 	if !ok {
-		return false
+		return true
 	}
 	var avail uint32
 	ok2, _, _ := procPeekNamedPipe.Call(f.Fd(), 0, 0, 0, uintptr(unsafe.Pointer(&avail)), 0)

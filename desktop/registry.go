@@ -174,6 +174,7 @@ func runCredentialHelper(ctx context.Context, name, action string, input []byte)
 		return nil, fmt.Errorf("docker-credential-%s was not found", name)
 	}
 	cmd := exec.CommandContext(ctx, path, action)
+	hideConsole(cmd)
 	cmd.Stdin = bytes.NewReader(input)
 	out, err := cmd.Output()
 	// Helpers receive secrets. Their raw output/stderr must not become an error toast.

@@ -4,7 +4,9 @@ import (
 	"context"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
+	"syscall"
 
 	"github.com/Microsoft/go-winio"
 )
@@ -35,3 +37,9 @@ func dialHost(ctx context.Context) (net.Conn, error) {
 // singleInstance: fabo-win starts the window each time Fabo is opened, and
 // the running one comes forward instead of a second.
 const singleInstance = true
+
+// hideConsole keeps a console program the window runs (bin\fabo.exe,
+// docker.exe, a credential helper) from flashing up a console window.
+func hideConsole(c *exec.Cmd) {
+	c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000} // CREATE_NO_WINDOW
+}

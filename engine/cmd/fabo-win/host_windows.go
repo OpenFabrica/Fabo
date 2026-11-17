@@ -45,10 +45,7 @@ type host struct {
 	setup        *setup
 	updates      *updater
 	setupPending atomic.Bool
-	// engineState is what the window shows while a start or stop runs.
-	engineMu     sync.Mutex
-	engineState  string
-	userStopped  atomic.Bool
+	engine       *engineControl
 	dockerEngine atomic.Bool
 	otherEngine  atomic.Value // string
 
@@ -248,18 +245,41 @@ func (h *host) syncEngine(distro string) (bool, error) {
 	return strings.Contains(string(out), "copied"), nil
 }
 
-// ensureEngine starts the engine in WSL unless it answers: the systemd
-// service in a distro with systemd, fabo-start in Fabo Linux.
-func (h *host) ensureEngine() error {
-	if h.engineAlive() {
-		return nil
-	}
+// newEngineControl wires the engine's operations in WSL to one lock.
+func (h *host) newEngineControl() *engineControl {
+	return &engineControl{alive: h.engineAlive, start: h.startInWSL, stop: h.stopInWSL, restart: h.restartInWSL}
+}
+
+// ensureEngine starts the engine unless it answers (setup's engine step).
+func (h *host) ensureEngine() error { return h.engine.ensure(false) }
+
+// ensureEngineAsync starts the engine in the background unless the user
+// stopped it.
+func (h *host) ensureEngineAsync() {
+	go func() {
+		if err := h.engine.ensure(true); err != nil {
+			h.logf("engine: %v", err)
+		}
+	}()
+}
+
+// startEngine is the window's Start.
+func (h *host) startEngine() error { return h.engine.userStart() }
+
+// stopEngine is the window's Stop: the engine stops in WSL and stays
+// stopped until Start, though fabo-win keeps serving the pipe.
+func (h *host) stopEngine() error { return h.engine.userStop() }
+
+// restartEngine puts this install's engine into WSL and restarts it.
+func (h *host) restartEngine() error { return h.engine.userRestart() }
+
+// startInWSL starts the engine: the systemd service in a distro with
+// systemd, fabo-start in Fabo Linux, after syncing this install's binaries.
+func (h *host) startInWSL() error {
 	distro := h.distro()
 	if distro == "" {
 		return errors.New("Fabo is not set up yet")
 	}
-	h.setEngineState("starting")
-	defer h.setEngineState("")
 	h.logf("engine: not answering; starting it in WSL")
 	if copied, err := h.syncEngine(distro); err != nil {
 		h.logf("engine: could not copy the engine into WSL (%v); starting the one there", err)
@@ -277,60 +297,29 @@ func (h *host) ensureEngine() error {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	return errors.New("Fabo's engine did not start in WSL; see Settings → Diagnostics")
+	return errors.New("Fabo's engine did not start in WSL; see fabo-win.log")
 }
 
-// ensureEngineAsync starts the engine in the background.
-func (h *host) ensureEngineAsync() {
-	go func() {
-		if err := h.ensureEngine(); err != nil {
-			h.logf("engine: %v", err)
-		}
-	}()
-}
-
-// setEngineState records a start or stop in progress ("" when none).
-func (h *host) setEngineState(state string) {
-	h.engineMu.Lock()
-	h.engineState = state
-	h.engineMu.Unlock()
-}
-
-// startEngine is the window's Start.
-func (h *host) startEngine() error {
-	h.userStopped.Store(false)
-	return h.ensureEngine()
-}
-
-// stopEngine is the window's Stop: the engine stops in WSL and stays
-// stopped until Start, though fabo-win keeps serving the pipe.
-func (h *host) stopEngine() error {
+// stopInWSL stops the engine in WSL.
+func (h *host) stopInWSL() error {
 	distro := h.distro()
 	if distro == "" {
 		return errors.New("Fabo is not set up yet")
 	}
-	h.userStopped.Store(true)
-	h.setEngineState("stopping")
-	defer h.setEngineState("")
 	if h.wslRun(distro, "systemctl", "stop", "fabo") != nil {
-		if err := h.wslRun(distro, winhost.WSLStart, "stop"); err != nil {
-			return err
-		}
+		return h.wslRun(distro, winhost.WSLStart, "stop")
 	}
 	return nil
 }
 
-// restartEngine puts this install's engine into WSL and restarts it (and
-// the bridge, which then runs the new `fabo`). Running containers stop;
+// restartInWSL syncs this install's engine into WSL and restarts it, and
+// the bridge, which then runs the new `fabo`. Running containers stop;
 // those with a restart policy start again.
-func (h *host) restartEngine() error {
+func (h *host) restartInWSL() error {
 	distro := h.distro()
 	if distro == "" {
 		return errors.New("Fabo is not set up yet")
 	}
-	h.userStopped.Store(false)
-	h.setEngineState("starting")
-	defer h.setEngineState("")
 	if _, err := h.syncEngine(distro); err != nil {
 		return err
 	}
@@ -359,8 +348,8 @@ func (h *host) watchEngine() {
 			return
 		default:
 		}
-		if !h.setupPending.Load() && !h.userStopped.Load() && h.distro() != "" && !h.engineAlive() {
-			if err := h.ensureEngine(); err != nil {
+		if !h.setupPending.Load() && h.distro() != "" {
+			if err := h.engine.ensure(true); err != nil {
 				h.logf("engine: %v", err)
 			}
 		}
@@ -385,15 +374,15 @@ func systemProxy() winhost.SystemProxy {
 // pushProxy tells the engine what Windows' proxy is, now and every minute.
 // A proxy on Windows' own 127.0.0.1 cannot be reached from WSL without
 // upstream's proxy relay (crates/kiri-win/src/relay.rs), which is not
-// ported yet: the engine is told no relay ports, and uses such a proxy
-// only where it can reach it.
+// ported yet: such a proxy is left out (WithoutLoopback), so pulls and
+// containers connect directly instead of to a port nothing listens on.
 func (h *host) pushProxy() {
 	for {
 		if !h.setupPending.Load() && h.distro() != "" {
 			body, _ := json.Marshal(struct {
 				winhost.SystemProxy
 				Relay map[string]uint16 `json:"relay"`
-			}{systemProxy(), map[string]uint16{}})
+			}{systemProxy().WithoutLoopback(), map[string]uint16{}})
 			// The engine keeps it in memory only: sent again every minute,
 			// it survives an engine restart and follows changes.
 			_ = h.engineRequest(http.MethodPut, "/fabo/proxy/system", body)
@@ -437,10 +426,7 @@ func (h *host) status() hostStatus {
 	if other, _ := h.otherEngine.Load().(string); other != "" {
 		st.OtherEngine = other
 	}
-	h.engineMu.Lock()
-	st.Engine = h.engineState
-	h.engineMu.Unlock()
-	if st.Engine == "" {
+	if st.Engine = h.engine.current(); st.Engine == "" {
 		st.Engine = "stopped"
 		if h.engineAlive() {
 			st.Engine = "running"
@@ -493,14 +479,18 @@ func controlClient() *http.Client {
 }
 
 // openDesktop starts fabo-desktop.exe, the window and tray, with the
-// `fabo` command it runs for engine commands.
-func (h *host) openDesktop() {
+// `fabo` command it runs for engine commands; hidden starts it in the tray.
+// A window already open comes forward (or, hidden, stays as it is).
+func (h *host) openDesktop(hidden bool) {
 	desktop := filepath.Join(h.install, "fabo-desktop.exe")
 	if _, err := os.Stat(desktop); err != nil {
 		h.logf("window: %v", errNoDesktop)
 		return
 	}
 	c := exec.Command(desktop)
+	if hidden {
+		c.Args = append(c.Args, "-hidden")
+	}
 	c.Dir = h.install
 	c.Env = append(os.Environ(), "FABO_PIPE="+h.pipe, "FABO_LAUNCHER="+filepath.Join(h.install, "bin", "fabo.exe"))
 	if err := c.Start(); err != nil {
