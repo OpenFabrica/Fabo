@@ -29,7 +29,7 @@
 Fabo 是独立项目，源码只有 Go：引擎（`engine/`）和桌面（`desktop/`）。应用显示为 Fabo，命令入口为 `fabo`；状态目录、Docker context、环境变量、程序名和引擎协议也都使用 Fabo 的名字，详见[品牌与命令入口](docs/branding.md)。
 
 - 能用的：macOS 上的 Go 引擎和虚拟机、MyGo 主窗口和托盘、通过 `docker` CLI 使用的容器、镜像、网络、卷、Compose 和 Buildx、`fabo` Docker 命令透传、`fabo machine` Linux 开发环境、`k8s` / `import` / `usb` / `bench` / `raw` 命令，从 OrbStack / Docker Desktop 迁入镜像、卷和容器（命令行和桌面都可以），以及用 `fabo migrate` 从 Kiri 离线导入数据。
-- 还没有的：原 WebView 窗口的高级功能、Windows 宿主、Linux 安装包、自动更新。完整清单和验证结果见[功能对齐基线](docs/compatibility-baseline.md)。
+- 还没有的：原 WebView 窗口的高级功能、Linux 安装包、macOS 自动更新。Windows 版（WSL 2）已移植，尚待在 Windows 上验收，见 [Fabo for Windows](docs/windows.md)。完整清单和验证结果见[功能对齐基线](docs/compatibility-baseline.md)。
 
 ```sh
 make guest kernel disk                 # guest，内核和数据盘模板各做一次

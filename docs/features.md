@@ -93,10 +93,10 @@ Apple silicon and Intel Macs (macOS 14+), Windows 10 and 11 (x86-64 and Arm, thr
 - **Windows**: the x86-64 Linux build in a WSL2 distro, and `fabo-win.exe`,
   which serves the API on `npipe:////./pipe/fabo` (the `fabo` docker
   context) and carries it into WSL over one `wsl.exe … fabo bridge`, so it
-  needs no change to WSL's or Windows' network settings (`cargo xtask
-  msi` builds `target/Fabo-<version>-x86_64.msi`, a per-user installer
-  around `target/fabo-windows-x86_64`; `fabo.ps1` in that folder installs
-  the same without an MSI). Not TCP:
+  needs no change to WSL's or Windows' network settings (`make windows`
+  builds `target/windows/fabo-windows-x86_64` on any OS, and
+  `scripts/windows-msi.ps1` the per-user MSI around it on Windows; see
+  [Fabo for Windows](windows.md)). Not TCP:
   WSL's localhost relay drops half-closes, and `docker run` loses its
   output
 

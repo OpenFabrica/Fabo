@@ -130,7 +130,11 @@ MyGo window ┘
 
 | Path | What |
 |------|------|
-| `engine/cmd/fabo` | the launcher: starts the engine with the installation's paths, opens the window |
+| `engine/cmd/fabo` | the launcher: starts the engine with the installation's paths, opens the window. On Windows (`*_windows.go`), `bin\fabo.exe`, the `fabo` command |
+| `engine/cmd/fabo-win` | the Windows host: Docker API pipes, WSL bridge, first-run setup, updates (docs/windows.md) |
+| `engine/cmd/fabo-mkrootfs` | builds Fabo Linux, the WSL distro, from Alpine's minirootfs |
+| `engine/internal/wslbridge` | the multiplexed Windows ↔ WSL bridge protocol, both ends |
+| `engine/internal/winhost` | what the Windows programs share: paths, setup.json, pipes, the bundle manifest |
 | `engine/cmd/fabo-daemon` | the daemon: Docker API, VM or host-process agent, Finder mount, USB |
 | `engine/cmd/fabo-init` | the guest agent's entry point, PID 1 in the VM |
 | `engine/cmd/fabo-mkinitramfs` | packs the agent into the initramfs the VM boots |
@@ -143,6 +147,7 @@ MyGo window ┘
 | `packaging/` | `cli-pins.env`, the macOS entitlement, Linux `.deb` and `.rpm` |
 | `tests/e2e.sh` | about 500 checks through the real `docker` CLI, plus a leak soak (`K8S=1` adds Kubernetes) |
 | `tests/linux-host.sh` | the Linux build, driven in a privileged container |
-| `contrib/`, `installer/windows` | upstream's systemd, WSL and Windows scripts, not yet adapted to the Go binaries |
+| `contrib/linux`, `packaging/linux` | upstream's systemd and Linux package scripts, not yet adapted to the Go binaries |
+| `contrib/windows`, `contrib/wsl`, `installer/windows` | the Windows host's scripts and MSI source, for the Go binaries (docs/windows.md) |
 | `bench/results.json` | upstream Kiri's measured results |
 | `brand/` | icons and logos |

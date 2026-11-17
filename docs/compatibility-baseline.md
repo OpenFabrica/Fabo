@@ -141,7 +141,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | Kubernetes 后台同步 | kubeconfig 目前在 `start` / `status` 时同步；待接 daemon 启动时的后台同步，覆盖迁移或重启后的刷新 | 上游 `crates/kiri/src/kubeconfig.rs`；见 [CLI 工具说明](cli-tools.md) |
 | raw 兼容差异 | Go raw 使用独立存储，不共享 daemon / Rust 镜像索引；`images` 未复刻 Rust 的显示格式与拉取时间列。后续需决定保留差异还是进一步对齐 | 上游 `crates/kiri/src/main.rs` 的 `raw` 分发；见 [CLI 工具说明](cli-tools.md) |
 | 自动更新与诊断 | 更新源检查、下载与安装、崩溃报告、诊断报告和日志脱敏尚无对应 Go 实现 | 上游 `crates/kiri/src/update.rs`、`diag/` |
-| Windows 宿主与安装 | `fabo-win` 宿主的 named pipe、托盘、设置、更新与 Windows 系统凭据存储，WSL 连接用的 `fabo bridge`，以及 MSI 构建仍待移植。WSL 引擎启动脚本已支持 Go，但安装 / 打包链仍携带旧 `fabo-init` 等产物要求；不能把整个 WSL 引擎侧列为未实现 | 上游 `crates/kiri-win/`、`bridge.rs`；本仓库 `installer/windows`、`contrib/windows`、`contrib/wsl`、`scripts/fabo-linux.sh` |
+| Windows 宿主余项 | 宿主（named pipe、docker_engine 让位、`fabo bridge`、首次设置、引擎启停、更新）、窗口与托盘、凭据管理器、`bin\fabo.exe` 和 bundle / MSI 打包链已移植，见 [Fabo for Windows](windows.md)。未移植：`*.fabo.local` 的 NRPT 与 DNS 应答、Windows 回环代理中继（`fabo hostrelay`）、usbipd-win 的 USB 界面、`.wslconfig` 资源设置、诊断报告、「用 Docker 还是 Fabo 构建」选择；MSI 与 exe 未签名 | 上游 `crates/kiri-win/src/dns.rs`、`relay.rs`、`usb.rs`、`wslconfig.rs`、`diag.rs`，`crates/kiri/src/hostrelay.rs`、`buildwith.rs` |
 | Linux 包与 host-access | Linux 构建 / 打包链仍要求 Cargo / Rust 窗口或旧 `fabo-init`，需改为 Go launcher、daemon、guest 与 MyGo；`fabo host-access` 尚无 Go 版本 | 本仓库 `packaging/linux`、`scripts/ci/linux-build.sh`、`scripts/ci/linux-packages.sh`、`contrib/linux`；上游 `hostaccess.rs` |
 | 发版与 Lite | 更新源 JSON、发版 tarball、Kiri Lite 与首次 Docker CLI 下载回退待补；`NOTICE` 需按 Go 依赖重新生成。macOS app 和 DMG 构建脚本已有实现，发布验证另见下表 | 上游 `xtask/src/main.rs` 的 `release`；本仓库 [发版说明](release.md) |
 | CI | 尚无执行 Go vet / 测试 / 构建的工作流；当前仅保留 CodeQL | `.github/workflows/` |
@@ -154,7 +154,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | --- | --- |
 | 全量回归 | 重跑 `tests/e2e.sh`，复核下文保留的历史失败与跳过项；machine、Kubernetes、USB 和桌面专项不能替代全量结果 |
 | 宿主与文件系统 | 在适用环境复跑 `tests/finder-mount.sh`、`tests/kernel-features.sh`；修正并复跑 `tests/linux-host.sh` 的网桥冲突和 cgroup 委派环境 |
-| Windows / Linux 桌面 | 本轮桌面仅交叉编译通过；真实 Linux / Windows 的窗口、输入、凭据 helper 与引擎连接仍需验证。WSL 启动脚本已有局部验证，`tests/wsl.sh` 和完整 Windows 宿主 / MSI 链路仍需回归 |
+| Windows / Linux 桌面 | 桌面仅交叉编译通过，真实 Linux 窗口仍需验证。Windows 宿主、窗口、`bin\fabo.exe` 只在 macOS 上交叉编译并单元测试（桥接协议含端到端测试），x86_64 与 arm64 bundle 已实际组装并通过 `scripts/check-wxs.py`；MSI 构建、安装升级卸载、named pipe、WSL 启停、凭据管理器、更新和 `tests/wsl.sh` 都未在 Windows 上运行，逐项清单见 [Fabo for Windows](windows.md#需要在真实-windows-上验证) |
 | 私人仓库 | 本地 Registry 鉴权、credential helper、macOS Keychain 和认证头已有专项；真实私人仓库账号、token 与私有镜像拉取仍需实测 |
 | 公网共享 | 本机自签名中继和开发版引擎已实测；还需在公网服务器（真实泛域名证书、DNS）和真实 GitHub OAuth App（设备码、组织白名单）上验证，以及 Linux 宿主引擎上的 `fabo share` |
 | USB 硬件 | 物理设备捕获、root helper 安装 / 移除、解绑与断连恢复仍需设备验证；软件 USB 专项已通过 |
@@ -175,7 +175,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | 存储、运行时和迁移专项 | Debian ARM64 | 验证嵌套卷初始化、匿名卷清理、tmpfs 和 bind 退出码。另有容器网络、日志、exec、服务生命周期和 Rust 数据迁移记录 |
 | Kubernetes 专项 | Apple Silicon macOS，Linux ARM64 | macOS 验证 k3s 启停与恢复、应用部署、TCP/UDP LoadBalancer、Pod 与 ClusterIP 转发。Linux ARM64 验证基础能力与转发 |
 | USB 专项 | Apple Silicon macOS，软件 USB 设备 | **42 通过、0 失败**。覆盖软件串口和 HID |
-| Windows WSL | Linux 上的 WSL 启动脚本验证环境 | Alpine 和 systemd 启停验证通过。真实 Windows 上的安装、更新、named pipe 和代理仍需整机回归 |
+| Windows WSL | Linux 上的 WSL 启动脚本验证环境；macOS 上的 Windows 交叉构建 | Alpine 和 systemd 启停验证通过（新增的 `fabo-start stop` 未复验）。Go 宿主与桥接只有单元 / 进程内端到端测试，真实 Windows 上的安装、更新、named pipe 和代理仍需整机回归 |
 
 各专项覆盖全量用例的一部分，计数有重叠。存储修复之后尚未重跑全量套件，保留原全量结果作为历史基线。
 
@@ -188,7 +188,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | 存储 | 命名和匿名卷、嵌套 bind 下的镜像内容初始化、tmpfs、双向 `docker cp`、`diff`、`export`、`commit`。旧 Go 记录缺少匿名卷归属时保留卷数据 |
 | 镜像与构建 | 拉取、标签、归档导入导出、历史、清理、仓库登录和推送、Compose、BuildKit/Buildx、Apple Silicon 上的 Rosetta |
 | macOS 与桌面 | Go VM 启停、空闲休眠、资源设置，Finder 只读浏览，MyGo 主窗口（深浅主题、15 种语言、可折叠侧栏；概览、容器、镜像、卷、网络、构建器、设置；详情坞含持续日志、交互式容器终端、文件浏览、环境变量与端口设置、镜像分层与安全扫描；仓库登录与凭据拉取；Kubernetes Pods / Services、持续 Pod 日志与集群管理；原生宿主多会话终端）、托盘 |
-| 安装与数据 | macOS 和 Linux 已验证 Rust 离线导入。Windows WSL 的引擎一侧已实现，平台验证范围见上表 |
+| 安装与数据 | macOS 和 Linux 已验证 Rust 离线导入。Windows：WSL 引擎、Go 宿主、首次设置、更新与 MSI 打包链已实现，平台验证范围见上表 |
 
 ## 最近一次全量回归的失败项
 

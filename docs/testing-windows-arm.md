@@ -1,7 +1,9 @@
 # Testing Fabo for Windows on Arm
 
-> Upstream Kiri's procedure, for its Rust Windows host. Fabo has no
-> Windows host yet; see [compatibility-baseline.md](compatibility-baseline.md).
+> Upstream Kiri's procedure, for its Rust Windows host. Fabo's Go host is
+> built differently (`make windows WIN_ARCH=arm64` on any OS, the MSI with
+> `scripts/windows-msi.ps1 -Arch arm64`; see [windows.md](windows.md)); the
+> findings on VMs and WSL2 below still hold.
 
 Fabo for Windows on Arm is the same bundle and MSI as the x86-64 one, built
 with `--arch arm64`. It is arm64 all the way down: `fabo-win.exe` for

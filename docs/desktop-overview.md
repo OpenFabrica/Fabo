@@ -344,23 +344,23 @@ cd desktop
 go run .
 ```
 
-Set `FABO_SOCKET` or `FABO_PIPE` to use a development instance. The Windows
-desktop code can connect to an existing Fabo pipe, but there is no Windows
-host or installer in this tree yet.
+Set `FABO_SOCKET` or `FABO_PIPE` to use a development instance. On Windows
+the window also talks to `fabo-win` on `\\.\pipe\fabo-win` for first-run
+setup, engine start and stop, and updates; see [Fabo for Windows](windows.md).
 
 ### Engine selection in Windows WSL
 
-The Windows host (`fabo-win`: the named pipe, tray, setup and updates) and
-the `fabo bridge` that carried its connections into the distro were Rust and
-are not ported yet. This section describes the distro side, which the Go
-launcher and daemon keep. Both Windows architectures use static Linux Go
+The Windows host (`fabo-win`: the named pipe, setup, engine control and
+updates) and the `fabo bridge` that carries its connections into the distro
+are Go; [Fabo for Windows](windows.md) describes them. This section
+describes the distro side. Both Windows architectures use static Linux Go
 binaries for the daemon and guest agent, installed in `/usr/libexec/fabo`.
 
 New distros use `auto` in `/etc/fabo/wsl-engine`. The launcher starts the
 engine when both Go binaries are installed and cgroup v2 is available.
 `go` means the same and survives updates. Any other value is an error,
 since this tree has only the Go engine.
-Restart with `/usr/local/bin/fabo-start restart` on Fabo Linux or with
+Restart with `/usr/local/bin/fabo-start restart` (or `stop`) on Fabo Linux or with
 `systemctl restart fabo` on a distro using systemd. From Windows,
 `docker --context fabo version` checks the connection. The raw
 `/version` response identifies Go with `"FaboEngine":"go"`.
@@ -1820,13 +1820,15 @@ Internal bridge networks retain their isolated routing.
 
 #### Windows system proxy in WSL
 
-The Windows tray sends the current system proxy and the relay port map to
-`PUT /fabo/proxy/system` over the existing Docker bridge. The Go daemon
+`fabo-win` sends the current system proxy and the relay port map to
+`PUT /fabo/proxy/system` over the existing Docker bridge, every minute. The
+Go host has no proxy relay yet (upstream's `relay.rs` / `hostrelay.rs`), so
+its relay map is empty and a proxy on Windows' own loopback is not reachable
+from containers. The Go daemon
 keeps that snapshot in memory. System mode uses Windows settings when a
 snapshot is available and falls back to the Linux environment before the
 first update. Custom mode uses the saved addresses. Both modes use the
-relay for mapped loopback ports. The Windows tray resends the snapshot
-when it reconnects to the daemon. PAC state is displayed without
+relay for mapped loopback ports. PAC state is displayed without
 executing the PAC file.
 
 With proxy variables enabled for containers, the Go guest opens a
