@@ -3,6 +3,7 @@ module github.com/OpenFabrica/Fabo/engine
 go 1.27.3
 
 require (
+	github.com/Microsoft/go-winio v0.6.2
 	github.com/containers/gvisor-tap-vsock v0.9.0
 	github.com/google/go-containerregistry v0.22.1
 	github.com/google/nftables v0.3.0
@@ -17,7 +18,6 @@ require (
 )
 
 require (
-	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/docker/cli v29.7.2+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/google/btree v1.1.2 // indirect
