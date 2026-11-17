@@ -20,7 +20,7 @@ import (
 
 const apiVersion = "1.47"
 
-// guestProtocol is the host-guest protocol this engine speaks, as "0.5".
+// guestProtocol is the host-guest protocol this engine speaks, as "0.6".
 var guestProtocol = guestwire.ProtocolString(guestwire.Version)
 
 func (e *Engine) version() string {
@@ -120,6 +120,7 @@ func (e *Engine) Handler() http.Handler {
 	mux.HandleFunc("POST /fabo/containers/{id}/ports", e.setPortsHTTP)
 	mux.HandleFunc("POST /fabo/containers/{id}/domain", e.setDomainHTTP)
 	mux.HandleFunc("GET /fabo/containers/{id}/listening", e.listeningHTTP)
+	mux.HandleFunc("POST /fabo/debug/dial", e.debugDialHTTP)
 	mux.HandleFunc("POST /fabo/k8s/forward", e.forwardKubernetesHTTP)
 	mux.HandleFunc("DELETE /fabo/k8s/forward/{port}", e.unforwardKubernetesHTTP)
 	mux.HandleFunc("POST /containers/{id}/rename", e.renameHTTP)

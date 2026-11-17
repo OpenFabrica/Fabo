@@ -33,12 +33,12 @@ func TestVersionReportsGuestProtocol(t *testing.T) {
 		}
 	}
 	get("/version", &version)
-	if version.FaboGuestProtocol != "0.5" {
+	if version.FaboGuestProtocol != "0.6" {
 		t.Fatalf("/version protocol %q", version.FaboGuestProtocol)
 	}
 	found := false
 	for _, c := range version.Components {
-		if c.Name == "fabo-init" && c.Details["Protocol"] == "0.5" {
+		if c.Name == "fabo-init" && c.Details["Protocol"] == "0.6" {
 			found = true
 		}
 		// docker version shows the Engine's Go version from its details.
@@ -51,7 +51,7 @@ func TestVersionReportsGuestProtocol(t *testing.T) {
 	}
 	var info struct{ FaboGuestProtocol string }
 	get("/info", &info)
-	if info.FaboGuestProtocol != "0.5" {
+	if info.FaboGuestProtocol != "0.6" {
 		t.Fatalf("/info protocol %q", info.FaboGuestProtocol)
 	}
 }

@@ -91,6 +91,18 @@ func (refs forwardingRefs) forwardBridge(bridge netlink.Link, subnet netip.Prefi
 			&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: host[:]},
 			&expr.Immediate{Register: 1, Data: binary.BigEndian.AppendUint16(nil, guestwire.HostRelayPort)},
 		})
+		// Other UDP to the host address goes to the UDP relay of fabo-init
+		// (hostbound_udp_linux.go), which reads the port from conntrack.
+		// The resolver rules above match first.
+		add(nat, &expr.Redir{RegisterProtoMin: 1}, onBridge, sourceSubnet(subnet), []expr.Any{
+			&expr.Meta{Key: expr.MetaKeyL4PROTO, Register: 1},
+			&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: []byte{unix.IPPROTO_UDP}},
+			&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseNetworkHeader, Offset: 16, Len: 4},
+			&expr.Cmp{Op: expr.CmpOpEq, Register: 1, Data: host[:]},
+			&expr.Payload{DestRegister: 1, Base: expr.PayloadBaseTransportHeader, Offset: 2, Len: 2},
+			&expr.Cmp{Op: expr.CmpOpNeq, Register: 1, Data: binary.BigEndian.AppendUint16(nil, 53)},
+			&expr.Immediate{Register: 1, Data: binary.BigEndian.AppendUint16(nil, guestwire.HostRelayPort)},
+		})
 	}
 	forwarding := !internal && (ipv6 || uplinkName != "")
 	if forwarding {

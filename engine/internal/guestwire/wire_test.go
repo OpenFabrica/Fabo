@@ -16,8 +16,8 @@ func TestHelloMatchesRustWireLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The layout is the Rust guest's; the version field (bytes 6-7) holds
-	// protocol 0.5 (major in the high byte), 05 00 on the wire.
-	const want = "24000000010005000100000000000000020000000000000003000000000000000400000000000000"
+	// protocol 0.6 (major in the high byte), 06 00 on the wire.
+	const want = "24000000010006000100000000000000020000000000000003000000000000000400000000000000"
 	if got := hex.EncodeToString(buf.Bytes()); got != want {
 		t.Fatalf("hello encoding %s, want %s", got, want)
 	}
@@ -69,8 +69,16 @@ func TestHelloRefusesProtocol04(t *testing.T) {
 	if err := WriteFrame(&buf, Hello{Version: 4}.Frame()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ReadHello(&buf); err == nil || !strings.Contains(err.Error(), "guest protocol 0.4, expected 0.5") {
+	if _, err := ReadHello(&buf); err == nil || !strings.Contains(err.Error(), "guest protocol 0.4, expected 0.6") {
 		t.Fatalf("protocol 0.4 guest: %v", err)
+	}
+	// A 0.5 guest relays host-bound connections with the old header.
+	buf.Reset()
+	if err := WriteFrame(&buf, Hello{Version: 5}.Frame()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadHello(&buf); err == nil || !strings.Contains(err.Error(), "guest protocol 0.5, expected 0.6") {
+		t.Fatalf("protocol 0.5 guest: %v", err)
 	}
 	buf.Reset()
 	if err := WriteFrame(&buf, Hello{Version: Version}.Frame()); err != nil {
@@ -83,7 +91,7 @@ func TestHelloRefusesProtocol04(t *testing.T) {
 
 // Versions read as major.minor, the major in the high byte.
 func TestProtocolString(t *testing.T) {
-	for version, want := range map[uint16]string{4: "0.4", Version: "0.5", 1<<8 | 2: "1.2"} {
+	for version, want := range map[uint16]string{4: "0.4", Version: "0.6", 1<<8 | 2: "1.2"} {
 		if got := ProtocolString(version); got != want {
 			t.Fatalf("ProtocolString(%d) = %q, want %q", version, got, want)
 		}

@@ -239,3 +239,71 @@ func (c *RelayTCPConn) Read(p []byte) (int, error) {
 	}
 	return n, err
 }
+
+// HostBoundTarget is the reserved relay header that starts a HostBound
+// header, beside EngineRelayTarget (0.0.0.0:1).
+var HostBoundTarget = netip.AddrPortFrom(netip.IPv4Unspecified(), 2)
+
+// HostBound is what the guest tells the host about a connection or a UDP
+// flow a container opened to host.docker.internal: the protocol, the
+// container's address and the port it asked for on the host. The host
+// connects to that port on its loopback.
+type HostBound struct {
+	UDP    bool
+	Source netip.AddrPort
+	Port   uint16
+}
+
+// WriteHostBound sends a HostBound header: the reserved target, then the
+// protocol (6 or 17), the IPv4 source address and port, and the port.
+func WriteHostBound(w io.Writer, h HostBound) error {
+	if h.Port == 0 || !h.Source.Addr().Is4() {
+		return fmt.Errorf("invalid host-bound header %+v", h)
+	}
+	if err := WriteRelayTarget(w, HostBoundTarget); err != nil {
+		return err
+	}
+	var body [9]byte
+	body[0] = 6
+	if h.UDP {
+		body[0] = 17
+	}
+	ip := h.Source.Addr().As4()
+	copy(body[1:5], ip[:])
+	binary.BigEndian.PutUint16(body[5:7], h.Source.Port())
+	binary.BigEndian.PutUint16(body[7:9], h.Port)
+	return write(w, body[:])
+}
+
+// ReadHostBound reads what the guest relays to the host: a HostBound
+// header, or the engine socket's reserved target, reported by engine.
+func ReadHostBound(r io.Reader) (h HostBound, engine bool, err error) {
+	target, err := ReadRelayTarget(r)
+	if err != nil {
+		return HostBound{}, false, err
+	}
+	switch target {
+	case EngineRelayTarget:
+		return HostBound{}, true, nil
+	case HostBoundTarget:
+	default:
+		return HostBound{}, false, fmt.Errorf("unexpected host-bound target %s", target)
+	}
+	var body [9]byte
+	if _, err := io.ReadFull(r, body[:]); err != nil {
+		return HostBound{}, false, err
+	}
+	switch body[0] {
+	case 6:
+	case 17:
+		h.UDP = true
+	default:
+		return HostBound{}, false, fmt.Errorf("unknown host-bound protocol %d", body[0])
+	}
+	h.Source = netip.AddrPortFrom(netip.AddrFrom4([4]byte(body[1:5])), binary.BigEndian.Uint16(body[5:7]))
+	h.Port = binary.BigEndian.Uint16(body[7:9])
+	if h.Port == 0 {
+		return HostBound{}, false, fmt.Errorf("invalid host-bound port")
+	}
+	return h, false, nil
+}

@@ -398,6 +398,18 @@ func (s *supervisor) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := localengine.APIPath(r.URL.Path)
 	// Share links don't need the guest: they are served before the wake
 	// logic below, and wake the VM only when a visitor reaches a container.
+	// The relay's peers are read without waking the VM: a connection to
+	// look up exists only while it runs.
+	if path == "/fabo/debug/peers" {
+		s.mu.Lock()
+		var engine *localengine.Engine
+		if s.isActiveLocked() {
+			engine = s.current.engine
+		}
+		s.mu.Unlock()
+		servePeers(w, r, hostPeers, engine)
+		return
+	}
 	if path == "/fabo/share" || strings.HasPrefix(path, "/fabo/share/") {
 		if s.shares == nil {
 			supervisorError(w, http.StatusNotFound, errors.New("public share links are not set up for this daemon"))

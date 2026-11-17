@@ -25,13 +25,17 @@ const (
 // 0.5 adds SettledMessage, which the host requires before exec into a
 // container started early: a peer of another version is refused at Hello
 // rather than left waiting for an event it never sends.
+//
+// 0.6 changes the host-bound relay header (HostBound): it carries the
+// protocol and the container's source address, and UDP is relayed to the
+// host as well as TCP.
 const (
 	ProtocolMajor = 0
-	ProtocolMinor = 5
+	ProtocolMinor = 6
 	Version       = ProtocolMajor<<8 | ProtocolMinor
 )
 
-// ProtocolString spells a Hello version field as major.minor, as "0.5".
+// ProtocolString spells a Hello version field as major.minor, as "0.6".
 func ProtocolString(version uint16) string {
 	return fmt.Sprintf("%d.%d", version>>8, version&0xff)
 }
