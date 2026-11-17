@@ -785,5 +785,14 @@
   "Include containers": "Kapsayıcıları ekle",
   "Make report": "Rapor oluştur",
   "Saved: %s": "Kaydedildi: %s",
-  "Diagnostic report saved to the Desktop": "Tanılama raporu Masaüstüne kaydedildi"
+  "Diagnostic report saved to the Desktop": "Tanılama raporu Masaüstüne kaydedildi",
+  "On this Mac": "Bu Mac'te",
+  "%s is back on the Mac": "%s Mac'e geri döndü",
+  "Give back to the Mac: ": "Mac'e geri ver: ",
+  "Path": "Yol",
+  "Device node": "Aygıt düğümü",
+  "Location": "Konum",
+  "Speed": "Hız",
+  "Containers run on this computer's own kernel, so they see its USB devices as they are: docker run --device with the path shown.": "Kapsayıcılar bu bilgisayarın kendi çekirdeğinde çalışır, bu yüzden USB aygıtlarını olduğu gibi görür: gösterilen yolla docker run --device.",
+  "A device in Fabo is gone from the Mac until you detach it. In a container: --device /dev/ttyUSB0 (serial), /dev/input (HID) or /dev/bus/usb (raw).": "Fabo'daki bir aygıt, ayırana kadar Mac'ten kaybolur. Kapsayıcıda: --device /dev/ttyUSB0 (seri), /dev/input (HID) veya /dev/bus/usb (ham)."
 }

@@ -32,18 +32,73 @@ func (in installation) usbDevices() ([]usbhost.Device, error) {
 	e = json.Unmarshal(raw, &devices)
 	return devices, e
 }
-func (in installation) usbAttached() (map[string]bool, error) {
+// usbSession is one device the engine holds, as GET /fabo/usb lists it.
+type usbSession struct {
+	Location, Name string
+	Since          int64
+}
+
+// usbSessions reads the devices in Fabo. GET /fabo/usb neither wakes the
+// VM nor counts as activity (fabo-daemon's supervisor), so the window may
+// poll it.
+func (in installation) usbSessions() ([]usbSession, error) {
 	c := newCommandClient(in.socket())
 	defer c.http.CloseIdleConnections()
-	var entries []struct{ Location string }
+	var entries []usbSession
 	e := c.request("GET", "/fabo/usb", nil, &entries)
+	return entries, e
+}
+
+// usbAttached is the locations of the devices in Fabo.
+func (in installation) usbAttached() (map[string]bool, error) {
+	entries, e := in.usbSessions()
 	out := map[string]bool{}
 	for _, d := range entries {
 		out[d.Location] = true
 	}
 	return out, e
 }
-func usbList() error {
+
+// usbListing is the Mac's devices for the window, with which are in Fabo.
+// An engine that is not running has none in it.
+func usbListing() usbList {
+	in, e := locate()
+	if e != nil {
+		return usbList{Can: "attach", Error: e.Error()}
+	}
+	devices, e := in.usbDevices()
+	if e != nil {
+		return usbList{Can: "attach", Error: e.Error()}
+	}
+	sessions, _ := in.usbSessions()
+	return usbList{Can: "attach", Devices: macUSBRows(devices, sessions)}
+}
+
+// macUSBRows joins the Mac's devices with the engine's sessions. A session
+// with no device on the Mac's bus (a software test device) is listed too,
+// as upstream's ui_list does, so it can still be detached.
+func macUSBRows(devices []usbhost.Device, sessions []usbSession) []usbRow {
+	held := map[string]usbSession{}
+	for _, s := range sessions {
+		held[s.Location] = s
+	}
+	rows := make([]usbRow, 0, len(devices)+len(sessions))
+	seen := map[string]bool{}
+	for _, d := range devices {
+		s, in := held[d.Location]
+		rows = append(rows, usbRow{BusID: d.Location, Name: d.Name, ID: d.ID(), Kind: d.Kind, Speed: d.SpeedName(), InFabo: in, Since: s.Since})
+		seen[d.Location] = true
+	}
+	for _, s := range sessions {
+		if s.Location != "" && !seen[s.Location] {
+			rows = append(rows, usbRow{BusID: s.Location, Name: s.Name, InFabo: true, Since: s.Since})
+		}
+	}
+	return rows
+}
+
+// usbPrint is `fabo usb list`: the Mac's devices as a table.
+func usbPrint() error {
 	in, e := locate()
 	if e != nil {
 		return e

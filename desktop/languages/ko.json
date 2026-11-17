@@ -785,5 +785,14 @@
   "Include containers": "컨테이너 포함",
   "Make report": "보고서 만들기",
   "Saved: %s": "저장됨: %s",
-  "Diagnostic report saved to the Desktop": "진단 보고서를 바탕 화면에 저장했습니다"
+  "Diagnostic report saved to the Desktop": "진단 보고서를 바탕 화면에 저장했습니다",
+  "On this Mac": "이 Mac에 있음",
+  "%s is back on the Mac": "%s이(가) Mac으로 돌아왔습니다",
+  "Give back to the Mac: ": "Mac으로 돌려주기: ",
+  "Path": "경로",
+  "Device node": "장치 노드",
+  "Location": "위치",
+  "Speed": "속도",
+  "Containers run on this computer's own kernel, so they see its USB devices as they are: docker run --device with the path shown.": "컨테이너는 이 컴퓨터의 커널에서 직접 실행되므로 USB 장치를 그대로 봅니다: 표시된 경로로 docker run --device를 사용하세요.",
+  "A device in Fabo is gone from the Mac until you detach it. In a container: --device /dev/ttyUSB0 (serial), /dev/input (HID) or /dev/bus/usb (raw).": "Fabo에 넘긴 장치는 분리할 때까지 Mac에서 사라집니다. 컨테이너에서는: --device /dev/ttyUSB0(시리얼), /dev/input(HID) 또는 /dev/bus/usb(원시)."
 }

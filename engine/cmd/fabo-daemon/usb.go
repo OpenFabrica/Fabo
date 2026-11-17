@@ -28,9 +28,13 @@ type usbDevice struct {
 	speed, id      uint32
 }
 
+// usbStatus is one attached device as GET /fabo/usb lists it. Since is
+// when it was attached (Unix seconds), for the window's Attached column,
+// as upstream's daemon reports it.
 type usbStatus struct {
 	Location, Name string
 	Port           int32
+	Since          int64
 }
 
 type usbSession struct {
@@ -208,7 +212,7 @@ func (u *usbSessions) attach(w http.ResponseWriter, r *http.Request, device usbD
 		return
 	}
 	u.mu.Lock()
-	session.Port = port
+	session.Port, session.Since = port, time.Now().Unix()
 	u.mu.Unlock()
 	done := make(chan struct{})
 	go func() {

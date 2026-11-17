@@ -61,3 +61,16 @@ func TestUSBShutdownCancelsPendingAttachment(t *testing.T) {
 		t.Fatalf("shutdown left an attached device: %s", list.Body.String())
 	}
 }
+
+// TestUSBListSince: GET /fabo/usb lists attached devices with the time
+// they were attached, and leaves out ones still connecting.
+func TestUSBListSince(t *testing.T) {
+	sessions := newUSBSessions(nil)
+	sessions.sessions["0x01100000"] = &usbSession{usbStatus: usbStatus{Location: "0x01100000", Name: "CP2102", Port: 0, Since: 1763370000}}
+	sessions.sessions["pending"] = &usbSession{usbStatus: usbStatus{Location: "pending", Port: -1}}
+	list := httptest.NewRecorder()
+	sessions.list(list)
+	if got := list.Body.String(); got != `[{"Location":"0x01100000","Name":"CP2102","Port":0,"Since":1763370000}]`+"\n" {
+		t.Fatalf("list = %s", got)
+	}
+}

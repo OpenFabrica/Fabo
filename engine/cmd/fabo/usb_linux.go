@@ -9,7 +9,32 @@ import (
 	"github.com/OpenFabrica/Fabo/engine/internal/usbhost"
 )
 
-func usbList() error {
+// usbListing is the machine's devices for the window: containers see them
+// already, so there is nothing to attach.
+func usbListing() usbList {
+	devices, e := usbhost.List()
+	if e != nil {
+		return usbList{Can: "none", Error: e.Error()}
+	}
+	return usbList{Can: "none", Devices: linuxUSBRows(devices)}
+}
+
+// linuxUSBRows are devices as the window lists them: keyed by device node,
+// with the serial port where there is one, as `--device` takes it.
+func linuxUSBRows(devices []usbhost.Device) []usbRow {
+	rows := make([]usbRow, 0, len(devices))
+	for _, d := range devices {
+		path := d.Path
+		if d.TTY != "" {
+			path = d.TTY
+		}
+		rows = append(rows, usbRow{BusID: d.Path, Name: d.Name, ID: d.ID(), Kind: d.Kind, Path: path})
+	}
+	return rows
+}
+
+// usbPrint prints this machine's devices, which containers already see.
+func usbPrint() error {
 	devices, e := usbhost.List()
 	if e != nil {
 		return e
@@ -33,7 +58,9 @@ func usbList() error {
 	}
 	return nil
 }
+// usbChange refuses: there is nothing to attach on Linux.
 func usbChange(string, string) error {
 	return errors.New("nothing to attach here: containers already see this machine's USB devices (--device). Under Windows, attach the device to WSL with usbipd-win first")
 }
+// usbRemoveHelper refuses: the helper is a macOS thing.
 func usbRemoveHelper() error { return errors.New("the USB helper is only used on macOS") }

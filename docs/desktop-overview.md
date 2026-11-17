@@ -39,8 +39,10 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   the title strip. A window narrower than 1040 points folds it on its own; unfolding
   it there lasts until the window widens, without changing the saved choice. Kubernetes is a group of its own: its heading shows the cluster's
   state and opens its settings, and Pods and Services open their lists.
-  USB devices is a page on Windows only (devices through usbipd-win, see
-  docs/windows.md); elsewhere it is not built yet and stays out of the sidebar. Share lists
+  USB devices lists the machine's USB devices: on Windows through
+  fabo-win and usbipd-win (see docs/windows.md), on a Mac and on Linux
+  through the launcher (see USB passthrough on macOS). Without either it
+  is not built and stays out of the sidebar. Share lists
   public share links (see [Public share links](#public-share-links)).
 - **Title strip.** On the right sit the search field of the page's table
   (Command/Ctrl+K focuses it), then Terminal and Settings.
@@ -1994,6 +1996,18 @@ Linux driver path with software serial and HID devices. Run
 `tests/usb.sh` with `FABO` pointing to the built `fabo` and an isolated Docker
 context to verify that path. CLI contracts and host capture verification
 boundaries are documented in [CLI tools](cli-tools.md).
+
+The window's USB page reads `fabo usb list --json` every three seconds
+while it is open: the Mac's devices joined with the daemon's `GET
+/fabo/usb`, which now also reports when each device was attached
+(`Since`, Unix seconds) and, like the listing, neither wakes the VM nor
+counts as activity. **Attach** and **Detach** run `fabo usb attach|detach
+LOCATION`; the first attach installs the helper behind macOS's password
+prompt, and closing that prompt changes nothing and says nothing. A
+session with no device on the Mac's bus (a `fabo usb fake` device) is
+listed too, so it can be detached. On Linux containers already see the
+host's devices, so the page lists them with the path to pass to
+`--device` and has no buttons.
 
 ### Public share links
 

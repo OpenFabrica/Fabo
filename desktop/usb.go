@@ -2,24 +2,30 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
 )
 
-// The USB page, on Windows only: fabo-win lists the PC's devices through
+// The USB page. On Windows fabo-win lists the PC's devices through
 // usbipd-win and hands them to WSL, where the engine runs
-// (engine/cmd/fabo-win/usb.go). Upstream: the USB view of
-// crates/kiri/src/ui/index.html with crates/kiri-win/src/usb.rs. On a Mac
-// the engine has no list of the machine's devices (`fabo usb` enumerates
-// and attaches them itself), so the page stays a placeholder there.
+// (engine/cmd/fabo-win/usb.go). On a Mac and on Linux the launcher does:
+// `fabo usb list --json` in the same shape, and on a Mac `fabo usb
+// attach|detach LOCATION`, which installs the USB helper behind a password
+// prompt the first time. Linux containers already see the machine's
+// devices, so there the page only lists them. Upstream: the USB view of
+// crates/kiri/src/ui/index.html with crates/kiri/src/usb.rs (ui_list,
+// ui_attach, ui_detach) and crates/kiri-win/src/usb.rs.
 
 const usbPage = "usb"
 
-// hostUSBDevice is one device of fabo-win's GET /usb.
+// hostUSBDevice is one device of fabo-win's GET /usb, or of the
+// launcher's `fabo usb list --json` (engine/cmd/fabo/usb.go's usbRow).
 type hostUSBDevice struct {
 	BusID  string `json:"busid"`
 	Name   string `json:"name"`
@@ -28,14 +34,22 @@ type hostUSBDevice struct {
 	InFabo bool   `json:"inFabo"`
 	Shared bool   `json:"shared"`
 	Since  int64  `json:"since"`
+	// Speed and Kind come from the launcher on a Mac; Path on Linux is the
+	// node to pass to --device.
+	Speed string `json:"speed"`
+	Kind  string `json:"kind"`
+	Path  string `json:"path"`
 }
 
-// hostUSB is fabo-win's GET /usb.
+// hostUSB is fabo-win's GET /usb, or `fabo usb list --json`.
 type hostUSB struct {
 	Missing bool            `json:"missing"`
 	Error   string          `json:"error"`
 	Devices []hostUSBDevice `json:"devices"`
 	Busy    []string        `json:"busy"`
+	// Can is the launcher's "attach" (a Mac) or "none" (Linux, where
+	// containers already see the devices); fabo-win leaves it empty.
+	Can string `json:"can"`
 }
 
 // hostUSBResult answers a USB action that did not fail.
@@ -72,8 +86,62 @@ type usbUI struct {
 	problem string
 }
 
-// hasUSB reports whether the window has a USB page: only with fabo-win.
-func (s *desktop) hasUSB() bool { return s.host != nil }
+// hasUSB reports whether the window has a USB page: with fabo-win, or with
+// the launcher beside it on a Mac or Linux.
+func (s *desktop) hasUSB() bool { return s.host != nil || s.usbByLauncher() }
+
+// usbByLauncher reports whether the devices come from `fabo usb` rather
+// than fabo-win. Windows' fabo.exe hands USB to WSL's fabo, which cannot
+// see the PC's devices, so there it is fabo-win or nothing.
+func (s *desktop) usbByLauncher() bool {
+	return s.host == nil && s.launcher != nil && runtime.GOOS != "windows"
+}
+
+// usbCanMove reports whether devices move in and out of Fabo here: not on
+// Linux, where containers see them as they are.
+func (s *desktop) usbCanMove() bool { return s.usb.view.Can != "none" }
+
+// usbOnMac reports whether the devices are a Mac's: the launcher says it
+// can attach them. Read from the listing rather than the build, so the
+// wording follows the data in tests too.
+func (s *desktop) usbOnMac() bool { return s.host == nil && s.usb.view.Can == "attach" }
+
+// usbHere is where a device not in Fabo is, in the system's own words.
+func (s *desktop) usbHere() string {
+	if s.usbOnMac() {
+		return tr("在这台 Mac 上", "On this Mac")
+	}
+	return tr("在这台电脑上", "On this PC")
+}
+
+// readUSB reads the devices from fabo-win or the launcher.
+func (s *desktop) readUSB(ctx context.Context) (hostUSB, error) {
+	if s.host != nil {
+		return s.host.usb(ctx)
+	}
+	var v hostUSB
+	out, err := s.launcher(ctx, "usb", "list", "--json")
+	if err == nil {
+		err = json.Unmarshal(out, &v)
+	}
+	return v, err
+}
+
+// moveUSB attaches or detaches a device, or installs usbipd-win, through
+// fabo-win or the launcher. A closed password prompt on a Mac is the
+// launcher's "canceled", a choice and not a failure, as for domains.
+func (s *desktop) moveUSB(ctx context.Context, action, busID string) (hostUSBResult, error) {
+	if s.host != nil {
+		return s.host.usbAction(ctx, action, busID)
+	}
+	if _, err := s.launcher(ctx, "usb", action, busID); err != nil {
+		if strings.Contains(err.Error(), "canceled") {
+			return hostUSBResult{Cancelled: true}, nil
+		}
+		return hostUSBResult{}, err
+	}
+	return hostUSBResult{}, nil
+}
 
 // navSoon reports whether a sidebar entry is still a placeholder here.
 func (s *desktop) navSoon(n navItem) bool {
@@ -89,9 +157,8 @@ func (s *desktop) refreshUSB() {
 		return
 	}
 	s.usb.loading = true
-	host := s.host
 	s.run(15*time.Second, func(ctx context.Context) func() {
-		v, err := host.usb(ctx)
+		v, err := s.readUSB(ctx)
 		return func() {
 			s.usb.loading, s.usb.next = false, time.Now().Add(3*time.Second)
 			if err != nil {
@@ -128,17 +195,16 @@ func (s *desktop) usbAct(action, busID, name string) {
 	if action == "install" {
 		key = "usb:install"
 	}
-	if s.host == nil || s.working[key] {
+	if !s.hasUSB() || s.working[key] {
 		return
 	}
 	s.working[key] = true
-	host := s.host
 	timeout := 5 * time.Minute
 	if action == "install" {
 		timeout = 20 * time.Minute
 	}
 	s.run(timeout, func(ctx context.Context) func() {
-		res, err := host.usbAction(ctx, action, busID)
+		res, err := s.moveUSB(ctx, action, busID)
 		return func() {
 			delete(s.working, key)
 			s.usb.next = time.Time{}
@@ -151,6 +217,8 @@ func (s *desktop) usbAct(action, busID, name string) {
 			case res.Cancelled:
 			case action == "attach":
 				s.notices = append(s.notices, fmt.Sprintf(tr("%s 已交给 Fabo", "%s is in Fabo"), name))
+			case action == "detach" && s.usbOnMac():
+				s.notices = append(s.notices, fmt.Sprintf(tr("%s 已还给 Mac", "%s is back on the Mac"), name))
 			case action == "detach":
 				s.notices = append(s.notices, fmt.Sprintf(tr("%s 已还给 Windows", "%s is back on Windows"), name))
 			default:
@@ -169,7 +237,7 @@ func (s *desktop) usbShown() []hostUSBDevice {
 	query := strings.ToLower(strings.TrimSpace(s.search))
 	var shown []hostUSBDevice
 	for _, d := range s.usb.view.Devices {
-		if strings.Contains(strings.ToLower(d.Name+" "+d.ID+" "+d.BusID), query) {
+		if strings.Contains(strings.ToLower(d.Name+" "+d.ID+" "+d.BusID+" "+d.Path), query) {
 			shown = append(shown, d)
 		}
 	}
@@ -222,11 +290,16 @@ func (s *desktop) usbView(c *ui.Context, p palette) {
 	toolbar(c, func() {
 		ui.Text(c, fmt.Sprintf(tr("%d 个设备", "%d devices"), len(v.Devices))).FontSize(12).FontFeatures("tnum").TextColor(p.muted)
 	})
-	// Beside the panel only the name, the state and the button stay.
+	// Beside the panel only the name, the state and the button stay. On
+	// Linux nothing moves: the device's path takes the state's place.
 	narrow := s.narrow()
 	cols := narrowColumns([]column{{tr("设备", "Device"), 0, 1, false}, {"ID", 96, 0, false}, {tr("状态", "State"), 120, 0, false},
 		{tr("接入时间", "Attached"), 86, 0, false}}, narrow, 1, 3)
-	const actionsWidth = 120
+	actionsWidth := float32(120)
+	if !s.usbCanMove() {
+		cols = narrowColumns([]column{{tr("设备", "Device"), 0, 1, false}, {"ID", 96, 0, false}, {tr("路径", "Path"), 200, 0, false}}, narrow, 1, 2)
+		actionsWidth = 0
+	}
 	if !s.dockMax {
 		tableHeader(c, p, cols, actionsWidth, nil)
 		if len(shown) == 0 {
@@ -236,8 +309,7 @@ func (s *desktop) usbView(c *ui.Context, p palette) {
 				ItemKey(func(i int) any { return shown[i].BusID }).
 				Rows(func(r ui.ListRow) { s.usbRow(r.Context, p, narrow, actionsWidth, shown[r.Index]) })
 		}
-		ui.Text(c, tr("交给 Fabo 的设备在 Windows 里会消失，直到你把它还回去。在容器里使用：--device /dev/ttyUSB0（串口）、/dev/input（HID）或 /dev/bus/usb（原始 USB）。",
-			"A device in Fabo is gone from Windows until you detach it. In a container: --device /dev/ttyUSB0 (serial), /dev/input (HID) or /dev/bus/usb (raw).")).
+		ui.Text(c, usbNote(s.usbCanMove(), s.usbOnMac())).
 			FontSize(12).TextColor(p.muted).Padding(12, pageInset, 14, pageInset).Shrink(0)
 	}
 	for _, d := range v.Devices {
@@ -245,6 +317,21 @@ func (s *desktop) usbView(c *ui.Context, p palette) {
 			s.usbDock(c, p, d)
 		}
 	}
+}
+
+// usbNote is the line under the table: where a device in Fabo goes, or on
+// Linux that containers see the devices already.
+func usbNote(canMove, mac bool) string {
+	switch {
+	case !canMove:
+		return tr("容器直接运行在这台电脑的内核上，能原样看到它的 USB 设备：docker run --device 加上显示的路径。",
+			"Containers run on this computer's own kernel, so they see its USB devices as they are: docker run --device with the path shown.")
+	case mac:
+		return tr("交给 Fabo 的设备在 Mac 上会消失，直到你把它还回去。在容器里使用：--device /dev/ttyUSB0（串口）、/dev/input（HID）或 /dev/bus/usb（原始 USB）。",
+			"A device in Fabo is gone from the Mac until you detach it. In a container: --device /dev/ttyUSB0 (serial), /dev/input (HID) or /dev/bus/usb (raw).")
+	}
+	return tr("交给 Fabo 的设备在 Windows 里会消失，直到你把它还回去。在容器里使用：--device /dev/ttyUSB0（串口）、/dev/input（HID）或 /dev/bus/usb（原始 USB）。",
+		"A device in Fabo is gone from Windows until you detach it. In a container: --device /dev/ttyUSB0 (serial), /dev/input (HID) or /dev/bus/usb (raw).")
 }
 
 // usbRow is one device: its name, ID, where it is, since when, and the
@@ -261,13 +348,19 @@ func (s *desktop) usbRow(rc *ui.Context, p palette, narrow bool, actionsWidth fl
 				}
 			})
 		}
+		if !s.usbCanMove() {
+			if !narrow {
+				cell(rc, 200, 0).Children(func() { label(rc, d.Path, p.muted) })
+			}
+			return
+		}
 		cell(rc, 120, 0).Gap(8).Children(func() {
 			if d.InFabo {
 				dot(rc, p, "running")
 				label(rc, tr("在 Fabo 中", "In Fabo"), stateColor(p, "running"))
 			} else {
 				dot(rc, p, "")
-				label(rc, tr("在这台电脑上", "On this PC"), p.muted)
+				label(rc, s.usbHere(), p.muted)
 			}
 		})
 		if !narrow {
@@ -279,7 +372,11 @@ func (s *desktop) usbRow(rc *ui.Context, p palette, narrow bool, actionsWidth fl
 				label(rc, since(s.now, at), p.muted)
 			})
 		}
-	}, func() { s.usbButton(rc, p, d) })
+	}, func() {
+		if s.usbCanMove() {
+			s.usbButton(rc, p, d)
+		}
+	})
 }
 
 // usbButton is a device's Attach or Detach, or what it is waiting for.
@@ -296,7 +393,11 @@ func (s *desktop) usbButton(c *ui.Context, p palette, d hostUSBDevice) {
 		return
 	}
 	if d.InFabo {
-		if labeledButton(c.Key("detach"), p, tr("还回", "Detach"), tr("还给这台电脑：", "Give back to this PC: ")+d.Name, "", plainButton, false) {
+		back := tr("还给这台电脑：", "Give back to this PC: ")
+		if s.usbOnMac() {
+			back = tr("还给这台 Mac：", "Give back to the Mac: ")
+		}
+		if labeledButton(c.Key("detach"), p, tr("还回", "Detach"), back+d.Name, "", plainButton, false) {
 			s.usbAct("detach", d.BusID, d.Name)
 		}
 		return
@@ -308,20 +409,38 @@ func (s *desktop) usbButton(c *ui.Context, p palette, d hostUSBDevice) {
 
 // usbDock is the selected device's details.
 func (s *desktop) usbDock(c *ui.Context, p palette, d hostUSBDevice) {
-	where := tr("在这台电脑上", "On this PC")
-	if d.InFabo {
-		where = tr("在 Fabo 中", "In Fabo")
+	var fields []field
+	switch {
+	case !s.usbCanMove():
+		// Linux: nothing to move, only where containers find it.
+		fields = []field{{"ID", d.ID}, {tr("路径", "Path"), d.Path}, {tr("设备节点", "Device node"), d.BusID}}
+	case s.host == nil:
+		// A Mac: the location `fabo usb attach` takes, and the bus speed.
+		where := s.usbHere()
+		if d.InFabo {
+			where = tr("在 Fabo 中", "In Fabo")
+		}
+		fields = []field{{tr("状态", "State"), where}, {"ID", d.ID}, {tr("位置", "Location"), d.BusID}, {tr("速度", "Speed"), d.Speed}}
+	default:
+		where := s.usbHere()
+		if d.InFabo {
+			where = tr("在 Fabo 中", "In Fabo")
+		}
+		shared := tr("否：第一次交给 Fabo 时 Windows 会请求管理员批准", "No: Windows asks an administrator the first time it goes to Fabo")
+		if d.Shared {
+			shared = tr("是", "Yes")
+		}
+		fields = []field{{tr("状态", "State"), where}, {"ID", d.ID}, {tr("序列号", "Serial number"), d.Serial},
+			{tr("总线 ID", "Bus ID"), d.BusID}, {tr("已共享", "Shared"), shared}}
 	}
-	shared := tr("否：第一次交给 Fabo 时 Windows 会请求管理员批准", "No: Windows asks an administrator the first time it goes to Fabo")
-	if d.Shared {
-		shared = tr("是", "Yes")
-	}
-	fields := []field{{tr("状态", "State"), where}, {"ID", d.ID}, {tr("序列号", "Serial number"), d.Serial},
-		{tr("总线 ID", "Bus ID"), d.BusID}, {tr("已共享", "Shared"), shared}}
 	if d.InFabo && d.Since > 0 {
 		fields = append(fields, field{tr("接入时间", "Attached"), strings.TrimPrefix(since(s.now, d.Since), "—")})
 	}
-	s.dock(c, p, d.Name, nil, []string{tr("信息", "Info")}, func() { s.usbButton(c, p, d) }, func(int) {
+	var actions func()
+	if s.usbCanMove() {
+		actions = func() { s.usbButton(c, p, d) }
+	}
+	s.dock(c, p, d.Name, nil, []string{tr("信息", "Info")}, actions, func(int) {
 		keyValues(c, p, compact(fields))
 	})
 }

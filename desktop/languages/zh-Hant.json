@@ -785,5 +785,14 @@
   "Include containers": "包含容器清單",
   "Make report": "產生報告",
   "Saved: %s": "已儲存：%s",
-  "Diagnostic report saved to the Desktop": "診斷報告已儲存到桌面"
+  "Diagnostic report saved to the Desktop": "診斷報告已儲存到桌面",
+  "On this Mac": "在這台 Mac 上",
+  "%s is back on the Mac": "%s 已還給 Mac",
+  "Give back to the Mac: ": "還給這台 Mac：",
+  "Path": "路徑",
+  "Device node": "裝置節點",
+  "Location": "位置",
+  "Speed": "速度",
+  "Containers run on this computer's own kernel, so they see its USB devices as they are: docker run --device with the path shown.": "容器直接執行在這台電腦的核心上，能原樣看到它的 USB 裝置：docker run --device 加上顯示的路徑。",
+  "A device in Fabo is gone from the Mac until you detach it. In a container: --device /dev/ttyUSB0 (serial), /dev/input (HID) or /dev/bus/usb (raw).": "交給 Fabo 的裝置在 Mac 上會消失，直到你把它還回去。在容器裡使用：--device /dev/ttyUSB0（序列埠）、/dev/input（HID）或 /dev/bus/usb（原始 USB）。"
 }

@@ -98,7 +98,7 @@ MSI 的 UpgradeCode 是 Fabo 自己的 `839A68B8-98E7-4BBD-B1DE-DAB0B047B7D4`，
 
 ### USB（usbipd-win）
 
-WSL 2 经 [usbipd-win](https://github.com/dorssel/usbipd-win)（4.x，微软推荐的工具）拿到 USB 设备，对照上游 `crates/kiri-win/src/usb.rs`。窗口的「USB 设备」页只在 Windows 上可用（macOS / Linux 上仍是占位，见下），走控制管道，引擎停止时页面照常显示（只依赖 fabo-win），已在 WSL 里的设备仍可还回：
+WSL 2 经 [usbipd-win](https://github.com/dorssel/usbipd-win)（4.x，微软推荐的工具）拿到 USB 设备，对照上游 `crates/kiri-win/src/usb.rs`。窗口的「USB 设备」页在 Windows 上走控制管道（macOS / Linux 走启动器，见下），引擎停止时页面照常显示（只依赖 fabo-win），已在 WSL 里的设备仍可还回：
 
 - `GET /usb`：`usbipd state` 的设备（未插着的跳过），每台的总线 ID、名称、`vid:pid`、序列号、是否在 Fabo 里（已 attach 到 WSL）、是否已共享（已 bind）、fabo-win 何时 attach 的；没装 usbipd-win 时 `missing`；正在进行的动作在 `busy` 里，重开窗口也能看到。
 - `POST /usb/attach`、`/usb/detach`（`{"value":"<总线 ID>"}`）、`/usb/install`。
@@ -112,7 +112,7 @@ WSL 2 经 [usbipd-win](https://github.com/dorssel/usbipd-win)（4.x，微软推�
 - 只认 `%ProgramFiles%\usbipd-win\usbipd.exe`，不从 PATH 找（要以管理员运行它，不用用户可写目录里的同名程序）；winget 用 WindowsApps 下的执行别名（上游拼成 System32 下的路径）。
 - 不显示设备在 WSL 里的路径（上游经引擎的 `/kiri/usb/nodes` 按 `vid:pid` 和序列号匹配）：Fabo 引擎没有这个接口，页面底部给出通用的 `--device` 写法。
 - 不按名称猜设备类型和图标，不显示上游的 beta 横幅。
-- macOS 上引擎的 `/fabo/usb` 只列已 attach 的会话、attach 要 tcp upgrade，枚举和 attach 都在 `fabo usb` 启动器里（还会装特权 helper），窗口暂无可用接口，所以 USB 页在 macOS / Linux 上仍是占位。
+- 同一个页面在 macOS / Linux 上改走启动器的 `fabo usb list --json` 与 `fabo usb attach|detach`（见 `docs/desktop-overview.md` 的 USB passthrough on macOS），输出形状与 `GET /usb` 相同，多一个 `can` 字段区分能否移动设备。
 
 ### 设置 → 资源（`.wslconfig`）
 

@@ -785,5 +785,14 @@
   "Include containers": "Sertakan kontainer",
   "Make report": "Buat laporan",
   "Saved: %s": "Disimpan: %s",
-  "Diagnostic report saved to the Desktop": "Laporan diagnostik disimpan ke Desktop"
+  "Diagnostic report saved to the Desktop": "Laporan diagnostik disimpan ke Desktop",
+  "On this Mac": "Di Mac ini",
+  "%s is back on the Mac": "%s sudah kembali ke Mac",
+  "Give back to the Mac: ": "Kembalikan ke Mac: ",
+  "Path": "Jalur",
+  "Device node": "Node perangkat",
+  "Location": "Lokasi",
+  "Speed": "Kecepatan",
+  "Containers run on this computer's own kernel, so they see its USB devices as they are: docker run --device with the path shown.": "Kontainer berjalan di kernel komputer ini sendiri, jadi melihat perangkat USB-nya apa adanya: docker run --device dengan jalur yang ditampilkan.",
+  "A device in Fabo is gone from the Mac until you detach it. In a container: --device /dev/ttyUSB0 (serial), /dev/input (HID) or /dev/bus/usb (raw).": "Perangkat di Fabo hilang dari Mac sampai Anda melepasnya. Di kontainer: --device /dev/ttyUSB0 (serial), /dev/input (HID) atau /dev/bus/usb (mentah)."
 }

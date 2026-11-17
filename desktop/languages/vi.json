@@ -785,5 +785,14 @@
   "Include containers": "Kèm danh sách container",
   "Make report": "Tạo báo cáo",
   "Saved: %s": "Đã lưu: %s",
-  "Diagnostic report saved to the Desktop": "Đã lưu báo cáo chẩn đoán ra Màn hình nền"
+  "Diagnostic report saved to the Desktop": "Đã lưu báo cáo chẩn đoán ra Màn hình nền",
+  "On this Mac": "Trên máy Mac này",
+  "%s is back on the Mac": "%s đã trở lại Mac",
+  "Give back to the Mac: ": "Trả lại cho Mac: ",
+  "Path": "Đường dẫn",
+  "Device node": "Nút thiết bị",
+  "Location": "Vị trí",
+  "Speed": "Tốc độ",
+  "Containers run on this computer's own kernel, so they see its USB devices as they are: docker run --device with the path shown.": "Container chạy trên chính nhân của máy tính này nên thấy nguyên các thiết bị USB của nó: docker run --device với đường dẫn hiển thị.",
+  "A device in Fabo is gone from the Mac until you detach it. In a container: --device /dev/ttyUSB0 (serial), /dev/input (HID) or /dev/bus/usb (raw).": "Thiết bị trong Fabo sẽ biến mất khỏi Mac cho đến khi bạn tháo ra. Trong container: --device /dev/ttyUSB0 (nối tiếp), /dev/input (HID) hoặc /dev/bus/usb (thô)."
 }

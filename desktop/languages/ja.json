@@ -785,5 +785,14 @@
   "Include containers": "コンテナーを含める",
   "Make report": "レポートを作成",
   "Saved: %s": "保存しました: %s",
-  "Diagnostic report saved to the Desktop": "診断レポートをデスクトップに保存しました"
+  "Diagnostic report saved to the Desktop": "診断レポートをデスクトップに保存しました",
+  "On this Mac": "この Mac 上",
+  "%s is back on the Mac": "%s を Mac に戻しました",
+  "Give back to the Mac: ": "この Mac に戻す：",
+  "Path": "パス",
+  "Device node": "デバイスノード",
+  "Location": "位置",
+  "Speed": "速度",
+  "Containers run on this computer's own kernel, so they see its USB devices as they are: docker run --device with the path shown.": "コンテナはこのコンピュータ自身のカーネルで動くため、USB デバイスをそのまま認識します：表示されたパスを docker run --device に指定します。",
+  "A device in Fabo is gone from the Mac until you detach it. In a container: --device /dev/ttyUSB0 (serial), /dev/input (HID) or /dev/bus/usb (raw).": "Fabo に渡したデバイスは、取り外すまで Mac から見えなくなります。コンテナでは：--device /dev/ttyUSB0（シリアル）、/dev/input（HID）、/dev/bus/usb（RAW）。"
 }

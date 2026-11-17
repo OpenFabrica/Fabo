@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -138,7 +139,7 @@ func TestUSBPageDeclinedAndFailed(t *testing.T) {
 }
 
 // TestUSBPageMissing offers to install usbipd-win, and the page is a
-// placeholder without fabo-win.
+// placeholder without fabo-win or the launcher.
 func TestUSBPageMissing(t *testing.T) {
 	s, f := newUSBDesktop(t, hostUSB{Missing: true, Devices: []hostUSBDevice{}})
 	tt := ui.NewTester(s.view, 1180, 760)
@@ -162,7 +163,7 @@ func TestUSBPageMissing(t *testing.T) {
 	tt = ui.NewTester(plain.view, 1180, 760)
 	tt.Frame()
 	if !tt.HasText("coming soon") {
-		t.Fatal("USB page is not a placeholder without fabo-win")
+		t.Fatal("USB page is not a placeholder without fabo-win or the launcher")
 	}
 }
 
@@ -183,5 +184,108 @@ func TestUSBPageWhileEngineStopped(t *testing.T) {
 	defer f.mu.Unlock()
 	if strings.Join(f.actions, "; ") != "detach 2-1" {
 		t.Fatalf("actions = %v", f.actions)
+	}
+}
+
+// macUSBListing is `fabo usb list --json` on a Mac, as engine/cmd/fabo's
+// TestMacUSBRows prints it (usbListGolden there): the contract between the
+// launcher and the window.
+const macUSBListing = `{"can":"attach","devices":[{"busid":"0x01100000","name":"CP2102 USB to UART","id":"10c4:ea60","kind":"serial","speed":"full","inFabo":true,"since":1763370000},{"busid":"0x01200000","name":"Keyboard","id":"05ac:024f","speed":"low","inFabo":false},{"busid":"fake-serial","name":"Fabo fake serial","id":"","inFabo":true,"since":1763370100}]}`
+
+// fakeUSBLauncher is the `fabo` command's USB part, recording the moves.
+type fakeUSBLauncher struct {
+	mu      sync.Mutex
+	listing string
+	calls   []string
+	fail    error
+}
+
+// run answers `fabo usb list --json` and records attach and detach.
+func (l *fakeUSBLauncher) run(_ context.Context, args ...string) ([]byte, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if len(args) == 3 && args[0] == "usb" && args[1] == "list" && args[2] == "--json" {
+		return []byte(l.listing), nil
+	}
+	if len(args) > 0 && args[0] == "usb" {
+		l.calls = append(l.calls, strings.Join(args, " "))
+		return nil, l.fail
+	}
+	return nil, nil
+}
+
+// newLauncherUSBDesktop is a window without fabo-win, on the USB page, whose
+// launcher lists listing.
+func newLauncherUSBDesktop(t *testing.T, listing string) (*desktop, *fakeUSBLauncher) {
+	t.Helper()
+	l := &fakeUSBLauncher{listing: listing}
+	_, s := newFakeEngine(t)
+	s.prefs.Lang = "en"
+	s.launcher = l.run
+	s.navigate(usbPage)
+	s.refreshUSB()
+	return s, l
+}
+
+// TestUSBOnMac lists the Mac's devices through the launcher, attaches and
+// detaches by location, and stays quiet when the password prompt closes.
+func TestUSBOnMac(t *testing.T) {
+	s, l := newLauncherUSBDesktop(t, macUSBListing)
+	tt := ui.NewTester(s.view, 1180, 760)
+	tt.Frame()
+	if tt.HasText("coming soon") || !tt.HasText("Keyboard") || !tt.HasText("On this Mac") || !tt.HasText("Fabo fake serial") {
+		t.Fatal("the Mac's devices are not listed")
+	}
+	if !tt.HasText("A device in Fabo is gone from the Mac until you detach it.") {
+		t.Fatal("Mac note missing")
+	}
+	if err := tt.Click("Hand to Fabo's containers: Keyboard"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.Click("Give back to the Mac: CP2102 USB to UART"); err != nil {
+		t.Fatal(err)
+	}
+	l.mu.Lock()
+	got := strings.Join(l.calls, "; ")
+	l.fail = errors.New("canceled")
+	l.mu.Unlock()
+	if got != "usb attach 0x01200000; usb detach 0x01100000" {
+		t.Fatalf("calls = %q", got)
+	}
+	s.notices = nil
+	s.usbAct("attach", "0x01200000", "Keyboard")
+	if len(s.notices) != 0 || s.working["usb:0x01200000"] {
+		t.Fatalf("a closed password prompt said %v", s.notices)
+	}
+	l.mu.Lock()
+	l.fail = errors.New("the USB helper is not answering")
+	l.mu.Unlock()
+	s.usbAct("attach", "0x01200000", "Keyboard")
+	if len(s.notices) != 1 || !strings.Contains(s.notices[0], "not answering") {
+		t.Fatalf("failure not shown: %v", s.notices)
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if len(l.calls) != 4 {
+		t.Fatalf("calls = %v", l.calls)
+	}
+}
+
+// TestUSBOnLinux lists the machine's devices with their paths and no
+// buttons: containers see them already.
+func TestUSBOnLinux(t *testing.T) {
+	s, l := newLauncherUSBDesktop(t, `{"can":"none","devices":[{"busid":"/dev/bus/usb/001/004","name":"CP2102","id":"10c4:ea60","path":"/dev/ttyUSB0","inFabo":false}]}`)
+	tt := ui.NewTester(s.view, 1180, 760)
+	tt.Frame()
+	if !tt.HasText("/dev/ttyUSB0") || !tt.HasText("they see its USB devices as they are") {
+		t.Fatal("Linux devices or note not shown")
+	}
+	if _, found := tt.Find("Attach"); found {
+		t.Fatal("an Attach button on Linux")
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if len(l.calls) != 0 {
+		t.Fatalf("calls = %v", l.calls)
 	}
 }

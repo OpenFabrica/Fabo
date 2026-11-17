@@ -785,5 +785,14 @@
   "Include containers": "Inclure les conteneurs",
   "Make report": "Créer le rapport",
   "Saved: %s": "Enregistré : %s",
-  "Diagnostic report saved to the Desktop": "Rapport de diagnostic enregistré sur le Bureau"
+  "Diagnostic report saved to the Desktop": "Rapport de diagnostic enregistré sur le Bureau",
+  "On this Mac": "Sur ce Mac",
+  "%s is back on the Mac": "%s est de retour sur le Mac",
+  "Give back to the Mac: ": "Rendre au Mac : ",
+  "Path": "Chemin",
+  "Device node": "Nœud de périphérique",
+  "Location": "Emplacement",
+  "Speed": "Vitesse",
+  "Containers run on this computer's own kernel, so they see its USB devices as they are: docker run --device with the path shown.": "Les conteneurs tournent sur le noyau de cet ordinateur et voient donc ses périphériques USB tels quels : docker run --device avec le chemin affiché.",
+  "A device in Fabo is gone from the Mac until you detach it. In a container: --device /dev/ttyUSB0 (serial), /dev/input (HID) or /dev/bus/usb (raw).": "Un périphérique dans Fabo disparaît du Mac jusqu’à ce que vous le détachiez. Dans un conteneur : --device /dev/ttyUSB0 (série), /dev/input (HID) ou /dev/bus/usb (brut)."
 }

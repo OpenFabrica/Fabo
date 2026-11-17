@@ -785,5 +785,14 @@
   "Include containers": "Dołącz kontenery",
   "Make report": "Utwórz raport",
   "Saved: %s": "Zapisano: %s",
-  "Diagnostic report saved to the Desktop": "Raport diagnostyczny zapisano na pulpicie"
+  "Diagnostic report saved to the Desktop": "Raport diagnostyczny zapisano na pulpicie",
+  "On this Mac": "Na tym Macu",
+  "%s is back on the Mac": "%s wróciło na Maca",
+  "Give back to the Mac: ": "Oddaj Macowi: ",
+  "Path": "Ścieżka",
+  "Device node": "Węzeł urządzenia",
+  "Location": "Położenie",
+  "Speed": "Szybkość",
+  "Containers run on this computer's own kernel, so they see its USB devices as they are: docker run --device with the path shown.": "Kontenery działają na jądrze tego komputera, więc widzą jego urządzenia USB bez zmian: docker run --device z pokazaną ścieżką.",
+  "A device in Fabo is gone from the Mac until you detach it. In a container: --device /dev/ttyUSB0 (serial), /dev/input (HID) or /dev/bus/usb (raw).": "Urządzenie w Fabo znika z Maca, dopóki go nie odłączysz. W kontenerze: --device /dev/ttyUSB0 (szeregowe), /dev/input (HID) lub /dev/bus/usb (surowe)."
 }

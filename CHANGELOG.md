@@ -9,6 +9,7 @@
 - Windows 的 `fabo` 命令：docker 子命令、`fabo k8s`、`fabo machine` 等可直接在 PowerShell / cmd 中使用。
 - Windows 容器域名：设置 → 域名可切到 `*.fabo.local`（需管理员同意一次）。
 - Windows 上的本机代理（Clash 等监听 127.0.0.1 的代理）现在会经中继给拉镜像和容器使用。
+- macOS 和 Linux 的 USB 页可用：macOS 上列出本机 USB 设备并一键交给容器或还回，Linux 上列出设备和 `--device` 路径。
 - Windows 新增 USB 页：经 usbipd-win 把 USB 设备交给容器或还回 Windows，未安装时可一键安装。
 - Windows 设置新增「资源」（WSL 的 CPU 与内存，写入 `.wslconfig`）和「诊断」（打开日志文件夹、生成脱敏报告）。
 - Windows 设置 → 构建可选普通 `docker build` 用 Docker 还是 Fabo；退出或卸载时还原。

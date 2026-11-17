@@ -1396,6 +1396,15 @@ func TestScreenshots(t *testing.T) {
 		m, _ := newUSBDesktop(t, hostUSB{Missing: true})
 		m.prefs.Theme, m.prefs.Lang = theme, "zh"
 		shot("usb-missing-"+theme, m)
+		// The USB page on a Mac (through the launcher), with a device's
+		// panel, and on Linux, where it only lists the devices.
+		mac, _ := newLauncherUSBDesktop(t, macUSBListing)
+		mac.prefs.Theme, mac.prefs.Lang = theme, "zh"
+		mac.selectRow("0x01100000")
+		shot("usb-mac-"+theme, mac)
+		linux, _ := newLauncherUSBDesktop(t, `{"can":"none","devices":[{"busid":"/dev/bus/usb/001/004","name":"Silicon Labs CP2102","id":"10c4:ea60","path":"/dev/ttyUSB0"},{"busid":"/dev/bus/usb/001/005","name":"Logitech USB Receiver","id":"046d:c52b","path":"/dev/bus/usb/001/005"}]}`)
+		linux.prefs.Theme, linux.prefs.Lang = theme, "zh"
+		shot("usb-linux-"+theme, linux)
 	}
 }
 

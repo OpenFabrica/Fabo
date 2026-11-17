@@ -126,7 +126,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | Kubernetes 转发 | Pods / Services、持续日志、Pod 删除、集群启停和网络设置已有界面；待补 Pod / ClusterIP 的本地端口转发入口及生命周期管理。引擎已有 `/fabo/k8s/forward` 接口 | `ui/k8s.rs`、`ui/index.html` |
 | 首次引导 | macOS launcher 的首次设置已实现；桌面尚无首次语言选择及 Linux 设置检查、修复、跳过和恢复流程 | `ui/lang.rs`、`ui/linux.rs` 的 `onboarding`、`ui/index.html` |
 | Import / Build with | `fabo import`、`fabo build-with` 已实现；桌面导入流程已对齐（设置 → 导入、列表底部提示条、查看窗口、切换 docker 的对话框与进度卡片）。Windows 窗口已有构建引擎选择（设置 → 构建，另有引擎时问一次）；macOS 窗口仍待补该入口。上游状态栏的 `docker → 引擎` 指示因 Fabo 无状态栏，由提示条承担 | `buildwith.rs`、`ui/index.html` 的 `buildAsk` |
-| USB | Windows 上 USB 页已接 usbipd-win（列设备、交给 Fabo / 还回、安装 usbipd-win）；macOS / Linux 侧栏页面仍为占位：USB CLI、helper 与 USB/IP 已实现，但缺可供窗口调用的设备枚举接口 | `ui/index.html`、上游 `crates/kiri-win/src/usb.rs` |
+| USB | 三个平台的 USB 页都已接上：Windows 经 fabo-win 和 usbipd-win，macOS 经 `fabo usb list --json` / `attach` / `detach`（首次 attach 装 helper），Linux 只列设备与 `--device` 路径。未做：上游显示的设备在容器里的 `/dev` 节点（引擎没有 `/fabo/usb/nodes`）、按名称猜设备类型图标 | `ui/index.html`、上游 `crates/kiri/src/usb.rs` 的 `ui_list`、`crates/kiri-win/src/usb.rs` |
 | Share 余项 | Share 页和 `fabo share` 已对齐（见上文「公网共享」）；未做上游的账号用量面板、账号在其他电脑上的链接列表（`/v1/tunnels/live` 已有，未接界面）以及 Pod / Service 的 Kubernetes 共享 | `ui/sharing.rs`、`ui/index.html` |
 | 更新与诊断入口 | Windows 窗口已接更新检查 / 下载 / 安装（fabo-win）和诊断（打开日志文件夹、生成脱敏报告）；macOS / Linux 桌面仍未接入更新与诊断，所有平台都没有窗口内日志查看、报告上传和崩溃报告设置 | `ui/mod.rs`、`ui/index.html`、`update.rs`、`diag/` |
 
@@ -157,7 +157,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | Windows / Linux 桌面 | 桌面仅交叉编译通过，真实 Linux 窗口仍需验证。Windows 宿主、窗口、`bin\fabo.exe` 及新移植的域名、代理中继、USB、资源、诊断、构建选择只在 macOS 上交叉编译并单元测试（桥接与中继协议含进程内端到端测试），x86_64 与 arm64 bundle 已实际组装并通过 `scripts/check-wxs.py`；MSI 构建、安装升级卸载、named pipe、WSL 启停、凭据管理器、更新、UAC 相关操作和 `tests/wsl.sh` 都未在 Windows 上运行，逐项清单见 [Fabo for Windows](windows.md#需要在真实-windows-上验证) |
 | 私人仓库 | 本地 Registry 鉴权、credential helper、macOS Keychain 和认证头已有专项；真实私人仓库账号、token 与私有镜像拉取仍需实测 |
 | 公网共享 | 本机自签名中继和开发版引擎已实测；还需在公网服务器（真实泛域名证书、DNS）和真实 GitHub OAuth App（设备码、组织白名单）上验证，以及 Linux 宿主引擎上的 `fabo share` |
-| USB 硬件 | 物理设备捕获、root helper 安装 / 移除、解绑与断连恢复仍需设备验证；软件 USB 专项已通过 |
+| USB 硬件 | 物理设备捕获、root helper 安装 / 移除、解绑与断连恢复仍需设备验证；软件 USB 专项已通过。窗口 USB 页：macOS 上 `fabo usb list --json` 已对本机真实设备实跑（只读），窗口内 attach / detach、首次密码框和取消只有界面测试；Linux 页只交叉编译，未在真实 Linux 桌面运行 |
 | 迁移与 machine | 真实 OrbStack / Docker Desktop 数据迁入、更多 machine 发行版和 Linux 宿主仍需实测；隔离 Go 引擎之间的迁入及 Alpine / Ubuntu machine 已有专项 |
 | 协议交叉校验 | 原 Rust / Go 编解码器交叉用例已随 Rust 删除，当前只有 Go 对 Go；需恢复跨实现或固定协议样本的兼容性验证 |
 | 安装与发布 | 正式安装特有的 profile / 默认 context / 全局链接行为、DMG、Developer ID 签名与公证仍需验证；开发 app 的 ad hoc 构建与签名已通过 |

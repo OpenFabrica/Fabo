@@ -11,6 +11,7 @@
 | `fabo import --sources` | 列出本机可迁入的源引擎（JSON） | 只读 docker context，不要求引擎在线；指向当前实例的 context 不列出 |
 | `fabo context [use NAME]` | 读出或切换 plain docker 使用的 context（macOS） | 无参数时输出 `{"current","ours","app"}`；`DOCKER_CONTEXT` 优先，`/var/run/docker.sock` 属于本实例时 `default` 视为本实例。`use` 本实例时先写入其 context，`default` 清除选择，其他名字须已存在 |
 | `fabo usb [list\|ls]`、`attach DEVICE`、`detach DEVICE` | 设备枚举与 macOS USB 透传 | 位置、VID:PID 或名称匹配，歧义拒绝；Linux 使用本机设备与 `--device` |
+| `fabo usb list --json` | 窗口 USB 页读取的设备清单 | `{"can","error","devices":[{"busid","name","id","kind","speed","path","inFabo","since"}]}`；`can` 在 macOS 为 `attach`（`busid` 是位置，`inFabo` / `since` 来自引擎的 `GET /fabo/usb`，不唤醒 VM），Linux 为 `none`（`busid` 是设备节点，`path` 优先串口）。枚举失败写进 `error`，退出码仍为 0 |
 | `fabo usb helper remove` | 删除 macOS 特权 helper | 仅删除本 flavor 的 helper、LaunchDaemon 和 socket；`setup --uninstall` 也清理它 |
 | `fabo usb fake serial\|mouse [OPTIONS]` | 无硬件 USB 端到端测试 | 与物理设备共用 USB/IP；支持 `--location`、`--stall-once`、`--unplug-after`、`--reports` |
 | `fabo bench [--runs N] [--image IMAGE] [--network none\|bridge] [--only fabo\|orbstack\|docker]` | 容器创建至删除的延迟 | 默认 50 次，另有 5 次预热；输出 p50、p99、均值，分别测 API 和 CLI |

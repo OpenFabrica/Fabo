@@ -39,7 +39,7 @@ const (
 
 // navItem is one entry of the sidebar. The soon entries hold a place for
 // features the window does not have yet (see navSoon: USB is one only
-// without fabo-win).
+// without fabo-win or the launcher).
 type navItem struct {
 	page, icon, zh, en string
 	soon               bool
