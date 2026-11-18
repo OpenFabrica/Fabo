@@ -1,0 +1,23 @@
+{
+  "type": "design",
+  "designSystems": [],
+  "primaryDesignSystem": null,
+  "assets": {
+    "Fabo 明亮产品宣传片": {
+      "versions": [
+        {
+          "path": "index.html",
+          "createdAt": "2026-11-14T11:12:47.014Z",
+          "status": "needs-review",
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "subtitle": "v2 · 11镜头快节奏功能版"
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-11-14T11:12:47.015Z",
+  "updatedAt": "2026-11-14T11:20:45.811Z"
+}
