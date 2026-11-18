@@ -16,6 +16,10 @@ const (
 	stripHeight      = 40
 	sidebarOpenWidth = 212
 	sidebarIconWidth = 56
+	sidebarRowHeight = 30
+	// debugMenuWidth is the open sidebar on the debug page, a little wider
+	// for the sessions' targets.
+	debugMenuWidth = 244
 	// The detail panel beside a list is dragged between these widths.
 	dockMinWidth = 320
 	dockMaxWidth = 900
@@ -128,6 +132,7 @@ func (s *desktop) view(c *ui.Context) {
 				s.switchCardView(c, p)
 			})
 		})
+		s.statusBar(c, p)
 	})
 	s.confirm(c, p)
 	s.dialog(c, p)
@@ -201,7 +206,7 @@ func searchable(page string) bool {
 }
 
 // strip is the window's title bar, on the shell's grey: the traffic lights,
-// the sidebar switch and the mark, and the engine's state while the sidebar
+// the sidebar switch and the engine's state while the sidebar
 // is folded. It carries no border; the page card below separates itself.
 func (s *desktop) strip(c *ui.Context, p palette) {
 	left := max(14, c.TitleBar().Left+6)
@@ -214,8 +219,6 @@ func (s *desktop) strip(c *ui.Context, p palette) {
 		if iconButton(c.Key("sidebar-toggle"), p, "sidebar", toggle, false).Clicked() {
 			s.toggleSidebar()
 		}
-		ui.Image(c, markIcon).Size(20, 20).Shrink(0)
-		ui.Text(c, "Fabo").FontSize(14).FontWeight(600).LetterSpacing(-0.1).TextColor(p.text).Shrink(0)
 		ui.Box(c).Grow(1)
 		if s.navFolded() {
 			s.engineLine(c, p)
@@ -320,6 +323,11 @@ func (s *desktop) pageSummary() string {
 
 // pageHead is the top of the page card: the page's title with its summary.
 func (s *desktop) pageHead(c *ui.Context, p palette) {
+	// The debug page is titled in its sidebar menu; the card opens straight
+	// on the chosen session.
+	if s.page == debugPage {
+		return
+	}
 	ui.Row(c.Key("page-head")).FillWidth().Shrink(0).Padding(20, pageInset, 14, pageInset).Gap(14).AlignItems(ui.Center).Children(func() {
 		// A machine's terminal page is titled with the machine, with a way
 		// back to the list that leaves its shells open.
@@ -418,26 +426,42 @@ func (s *desktop) sidebar(c *ui.Context, p palette) {
 	if n := s.debugLive(); n > 0 {
 		counts[debugPage] = n
 	}
+	if s.page == debugPage && open {
+		width = debugMenuWidth
+	}
 	side := ui.Column(c.Key("sidebar")).Width(width).Shrink(0).Padding(6, 12, 12).Gap(2).Justify(ui.Start)
 	if !open {
 		side.Padding(6, 10, 12).AlignItems(ui.Center)
 	}
 	side.Children(func() {
-		for _, n := range navItems {
-			// Terminal and Settings live in the title strip.
-			if s.navSoon(n) || n.page == terminalPage || n.page == settingsPage {
-				continue
-			}
-			if n.page == kubernetesPage {
-				s.kubernetesGroup(c, p, open)
-				continue
-			}
-			count, counted := counts[n.page]
-			if s.navButton(c.Key("nav-"+n.page), p, n, open, s.page == n.page, count, counted) {
-				s.navigate(n.page)
-			}
+		// The debug page takes the sidebar over with its own menu: a way
+		// back, the new-session button and the sessions themselves.
+		if s.page == debugPage {
+			s.debugMenu(c, p, open)
+			return
 		}
-		ui.Box(c).Grow(1)
+		ui.Scroll(c.Key("sidebar-nav")).FillWidth().Grow(1).MinHeight(0).Children(func() {
+			nav := ui.Column(c).FillWidth().Gap(2)
+			if !open {
+				nav.AlignItems(ui.Center)
+			}
+			nav.Children(func() {
+				for _, n := range navItems {
+					// Terminal and Settings live in the title strip.
+					if s.navSoon(n) || n.page == terminalPage || n.page == settingsPage {
+						continue
+					}
+					if n.page == kubernetesPage {
+						s.kubernetesGroup(c, p, open)
+						continue
+					}
+					count, counted := counts[n.page]
+					if s.navButton(c.Key("nav-"+n.page), p, n, open, s.page == n.page, count, counted) {
+						s.navigate(n.page)
+					}
+				}
+			})
+		})
 		if open {
 			s.engineCard(c, p)
 		}
@@ -461,8 +485,8 @@ func (s *desktop) clusterRunning() bool {
 // Kubernetes page on its list. Folded, a rule stands for the heading.
 func (s *desktop) kubernetesGroup(c *ui.Context, p palette, open bool) {
 	if open {
-		ui.Row(c.Key("k8s-head")).FillWidth().Height(32).Shrink(0).Margin(14, 0, 2).Padding(0, 2, 0, 10).Gap(6).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "KUBERNETES").FontSize(11).FontWeight(600).LetterSpacing(0.8).TextColor(p.muted).SingleLine().Grow(1).MinWidth(0)
+		ui.Row(c.Key("k8s-head")).FillWidth().Height(sidebarRowHeight).Shrink(0).Margin(8, 0, 0).Padding(0, 2, 0, 10).Gap(6).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, "Kubernetes").FontSize(12).FontWeight(600).TextColor(p.muted).SingleLine().Grow(1).MinWidth(0)
 			if iconButton(c.Key("k8s-settings"), p, "wrench", tr("Kubernetes 设置", "Kubernetes settings"), false).Clicked() {
 				s.navigate(settingsPage)
 				for i, t := range settingsTabs {
@@ -484,26 +508,34 @@ func (s *desktop) kubernetesGroup(c *ui.Context, p palette, open bool) {
 			})
 		})
 	} else {
-		ui.Box(c).Width(24).Height(1).Shrink(0).Margin(8, 0).Background(p.line)
+		ui.Box(c).Width(24).Height(1).Shrink(0).Margin(5, 0).Background(p.line)
 	}
-	for i, kind := range []struct{ icon, name string }{{"hexagon", "Pods"}, {"plug", "Services"}} {
-		n := navItem{page: kubernetesPage, icon: kind.icon, zh: kind.name, en: kind.name}
-		if s.navButton(c.Key("nav-k8s-"+kind.name), p, n, open, s.page == kubernetesPage && s.kube.tab == i, 0, false) {
-			s.navigate(kubernetesPage)
-			s.kube.tab = i
+	items := ui.Column(c.Key("nav-k8s-items")).FillWidth().Shrink(0).Gap(2)
+	if open {
+		items.Padding(0, 0, 0, 12)
+	} else {
+		items.AlignItems(ui.Center)
+	}
+	items.Children(func() {
+		for i, kind := range []struct{ icon, name string }{{"hexagon", "Pods"}, {"plug", "Services"}} {
+			n := navItem{page: kubernetesPage, icon: kind.icon, zh: kind.name, en: kind.name}
+			if s.navButton(c.Key("nav-k8s-"+kind.name), p, n, open, s.page == kubernetesPage && s.kube.tab == i, 0, false) {
+				s.navigate(kubernetesPage)
+				s.kube.tab = i
+			}
 		}
-	}
+	})
 }
 
 // navButton is one sidebar entry; on marks the one showing. The current
 // entry is a small white card lifted off the shell, its icon in the accent.
 func (s *desktop) navButton(c *ui.Context, p palette, n navItem, open, on bool, count int, counted bool) bool {
 	name := tr(n.zh, n.en)
-	b := clickable(c).Label(name).Radius(9).Shrink(0).AlignItems(ui.Center)
+	b := clickable(c).Label(name).Height(sidebarRowHeight).Radius(9).Shrink(0).AlignItems(ui.Center)
 	if open {
-		b.FillWidth().Height(36).PaddingX(10).Gap(10).Justify(ui.Start)
+		b.FillWidth().PaddingX(10).Gap(10).Justify(ui.Start)
 	} else {
-		b.Size(36, 36).Justify(ui.Center).Tooltip(name)
+		b.Width(36).Justify(ui.Center).Tooltip(name)
 	}
 	ink, text := p.sub, p.sub
 	switch {
@@ -542,17 +574,34 @@ func (s *desktop) engineCard(c *ui.Context, p palette) {
 	if v := s.info.ServerVersion; v != "" && v != "0.0.0" {
 		version = "v" + v
 	}
-	ui.Column(c.Key("engine-card")).FillWidth().Shrink(0).Margin(0, 0, 8).Padding(12).Gap(10).
+	ui.Column(c.Key("engine-card")).FillWidth().Shrink(0).Margin(0, 0, 8).Padding(6, 12, 10).Gap(8).
 		Radius(12).Background(p.panel).Border(1, p.line).Children(func() {
-		head := ui.Row(c.Key("engine-head")).FillWidth().Gap(7).AlignItems(ui.Center)
+		name := s.vmName()
+		head := clickable(c.Key("engine-head")).Label(name).
+			FillWidth().Height(36).Radius(8).Gap(6).AlignItems(ui.Center).Justify(ui.Start)
+		if head.Clicked() {
+			s.engineCardOpen = !s.engineCardOpen
+		}
+		head.Expanded(s.engineCardOpen)
+		if head.Hovered() {
+			head.Background(p.raised)
+		}
 		if version != "" {
-			head.Tooltip(s.vmName() + " · " + version)
+			head.Tooltip(name + " · " + version)
+		}
+		arrow := "chevron"
+		if s.engineCardOpen {
+			arrow = "down"
 		}
 		head.Children(func() {
 			dot(c, p, kind)
-			ui.Text(c, s.vmName()).FontSize(12.5).FontWeight(600).TextColor(p.text).SingleLine().Grow(1).MinWidth(0)
+			ui.Text(c, name).FontSize(12.5).FontWeight(600).TextColor(p.text).SingleLine().Grow(1).MinWidth(0)
 			ui.Text(c, text).FontSize(12).TextColor(p.muted).SingleLine().Shrink(0)
+			ui.Icon(c, icons[arrow]).Size(12, 12).Shrink(0).TextColor(p.muted)
 		})
+		if !s.engineCardOpen {
+			return
+		}
 		// The engine's version. A development build's is long
 		// (0.5.0-3-g1a2b3c4-dirty): it is cut short, not the label.
 		versionRow := func() {
@@ -720,8 +769,11 @@ func (s *desktop) dockWidth() float32 {
 // sidebar and the card's margin.
 func (s *desktop) cardWidth() float32 {
 	side := float32(sidebarOpenWidth)
-	if s.navFolded() {
+	switch {
+	case s.navFolded():
 		side = sidebarIconWidth
+	case s.page == debugPage:
+		side = debugMenuWidth
 	}
 	return s.width - side - 10
 }

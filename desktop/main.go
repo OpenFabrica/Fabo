@@ -53,10 +53,10 @@ var navItems = []navItem{
 	{networksPage, "network", "网络", "Networks", false},
 	{buildsPage, "hammer", "构建", "Builds", false},
 	{machinesPage, "cpu", "Linux 机器", "Machines", false},
-	{kubernetesPage, "helm", "Kubernetes", "Kubernetes", false},
 	{usbPage, "usb", "USB 设备", "USB devices", true},
 	{sharePage, "globe", "共享", "Share", false},
 	{debugPage, "pulse", "调试", "Debug", false},
+	{kubernetesPage, "helm", "Kubernetes", "Kubernetes", false},
 	{terminalPage, "terminal", "终端", "Terminal", false},
 	{settingsPage, "sliders", "设置", "Settings", false},
 }
@@ -170,11 +170,12 @@ type desktop struct {
 	compose composeEditor
 	// width is the window's width in layout units, as of the last frame;
 	// navPeek unfolds the sidebar while a narrow window folds it.
-	width   float32
-	navPeek bool
-	lists   map[string]*ui.ListState
-	visible []string
-	dockMax bool
+	width          float32
+	navPeek        bool
+	engineCardOpen bool
+	lists          map[string]*ui.ListState
+	visible        []string
+	dockMax        bool
 	// detailPanel builds the selected row's panel; the page registers it
 	// while it builds and the view places it beside the page.
 	detailPanel func()
@@ -721,6 +722,10 @@ func (s *desktop) settle(err error, done string) {
 func (s *desktop) navigate(page string) {
 	if page == s.page {
 		return
+	}
+	// The debug menu's back button returns to the page it was opened from.
+	if page == debugPage {
+		s.debug.back = s.page
 	}
 	s.page, s.search, s.dockMax = page, "", false
 	s.settingsFor = ""

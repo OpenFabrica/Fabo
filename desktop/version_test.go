@@ -24,13 +24,20 @@ func TestAboutShowsGuestProtocol(t *testing.T) {
 	})
 }
 
-// The sidebar's engine card shows the engine's version as a line, not only
-// in its tooltip.
-func TestEngineCardShowsVersion(t *testing.T) {
+func TestEngineCardDisclosure(t *testing.T) {
 	_, s := newFakeEngine(t)
-	tt := ui.NewTester(s.view, 1180, 900)
+	tt := ui.NewTester(s.view, 1180, 520)
+	if tt.HasText("Version") || tt.HasText("Stop VM") {
+		t.Fatalf("engine details are visible by default: %q", tt.Texts())
+	}
+	click(t, tt, "Linux VM")
 	waitDesktop(t, tt, func() bool { return tt.HasText("v0.4.0") })
-	if !tt.HasText("Version") {
-		t.Fatalf("no Version label in %q", tt.Texts())
+	stop, found := tt.Find("Stop engine")
+	if !tt.HasText("Version") || !found || stop.Y+stop.H > 520 {
+		t.Fatalf("expanded engine details do not fit: %v, %q", stop, tt.Texts())
+	}
+	click(t, tt, "Linux VM")
+	if tt.HasText("Version") || tt.HasText("Stop VM") {
+		t.Fatalf("engine details are visible after collapsing: %q", tt.Texts())
 	}
 }

@@ -65,6 +65,7 @@ func TestStaleEngineStripLater(t *testing.T) {
 	if tt.HasText("The engine still runs 0.4.0,") || restarts(*calls) != 0 {
 		t.Fatalf("strip after Later: %q, calls %v", tt.Texts(), *calls)
 	}
+	click(t, tt, "Linux VM")
 	if !tt.HasText("v0.4.0") {
 		t.Fatal("card lost the engine's version")
 	}
@@ -75,6 +76,7 @@ func TestStaleEngineStripQuiet(t *testing.T) {
 	for _, version := range []string{"0.4.0", "0.0.0-dev"} {
 		s, _ := staleDesktop(t, version)
 		tt := ui.NewTester(s.view, 1180, 900)
+		click(t, tt, "Linux VM")
 		waitDesktop(t, tt, func() bool { return tt.HasText("v0.4.0") })
 		if tt.HasText("The engine still runs 0.4.0,") {
 			t.Fatalf("window %s asked to restart an engine of 0.4.0", version)

@@ -22,10 +22,12 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   text size and the row density. These preferences live in `desktop.json` in
   the installation's state directory, so each flavor keeps its own.
 - **Sidebar.** Open, it names each page with its count and carries the
-  engine card, as Kiri's: "Linux VM" with its state (Running, Asleep, Off,
-  Starting…, Stopping…), and while it is up the running containers, the
+  engine card. The card starts collapsed and shows "Linux VM" with its state
+  (Running, Asleep, Off, Starting…, Stopping…). Click its header to show or
+  hide the details. While the VM is up, the details include running containers,
   CPUs (with the current load when awake) and memory in use against the
-  VM's ceiling, then a full-width Stop VM or Start VM button. The engine's
+  VM's ceiling. The expanded card provides the Stop VM or Start VM button
+  according to its state. The engine's
   version is the card's first line whenever the engine answers, stopped VM
   included, and also the card head's tooltip. When the engine runs another
   version than the window, as after replacing the app while the old engine
@@ -38,7 +40,8 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   the window buttons) it shows icons only, and "Linux VM · state" moves to
   the title strip. A window narrower than 1040 points folds it on its own; unfolding
   it there lasts until the window widens, without changing the saved choice. Kubernetes is a group of its own: its heading shows the cluster's
-  state and opens its settings, and Pods and Services open their lists.
+  state and opens its settings, and Pods and Services are indented beneath it.
+  USB devices, Share and Debug are primary entries above the Kubernetes group.
   USB devices lists the machine's USB devices: on Windows through
   fabo-win and usbipd-win (see docs/windows.md), on a Mac and on Linux
   through the launcher (see USB passthrough on macOS). Without either it
@@ -46,6 +49,15 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   public share links (see [Public share links](#public-share-links)).
 - **Title strip.** On the right sit the search field of the page's table
   (Command/Ctrl+K focuses it), then Terminal and Settings.
+- **Status bar.** The bottom of the main window shows the app version,
+  engine state, and engine version when connected. Feedback opens the Fabo
+  GitHub issues page. While the engine runs, the bar shows the running and
+  total counts for the Containers page, the reported memory capacity when
+  available, and a shortcut to a running Kubernetes cluster. The container
+  count opens Containers. When the launcher reports the Docker context, the
+  bar shows where plain `docker` points. Clicking a different engine opens
+  the existing switch dialog. The status bar uses the same data as the window
+  and adds no engine polling.
 - **Lists.** Every page is a table with a detail panel, under the page's
   title on its card. The search field filters the page's table. Filters sit in a segmented row above the table. Up and
   Down move the selection and Escape closes the dock. Only visible rows are
@@ -2041,6 +2053,11 @@ in `debug-sessions.json` beside `desktop.json` (configuration only; the
 messages stay in memory, 5000 lines per session). The engine stores none
 of it. Local sessions need no engine.
 
+Opening the page swaps the sidebar for the debug menu: a back button to
+the page it was opened from, a new-session button, and the sessions
+grouped as clients and servers (folded, their protocol badges). The page
+card shows only the chosen session.
+
 - A client targets an address, or a container's port. A container port is
   reached through its published port on the loopback, or through the
   container network with `POST /fabo/debug/dial`, which works for
@@ -2068,6 +2085,9 @@ of it. Local sessions need no engine.
   configured text, or an echo). WebSocket and HTTP servers may use TLS with
   given PEM files, or a self-signed certificate for localhost and
   `host.docker.internal` kept beside the sessions.
+- In TCP, UDP and WebSocket logs, the copy button on each sent or received
+  message copies its complete payload as space-separated hex bytes. The
+  copied bytes can be pasted into the hex composer in either log view.
 - The HTTP mock matches routes by method and path (`:name` segments, a
   final `*`), answers with a status, body and optional delay or the files
   of a folder, and fills `{{path.<name>}}`, `{{uuid}}` and `{{rand}}`.

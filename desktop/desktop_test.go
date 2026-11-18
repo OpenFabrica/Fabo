@@ -847,6 +847,14 @@ func TestSidebarFoldsToIcons(t *testing.T) {
 	if _, found := tt.Find("Docker"); found {
 		t.Fatal("the open sidebar shows a section title")
 	}
+	share, shareFound := tt.Find("Share")
+	debug, debugFound := tt.Find("Debug")
+	pods, podsFound := tt.Find("Pods")
+	services, servicesFound := tt.Find("Services")
+	if !shareFound || !debugFound || !podsFound || !servicesFound ||
+		share.Y >= pods.Y || debug.Y >= pods.Y || pods.X <= debug.X || services.X != pods.X {
+		t.Fatalf("sidebar group positions: Share %v, Debug %v, Pods %v, Services %v", share, debug, pods, services)
+	}
 	tt.Key(ui.Cmd, ui.KeyB)
 	side, found := tt.Find("Images")
 	if !found || side.W > 40 || !s.prefs.NavCollapsed {
@@ -958,6 +966,7 @@ func TestStoppedEngineOffersToStart(t *testing.T) {
 	if m := has(tt, "The engine is stopped", "Linux VM", "Off"); m != "" {
 		t.Fatalf("missing %q", m)
 	}
+	click(t, tt, "Linux VM")
 	if err := tt.Click("Start engine"); err != nil {
 		t.Fatal(err)
 	}

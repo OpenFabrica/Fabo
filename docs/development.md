@@ -16,7 +16,7 @@ make kernel    # guest/out/Image
 make disk      # guest/out/data.img (sparse 64 GiB ext4 template)
 make app       # target/Fabo.app
 make app-dev   # target/dev/Fabo Dev.app, a second installation with its own state
-make dev       # build and open the development app; accepts FLAVOR=name
+make dev       # run the desktop and reload it on source changes
 make dmg       # target/Fabo-<version>-arm64.dmg from the app
 make linux     # target/linux/release: fabo, fabo-daemon, fabo-init
 ```
@@ -40,7 +40,15 @@ once, in `packaging/cli-pins.env`.
 
 ## Use
 
-`make app-dev` is the build to try changes with. Its bundle identifier,
+Run `make dev` for desktop UI changes. MyGo rebuilds and relaunches the
+window when you save Go source or embedded translations. A failed build
+leaves the previous window running. Press Ctrl+C to stop the session.
+On macOS the window connects to the running engine at
+`~/.fabo/run/docker.sock` by default and uses the launcher in
+`/Applications/Fabo.app` when available. Set `FABO_SOCKET` and
+`FABO_LAUNCHER` for another installation.
+
+Use `make app-dev` to build a full application bundle. Its bundle identifier,
 `com.openfabrica.fabo.dev`, gives it `~/.fabo-dev` and `~/Fabo Dev` instead of the
 installed app's `~/.fabo` and `~/Fabo`, and it leaves the default domain
 ports alone. `FLAVOR=name` builds `Fabo <Name>.app` with `~/.fabo-<name>`.

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -171,6 +172,46 @@ func TestDebugServerPeersAndBroadcast(t *testing.T) {
 	}
 }
 
+func TestDebugLogCopiesCompletePacket(t *testing.T) {
+	s := debugDesktop(t)
+	x := debugSession{ID: "udp", Kind: debugClient, Proto: debugUDP, Name: "UDP"}
+	r := s.debugRunOf(x.ID)
+	s.debug.sessions = []debugSession{x}
+	r.note("connected")
+	r.add(debugLine{Dir: lineSent, Data: []byte("sent\x00\xff")})
+	r.add(debugLine{Dir: lineReceived, Data: []byte(strings.Repeat("reply\x00\xff", 32))})
+	tt := ui.NewTester(s.view, 1180, 760)
+	const copyLabel = "复制数据包（16 进制）"
+
+	for _, tc := range []struct {
+		filter string
+		hex    bool
+		want   string
+	}{
+		{filter: "sent", want: "73 65 6e 74 00 ff"},
+		{filter: "reply", hex: true, want: strings.TrimSpace(strings.Repeat("72 65 70 6c 79 00 ff ", 32))},
+	} {
+		s.debug.filter = tc.filter
+		s.debug.showHex[x.ID] = tc.hex
+		tt.Frame()
+		if err := tt.Click(copyLabel); err != nil {
+			t.Fatal(err)
+		}
+		if got := tt.Clipboard(); got != tc.want {
+			t.Fatalf("clipboard for %s = %q, want %q", tc.filter, got, tc.want)
+		}
+	}
+
+	s.debug.filter = "connected"
+	tt.Frame()
+	if !tt.HasText("connected") {
+		t.Fatal("the connection event is missing")
+	}
+	if _, ok := tt.Access(copyLabel); ok {
+		t.Fatal("the connection event has a packet copy button")
+	}
+}
+
 func TestDebugDialChoosesPublishedPort(t *testing.T) {
 	s := debugDesktop(t)
 	s.containers = []container{{ID: "c1", Name: "redis", State: "running", Ports: []portMap{{Private: 6379, Public: 16379, Type: "tcp"}}}}
@@ -252,5 +293,35 @@ func TestDebugScreenshots(t *testing.T) {
 		s.openDebugForm(debugDraft{kind: debugServer, proto: debugWS, port: "9001", tls: true})
 		shot("new-server")
 		s.form = form{}
+	}
+}
+
+// TestDebugMenuTakesOverSidebar checks that the debug page swaps the
+// sidebar for its own menu, open and folded, and that its back button
+// returns to the page the debug page was opened from.
+func TestDebugMenuTakesOverSidebar(t *testing.T) {
+	_, s := newFakeEngine(t)
+	s.prefs.Lang = "zh"
+	s.prefsFile = filepath.Join(t.TempDir(), "desktop.json")
+	s.navigate(containersPage)
+	s.navigate(debugPage)
+	s.debugState().sessions = []debugSession{{ID: "a", Name: "设备模拟", Kind: debugClient, Proto: debugTCP, Port: 9}}
+	tt := ui.NewTester(s.view, 1180, 760)
+	tt.Frame()
+	if !tt.HasText("设备模拟") || tt.HasText("镜像") {
+		t.Fatalf("the debug menu does not replace the sidebar: %q", tt.Texts())
+	}
+	// Folded, the sessions stay reachable as badges.
+	tt.SetSize(900, 760)
+	tt.Frame()
+	if !tt.HasText("TCP") {
+		t.Fatalf("the folded debug menu lost its sessions: %q", tt.Texts())
+	}
+	if err := tt.Click("返回"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if s.page != containersPage {
+		t.Fatalf("back went to %q, want %q", s.page, containersPage)
 	}
 }

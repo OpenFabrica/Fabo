@@ -50,7 +50,7 @@ help:
 	@echo "make app-dev   target/dev/Fabo Dev.app: a second installation with its own state;"
 	@echo "               its window shows the installed app's engine, containers and images"
 	@echo "               (FABO_OWN_ENGINE=1: its own engine; FLAVOR=name builds Fabo <Name>.app)"
-	@echo "make dev       build and open the development app (also accepts FLAVOR=name)"
+	@echo "make dev       run the desktop with automatic reload on source changes"
 	@echo "make dmg       target/Fabo-<version>-$(ARCH).dmg from the app, notarized when"
 	@echo "               FABO_NOTARY_PROFILE names a notarytool profile"
 	@echo "make linux     target/linux/release: fabo, fabo-daemon, fabo-init"
@@ -109,10 +109,11 @@ app: guest
 app-dev: guest
 	scripts/macos-app.sh $(ARCH) $(VERSION) $(or $(FLAVOR),dev)
 
-dev: app-dev
-	@flavor="$(or $(FLAVOR),dev)"; \
-	name="$$(printf '%s' "$$flavor" | cut -c1 | tr a-z A-Z)$$(printf '%s' "$$flavor" | cut -c2-)"; \
-	open "$(CURDIR)/$(if $(filter x86_64,$(ARCH)),target/intel,target)/dev/Fabo $$name.app"
+dev:
+	@if [ -z "$$FABO_LAUNCHER" ] && [ -x /Applications/Fabo.app/Contents/MacOS/fabo ]; then \
+		export FABO_LAUNCHER=/Applications/Fabo.app/Contents/MacOS/fabo; \
+	fi; \
+	exec go -C desktop tool mygo dev
 
 dmg:
 	scripts/macos-dmg.sh $(ARCH) $(VERSION)

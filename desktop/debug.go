@@ -104,6 +104,9 @@ type debugUI struct {
 	// autoStarted marks that the servers listening with the window were
 	// started.
 	autoStarted bool
+	// back is the page the debug page was opened from, where the debug
+	// menu's back button returns.
+	back string
 }
 
 // debugState loads the saved sessions once and starts the servers that
@@ -318,8 +321,8 @@ func (s *desktop) debugStateWords(p palette, x debugSession, snap debugSnap) (st
 	return tr("未连接", "Not connected"), p.muted
 }
 
-// debugView is the page: the sessions on the left, the chosen one's
-// workspace on the right.
+// debugView is the page: the chosen session's workspace. The sessions
+// themselves are listed in the sidebar's debug menu.
 func (s *desktop) debugView(c *ui.Context, p palette) {
 	d := s.debugState()
 	if d.copy != "" {
@@ -327,12 +330,6 @@ func (s *desktop) debugView(c *ui.Context, p palette) {
 		s.notices = append(s.notices, tr("已复制 ", "Copied ")+d.copy)
 		d.copy = ""
 	}
-	toolbar(c, func() {
-		ui.Box(c).Grow(1)
-		if button(c.Key("debug-new"), p, tr("新建会话", "New session"), "plus", primaryButton, false) {
-			s.openDebugForm(debugDraft{})
-		}
-	})
 	if len(d.sessions) == 0 {
 		if empty(c, p, "pulse", tr("还没有调试会话", "No debug sessions yet"), tr("新建会话", "New session")) {
 			s.openDebugForm(debugDraft{})
@@ -342,20 +339,70 @@ func (s *desktop) debugView(c *ui.Context, p palette) {
 	if _, i := s.debugSession(d.cur); i < 0 {
 		d.cur = d.sessions[0].ID
 	}
-	ui.Row(c.Key("debug-body")).FillWidth().Grow(1).MinHeight(0).AlignItems(ui.Stretch).BorderWidth(1, 0, 0, 0).BorderColor(p.line).Children(func() {
-		ui.Scroll(c.Key("debug-sessions")).Width(264).Shrink(0).FillHeight().BorderWidth(0, 1, 0, 0).BorderColor(p.line).Padding(6, 0, 12).Children(func() {
-			s.debugGroup(c, p, debugClient, tr("客户端", "Clients"))
-			s.debugGroup(c, p, debugServer, tr("服务端", "Servers"))
+	x, _ := s.debugSession(d.cur)
+	ui.Column(c.Key("debug-work-" + x.ID)).FillWidth().Grow(1).MinHeight(0).Children(func() {
+		s.debugWorkspace(c, p, x)
+	})
+}
+
+// debugMenu replaces the sidebar on the debug page: a way back to the page
+// it came from, the new-session button, then the clients and the servers.
+// Folded, the sessions show as their protocol badges.
+func (s *desktop) debugMenu(c *ui.Context, p palette, open bool) {
+	d := s.debugState()
+	back := func() {
+		page := d.back
+		if page == "" || page == debugPage {
+			page = overviewPage
+		}
+		s.navigate(page)
+	}
+	if !open {
+		if iconButton(c.Key("debug-back"), p, "back", tr("返回", "Back"), false).Clicked() {
+			back()
+		}
+		if iconButton(c.Key("debug-new"), p, "plus", tr("新建会话", "New session"), false).Clicked() {
+			s.openDebugForm(debugDraft{})
+		}
+		ui.Box(c).Width(24).Height(1).Shrink(0).Margin(8, 0).Background(p.line)
+		ui.Scroll(c.Key("debug-sessions")).FillWidth().Grow(1).MinHeight(0).Children(func() {
+			ui.Column(c).FillWidth().Gap(4).AlignItems(ui.Center).Children(func() {
+				for _, kind := range []string{debugClient, debugServer} {
+					for _, x := range s.debugShown(kind) {
+						s.debugRow(c.Key("row-"+x.ID), p, x, false)
+					}
+				}
+			})
 		})
-		x, _ := s.debugSession(d.cur)
-		ui.Column(c.Key("debug-work-" + x.ID)).Width(0).Grow(1).MinWidth(0).FillHeight().Children(func() {
-			s.debugWorkspace(c, p, x)
+		return
+	}
+	ui.Row(c.Key("debug-menu-head")).FillWidth().Height(36).Shrink(0).Gap(6).AlignItems(ui.Center).Children(func() {
+		if iconButton(c.Key("debug-back"), p, "back", tr("返回", "Back"), false).Clicked() {
+			back()
+		}
+		ui.Text(c, pageTitle(debugPage)).FontSize(15).FontWeight(600).TextColor(p.text).SingleLine().Grow(1).MinWidth(0)
+		if iconButton(c.Key("debug-new"), p, "plus", tr("新建会话", "New session"), false).Clicked() {
+			s.openDebugForm(debugDraft{})
+		}
+	})
+	ui.Scroll(c.Key("debug-sessions")).FillWidth().Grow(1).MinHeight(0).Children(func() {
+		ui.Column(c).FillWidth().Gap(2).Children(func() {
+			for _, g := range []struct{ kind, title string }{{debugClient, tr("客户端", "Clients")}, {debugServer, tr("服务端", "Servers")}} {
+				shown := s.debugShown(g.kind)
+				if len(shown) == 0 {
+					continue
+				}
+				ui.Text(c, g.title).FontSize(11).FontWeight(600).LetterSpacing(0.4).TextColor(p.muted).Padding(14, 10, 4)
+				for _, x := range shown {
+					s.debugRow(c.Key("row-"+x.ID), p, x, true)
+				}
+			}
 		})
 	})
 }
 
-// debugGroup lists the clients or the servers, filtered by the search.
-func (s *desktop) debugGroup(c *ui.Context, p palette, kind, title string) {
+// debugShown lists the clients or the servers, filtered by the search.
+func (s *desktop) debugShown(kind string) []debugSession {
 	query := strings.ToLower(strings.TrimSpace(s.search))
 	var shown []debugSession
 	for _, x := range s.debug.sessions {
@@ -363,33 +410,31 @@ func (s *desktop) debugGroup(c *ui.Context, p palette, kind, title string) {
 			shown = append(shown, x)
 		}
 	}
-	if len(shown) == 0 {
-		return
-	}
-	ui.Text(c, title).FontSize(11.5).FontWeight(600).TextColor(p.muted).Padding(12, 20, 6)
-	for _, x := range shown {
-		s.debugRow(c.Key("row-"+x.ID), p, x)
-	}
+	return shown
 }
 
-// debugRow is one session in the list: its protocol, name and target.
-func (s *desktop) debugRow(c *ui.Context, p palette, x debugSession) {
+// debugRow is one session in the debug menu: its protocol badge with the
+// state, then, open, its name and target. The chosen one is lifted off the
+// shell the way the sidebar marks its current page.
+func (s *desktop) debugRow(c *ui.Context, p palette, x debugSession, open bool) {
 	snap := s.debugRunOf(x.ID).snapshot()
 	on := s.debug.cur == x.ID
-	b := clickable(c).Label(x.Name).FillWidth().Padding(9, 16, 9, 20).Gap(10).AlignItems(ui.Center).Justify(ui.Start)
+	b := clickable(c).Label(x.Name).Radius(9).Shrink(0).AlignItems(ui.Center)
+	if open {
+		b.FillWidth().Padding(7, 8).Gap(10).Justify(ui.Start)
+	} else {
+		b.Size(40, 40).Justify(ui.Center).Tooltip(x.Name + " · " + debugTargetText(x))
+	}
 	switch {
 	case on:
-		b.Background(p.soft)
+		b.Background(p.panel).Border(1, p.line).Shadow(0, 1, 2, 0, ui.RGBA(16, 24, 40, 0.05))
 	case b.Hovered():
-		b.Background(p.hover)
+		b.Background(p.raised)
 	}
 	b.Children(func() {
-		if on {
-			ui.Box(c).Absolute().Left(0).Top(8).Bottom(8).Width(3).Radius(0, 3, 3, 0).Background(p.accent)
-		}
 		ink := protoInk(p, x.Proto)
-		ui.Box(c).Size(38, 34).Shrink(0).Radius(8).Center().Background(ink.Alpha(0.13)).Children(func() {
-			ui.Text(c, x.badge()).Font(mono).FontSize(10.5).FontWeight(600).TextColor(ink)
+		ui.Box(c).Size(34, 30).Shrink(0).Radius(7).Center().Background(ink.Alpha(0.13)).Children(func() {
+			ui.Text(c, x.badge()).Font(mono).FontSize(10).FontWeight(600).TextColor(ink)
 			if x.Proto != debugHTTP || x.Kind == debugServer {
 				state := "stopped"
 				switch snap.state {
@@ -405,8 +450,11 @@ func (s *desktop) debugRow(c *ui.Context, p palette, x debugSession) {
 				})
 			}
 		})
+		if !open {
+			return
+		}
 		ui.Column(c).Width(0).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, x.Name).FontSize(13).FontWeight(600).TextColor(p.text).SingleLine()
+			ui.Text(c, x.Name).FontSize(13).FontWeight(500).TextColor(p.text).SingleLine()
 			sub, ink := debugTargetText(x), p.link
 			if x.Kind == debugServer {
 				ink = p.muted
@@ -426,7 +474,7 @@ func (s *desktop) debugRow(c *ui.Context, p palette, x debugSession) {
 					}
 				}
 			}
-			ui.Text(c, sub).Font(mono).FontSize(11.5).TextColor(ink).SingleLine()
+			ui.Text(c, sub).Font(mono).FontSize(11).TextColor(ink).SingleLine()
 		})
 	})
 	if b.Clicked() {
@@ -570,7 +618,7 @@ func (s *desktop) debugBar(c *ui.Context, p palette, x debugSession, r *debugRun
 }
 
 // debugLog shows a run's lines on the console ground, following the end.
-func (s *desktop) debugLog(c *ui.Context, p palette, x debugSession, snap debugSnap, names func(string) string, emptyText string) {
+func (s *desktop) debugLog(c *ui.Context, x debugSession, snap debugSnap, names func(string) string, emptyText string) {
 	d := &s.debug
 	query := strings.ToLower(strings.TrimSpace(d.filter))
 	hex := d.showHex[x.ID]
@@ -589,6 +637,8 @@ func (s *desktop) debugLog(c *ui.Context, p palette, x debugSession, snap debugS
 		return
 	}
 	size := s.prefs.LogSize + 1
+	copyPalette := palette{muted: logDimInk, text: logInk, raised: logInk.Alpha(0.12)}
+	copyLabel := tr("复制数据包（16 进制）", "Copy packet as hex")
 	ui.List(c.Key("debug-log"), state, len(shown)).Grow(1).MinHeight(0).Margin(0, 20, 0).Padding(8, 0).Radius(10).
 		Background(consoleTheme.Background).Rows(func(row ui.ListRow) {
 		rc, l := row.Context, shown[row.Index]
@@ -629,6 +679,13 @@ func (s *desktop) debugLog(c *ui.Context, p palette, x debugSession, snap debugS
 			if len(l.Data) > 0 {
 				ui.Textf(rc, "%d B", len(l.Data)).Font(mono).FontSize(size - 1).LineHeight(1.75).TextColor(logGutter).Shrink(0)
 			}
+			if l.Dir == lineSent || l.Dir == lineReceived {
+				if iconButton(rc.Key("copy-packet"), copyPalette, "copy", copyLabel, false).Size(22, 20).Clicked() {
+					pairs, _ := hexDump(l.Data)
+					rc.WriteClipboard(pairs)
+					s.notices = append(s.notices, tr("已复制", "Copied"))
+				}
+			}
 		})
 	})
 }
@@ -641,7 +698,7 @@ func (s *desktop) debugClientBody(c *ui.Context, p palette, x debugSession, r *d
 	if !r.active() {
 		emptyText = tr("未连接", "Not connected")
 	}
-	s.debugLog(c, p, x, snap, func(a string) string { return a }, emptyText)
+	s.debugLog(c, x, snap, func(a string) string { return a }, emptyText)
 	s.debugComposer(c, p, x, !r.active() || snap.state != debugOpen, "", func(data []byte, binary bool) error {
 		return r.sendClient(data, binary)
 	})
@@ -851,7 +908,7 @@ func (s *desktop) debugServerBody(c *ui.Context, p palette, x debugSession, r *d
 			if !r.active() {
 				emptyText = tr("未在监听", "Not listening")
 			}
-			s.debugLog(c, p, x, snap, names, emptyText)
+			s.debugLog(c, x, snap, names, emptyText)
 		})
 	})
 	target := tr("未选连接", "No connection picked")

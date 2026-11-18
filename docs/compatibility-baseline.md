@@ -125,7 +125,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | 扫描历史与导出 | 镜像分层、最新扫描和重新扫描已有界面；待接扫描历史选择和 CycloneDX SBOM 导出。引擎已有 `/fabo/images/scans`、`/fabo/images/sbom` | `ui/index.html` 的扫描历史 / `savesbom`，`ui/mod.rs` |
 | Kubernetes 转发 | Pods / Services、持续日志、Pod 删除、集群启停和网络设置已有界面；待补 Pod / ClusterIP 的本地端口转发入口及生命周期管理。引擎已有 `/fabo/k8s/forward` 接口 | `ui/k8s.rs`、`ui/index.html` |
 | 首次引导 | macOS launcher 的首次设置已实现；桌面尚无首次语言选择及 Linux 设置检查、修复、跳过和恢复流程 | `ui/lang.rs`、`ui/linux.rs` 的 `onboarding`、`ui/index.html` |
-| Import / Build with | `fabo import`、`fabo build-with` 已实现；桌面导入流程已对齐（设置 → 导入、列表底部提示条、查看窗口、切换 docker 的对话框与进度卡片）。Windows 窗口已有构建引擎选择（设置 → 构建，另有引擎时问一次）；macOS 窗口仍待补该入口。上游状态栏的 `docker → 引擎` 指示因 Fabo 无状态栏，由提示条承担 | `buildwith.rs`、`ui/index.html` 的 `buildAsk` |
+| Import / Build with | `fabo import`、`fabo build-with` 已实现；桌面导入流程已对齐（设置 → 导入、列表底部提示条、查看窗口、切换 docker 的对话框与进度卡片）。Windows 窗口已有构建引擎选择（设置 → 构建，另有引擎时问一次）；macOS 窗口仍待补该入口。底部状态栏已显示 `docker → 引擎`，指向其他引擎时可打开切换对话框 | `buildwith.rs`、`ui/index.html` 的 `buildAsk` |
 | USB | 三个平台的 USB 页都已接上：Windows 经 fabo-win 和 usbipd-win，macOS 经 `fabo usb list --json` / `attach` / `detach`（首次 attach 装 helper），Linux 只列设备与 `--device` 路径。未做：上游显示的设备在容器里的 `/dev` 节点（引擎没有 `/fabo/usb/nodes`）、按名称猜设备类型图标 | `ui/index.html`、上游 `crates/kiri/src/usb.rs` 的 `ui_list`、`crates/kiri-win/src/usb.rs` |
 | Share 余项 | Share 页和 `fabo share` 已对齐（见上文「公网共享」）；未做上游的账号用量面板、账号在其他电脑上的链接列表（`/v1/tunnels/live` 已有，未接界面）以及 Pod / Service 的 Kubernetes 共享 | `ui/sharing.rs`、`ui/index.html` |
 | 更新与诊断入口 | Windows 窗口已接更新检查 / 下载 / 安装（fabo-win）和诊断（打开日志文件夹、生成脱敏报告）；macOS / Linux 桌面仍未接入更新与诊断，所有平台都没有窗口内日志查看、报告上传和崩溃报告设置 | `ui/mod.rs`、`ui/index.html`、`update.rs`、`diag/` |
