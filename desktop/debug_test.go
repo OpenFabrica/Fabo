@@ -325,3 +325,19 @@ func TestDebugMenuTakesOverSidebar(t *testing.T) {
 		t.Fatalf("back went to %q, want %q", s.page, containersPage)
 	}
 }
+
+// TestDebugMenuTitleGoesBack checks that the whole menu head, not just its
+// arrow, leaves the debug page.
+func TestDebugMenuTitleGoesBack(t *testing.T) {
+	s := debugDesktop(t)
+	tt := ui.NewTester(s.view, 1180, 760)
+	title, found := tt.Find("调试")
+	if !found {
+		t.Fatalf("no title in %q", tt.Texts())
+	}
+	tt.ClickAt(title.X+title.W/2, title.Y+title.H/2)
+	tt.Frame()
+	if s.page == debugPage {
+		t.Fatal("clicking the title stayed on the debug page")
+	}
+}

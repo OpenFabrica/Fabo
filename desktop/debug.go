@@ -377,10 +377,22 @@ func (s *desktop) debugMenu(c *ui.Context, p palette, open bool) {
 		return
 	}
 	ui.Row(c.Key("debug-menu-head")).FillWidth().Height(36).Shrink(0).Gap(6).AlignItems(ui.Center).Children(func() {
-		if iconButton(c.Key("debug-back"), p, "back", tr("返回", "Back"), false).Clicked() {
+		// The arrow and the title are one target, so the whole head goes back,
+		// not just the 28-point arrow.
+		head := clickable(c.Key("debug-back")).Label(tr("返回", "Back")).Height(32).Grow(1).MinWidth(0).
+			Padding(0, 8, 0, 0).Gap(6).AlignItems(ui.Center).Justify(ui.Start).Radius(7)
+		ink := p.muted
+		if head.Hovered() {
+			head.Background(p.raised)
+			ink = p.text
+		}
+		head.Children(func() {
+			ui.Box(c).Size(28, 28).Shrink(0).Center().Children(func() { ui.Icon(c, icons["back"]).Size(15, 15).TextColor(ink) })
+			ui.Text(c, pageTitle(debugPage)).FontSize(15).FontWeight(600).TextColor(p.text).SingleLine().MinWidth(0)
+		})
+		if head.Clicked() {
 			back()
 		}
-		ui.Text(c, pageTitle(debugPage)).FontSize(15).FontWeight(600).TextColor(p.text).SingleLine().Grow(1).MinWidth(0)
 		if iconButton(c.Key("debug-new"), p, "plus", tr("新建会话", "New session"), false).Clicked() {
 			s.openDebugForm(debugDraft{})
 		}
