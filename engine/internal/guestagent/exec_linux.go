@@ -29,6 +29,9 @@ var execNamespaces = []struct {
 	{"mnt", unix.CLONE_NEWNS},
 }
 
+// Exec starts a process inside a running container's root and namespaces.
+// Like every child it leads its own session; ExecProcessGroupOption only
+// makes signals reach its whole process group.
 func (r *Runtime) Exec(spec guestwire.ExecSpec, emit func(guestwire.RunEvent) error, ack func(string, uint32) error) error {
 	start := time.Now()
 	if !validContainerID(spec.ContainerID) || !validContainerID(spec.ID) || len(spec.Argv) == 0 {
@@ -137,7 +140,7 @@ func (r *Runtime) Exec(spec guestwire.ExecSpec, emit func(guestwire.RunEvent) er
 	}
 	launch := processLaunch{
 		mode: "__fabo-exec", id: spec.ID, flags: spec.Flags, config: spec,
-		attributes: &syscall.SysProcAttr{Setpgid: processGroup}, cgroup: cgroup, files: files,
+		attributes: &syscall.SysProcAttr{}, group: processGroup, cgroup: cgroup, files: files,
 		start: func(cmd *exec.Cmd) error { return startInPIDNamespace(cmd, pidNS) },
 	}
 	child, err := launchProcess(launch, emit, ack)

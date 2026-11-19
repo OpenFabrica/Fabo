@@ -159,6 +159,8 @@ func archivePath(raw string) (string, error) {
 	return path.Clean(raw), nil
 }
 
+// untarLayer unpacks an image layer's entries under root and returns the
+// bytes of regular file data it wrote.
 func untarLayer(root *os.Root, archive *tar.Reader) (uint64, error) {
 	dirs := make(map[string]tar.Header)
 	var bytes uint64
@@ -216,9 +218,12 @@ func untarLayer(root *os.Root, archive *tar.Reader) (uint64, error) {
 				return 0, err
 			}
 			info, err := root.Lstat(target)
-			if err != nil || !info.Mode().IsRegular() {
-				return 0, fmt.Errorf("layer hard link target is not a regular file: %q", target)
+			if err != nil || !hardLinkable(info.Mode()) {
+				return 0, fmt.Errorf("layer hard link target is not a regular file or symlink: %q", target)
 			}
+			// Root.Link calls linkat without AT_SYMLINK_FOLLOW, so a symlink
+			// source is linked itself and its target, possibly absolute or
+			// dangling, is never resolved (Nix-built images hard-link those).
 			if err := root.Link(target, name); err != nil {
 				return 0, err
 			}
@@ -246,6 +251,12 @@ func untarLayer(root *os.Root, archive *tar.Reader) (uint64, error) {
 		}
 	}
 	return bytes, nil
+}
+
+// hardLinkable reports whether a tar hard link may name a file of mode as
+// its source: a regular file, or a symlink, which is linked itself.
+func hardLinkable(mode os.FileMode) bool {
+	return mode.IsRegular() || mode&os.ModeSymlink != 0
 }
 
 func extractFIFO(root *os.Root, name string, h *tar.Header) error {

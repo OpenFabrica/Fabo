@@ -137,6 +137,13 @@ func fileViewList(root *os.File, name string) ([]guestwire.FileInfo, error) {
 	return entries, nil
 }
 
+// fileViewRead returns up to q.Count bytes from q.Offset of a regular file
+// in the container. The agent answers control messages one at a time, so
+// nothing here may wait: what the path names is checked through an O_PATH
+// descriptor before anything opens it for reading (opening a FIFO waits for
+// a writer, opening a device runs its driver), and the read itself does not
+// wait either (/proc/kmsg is a regular file whose read waits for the next
+// kernel message). A read that would wait returns what was read so far.
 func fileViewRead(root *os.File, q guestwire.FileQuery) ([]byte, error) {
 	fd, err := openViewPath(root, q.Path, unix.O_PATH)
 	if err != nil {
@@ -153,15 +160,32 @@ func fileViewRead(root *os.File, q guestwire.FileQuery) ([]byte, error) {
 	if st.Mode&unix.S_IFMT != unix.S_IFREG {
 		return nil, unix.EINVAL
 	}
-	file, err := os.Open(fmt.Sprintf("/proc/self/fd/%d", fd))
+	// Reopen the file found, by its descriptor: no path is resolved again.
+	// A raw descriptor rather than an os.File, which would register a
+	// pollable file such as /proc/kmsg with the runtime poller and park the
+	// read there until data arrives.
+	file, err := unix.Open(fmt.Sprintf("/proc/self/fd/%d", fd), unix.O_RDONLY|unix.O_NONBLOCK|unix.O_NOCTTY|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer unix.Close(file)
 	buf := make([]byte, q.Count)
-	n, err := file.ReadAt(buf, int64(q.Offset))
-	if err != nil && !errors.Is(err, io.EOF) {
-		return nil, err
+	n := 0
+	for n < len(buf) {
+		got, err := unix.Pread(file, buf[n:], int64(q.Offset)+int64(n))
+		if err == unix.EINTR {
+			continue
+		}
+		if err == unix.EAGAIN {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if got == 0 {
+			break
+		}
+		n += got
 	}
 	return buf[:n], nil
 }

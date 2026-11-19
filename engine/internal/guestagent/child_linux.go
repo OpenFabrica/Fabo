@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"runtime"
 	"strings"
 	"syscall"
@@ -52,6 +53,8 @@ func ContainerMain(join bool) {
 	os.Exit(127)
 }
 
+// executeContainer sets up a new container's root, mounts and namespaces,
+// then runs its command.
 func executeContainer(status *os.File) error {
 	var cfg processConfig
 	if err := json.NewDecoder(os.Stdin).Decode(&cfg); err != nil {
@@ -121,6 +124,12 @@ func executeContainer(status *os.File) error {
 	if err := attachMounts(mounts); err != nil {
 		return err
 	}
+	// Docker makes a missing working directory (mkdir -p) as root, 0755,
+	// before it switches user and before the root goes read-only, so both
+	// `-u 1000 -w /missing` and `--read-only -w /missing` start. After the
+	// mounts, so a directory inside a volume is made in the volume, and the
+	// volume's own mount point is still the engine's (see attachMount).
+	makeWorkdir("/", cfg.Spec.Cwd)
 	if cfg.Spec.Flags&guestwire.RunReadOnlyRoot != 0 {
 		if err := unix.MountSetattr(unix.AT_FDCWD, "/", 0, &unix.MountAttr{Attr_set: unix.MOUNT_ATTR_RDONLY}); err != nil {
 			return fmt.Errorf("make root filesystem read-only: %w", err)
@@ -134,6 +143,27 @@ func executeContainer(status *os.File) error {
 		}
 	}
 	return executeProgram(cfg.Spec, status)
+}
+
+// makeWorkdir creates cwd, resolved under root, and its missing parents,
+// each owned by the caller (root) with mode 0755 whatever the umask.
+// Errors are left to the chdir after the user switch, which reports them.
+func makeWorkdir(root, cwd string) {
+	if cwd == "" {
+		return
+	}
+	current := root
+	for part := range strings.SplitSeq(strings.Trim(path.Clean("/"+cwd), "/"), "/") {
+		if part == "" {
+			return
+		}
+		current = path.Join(current, part)
+		if err := unix.Mkdir(current, 0755); err == nil {
+			_ = unix.Chmod(current, 0755)
+		} else if err != unix.EEXIST {
+			return
+		}
+	}
 }
 
 func mountOverlay(cfg processConfig, flags uintptr) error {

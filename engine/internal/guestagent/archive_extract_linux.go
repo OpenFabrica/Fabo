@@ -72,6 +72,8 @@ func extractContainerArchive(root *os.Root, source io.Reader, flags uint32) erro
 	return nil
 }
 
+// replaceArchiveEntry writes one non-directory archive entry beside its
+// name and renames it into place.
 func replaceArchiveEntry(root *os.Root, source io.Reader, header *tar.Header, flags uint32) error {
 	if header.Name == "." {
 		return fmt.Errorf("archive file cannot replace the extraction directory")
@@ -110,9 +112,10 @@ func replaceArchiveEntry(root *os.Root, source io.Reader, header *tar.Header, fl
 		if err != nil {
 			return err
 		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("hard link target must be a regular file: %s", target)
+		if !hardLinkable(info.Mode()) {
+			return fmt.Errorf("hard link target must be a regular file or symlink: %s", target)
 		}
+		// A symlink source is linked itself, never followed; see untarLayer.
 		if err := root.Link(target, tmp); err != nil {
 			return err
 		}

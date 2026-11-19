@@ -65,6 +65,9 @@ type childProcess struct {
 	caps         uint64
 	security     uint32
 	execOutput   *execOutput
+	// signalGroup sends signals to the child's whole process group
+	// instead of the child alone; see processLaunch.group.
+	signalGroup bool
 	// setup is the child's bootstrap status pipe while a container that was
 	// reported started early is still setting up; see processLaunch.early.
 	setup *os.File
@@ -373,6 +376,10 @@ type processLaunch struct {
 	files      []*os.File
 	start      func(*exec.Cmd) error
 	prepare    func(int) error
+	// group makes signals reach the child's whole process group. Every
+	// child already leads its own session (and so its own group); this
+	// only chooses whether a signal goes to that group or to the child.
+	group bool
 	// early reports the process started once its network is in place,
 	// before the child has mounted its root and exec'd the command, as Kiri
 	// does. A setup failure then ends the container with exit code 127 (126
@@ -382,6 +389,8 @@ type processLaunch struct {
 	early bool
 }
 
+// launchProcess starts the agent's namespace child for a container or an
+// exec, hands it its config and waits for its setup as p describes.
 func launchProcess(p processLaunch, emit func(guestwire.RunEvent) error, ack func(string, uint32) error) (*childProcess, error) {
 	data, err := json.Marshal(p.config)
 	if err != nil {
@@ -453,7 +462,16 @@ func launchProcess(p processLaunch, emit func(guestwire.RunEvent) error, ack fun
 		cmd.Stderr = processOutput{ready, p.id, 2, emit}
 	}
 	cmd.ExtraFiles = append(cmd.ExtraFiles, p.files...)
-	p.attributes.Setsid = tty
+	// Every container and exec leads a session of its own, as runc gives
+	// them. Otherwise it stays in the agent's process group, which on a
+	// Linux host is the daemon's too: Apache prefork's stop
+	// (kill(0, SIGTERM)) then reached the engine. A terminal also needs a
+	// session leader to become its controlling terminal (TIOCSCTTY).
+	// Setpgid must stay off: Go's child calls setsid before setpgid, and
+	// a session leader cannot change its group (EPERM). setsid already
+	// makes the child lead a group whose ID is its PID.
+	p.attributes.Setsid = true
+	p.attributes.Setpgid = false
 	cmd.SysProcAttr = p.attributes
 	if p.cgroup != nil {
 		cmd.SysProcAttr.UseCgroupFD = true
@@ -516,7 +534,7 @@ func launchProcess(p processLaunch, emit func(guestwire.RunEvent) error, ack fun
 		return nil, err
 	}
 	launched = true
-	child := &childProcess{Cmd: cmd, terminal: terminal, ready: ready}
+	child := &childProcess{Cmd: cmd, terminal: terminal, ready: ready, signalGroup: p.group}
 	if p.early {
 		child.setup, keepStatus = status, true
 		child.setupDone = make(chan struct{})
@@ -632,8 +650,10 @@ func (r *Runtime) Signal(id string, signal uint32) {
 	}
 }
 
+// signal delivers signal to the child, or to its whole process group when
+// it was launched as a group (a private exec's descendants go with it).
 func (child *childProcess) signal(signal syscall.Signal) {
-	if child.SysProcAttr.Setpgid {
+	if child.signalGroup {
 		_ = syscall.Kill(-child.Process.Pid, signal)
 		return
 	}

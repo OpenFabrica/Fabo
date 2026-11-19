@@ -139,7 +139,12 @@ func closeMounts(mounts []detachedMount) {
 	}
 }
 
-// Populate volumes while the overlay is still unobscured by user mounts.
+// mountpointMark is the xattr on a directory the engine made in the
+// container's own layer to mount a copy-up volume on.
+const mountpointMark = "user.fabo.mountpoint"
+
+// populateVolumes copies the image's contents and ownership into empty
+// copy-up volumes, while the overlay is still unobscured by user mounts.
 func populateVolumes(rootPath string, mounts []detachedMount) error {
 	root := -1
 	defer func() {
@@ -164,6 +169,14 @@ func populateVolumes(rootPath string, mounts []detachedMount) error {
 		if err == unix.ENOENT || err == unix.ENOTDIR {
 			continue
 		}
+		if err == nil && engineMountpoint(source) {
+			// The image has nothing here: this is the empty directory a
+			// previous start made to mount on. Copying its root-owned 0755
+			// over the volume would undo a tmpfs volume's uid=, gid= and
+			// mode= on every restart.
+			_ = unix.Close(source)
+			continue
+		}
 		if err == nil {
 			err = copyUpVolume(source, mount.copyFD)
 			_ = unix.Close(source)
@@ -184,6 +197,35 @@ func attachMounts(mounts []detachedMount) error {
 	return nil
 }
 
+// engineMountpoint reports whether fd, an O_PATH descriptor, names a
+// directory carrying mountpointMark. O_PATH descriptors refuse fgetxattr,
+// so the xattr is read through the descriptor's /proc link.
+func engineMountpoint(fd int) bool {
+	_, err := unix.Getxattr(fmt.Sprintf("/proc/self/fd/%d", fd), mountpointMark, nil)
+	return err == nil
+}
+
+// markMountpoint sets mountpointMark on parent/name, a directory just made
+// to mount a copy-up volume on, but only when it lies in the container's
+// own layer (on root's filesystem): one made inside an earlier bind, such
+// as /app/node_modules under ./:/app, is the user's folder and is left
+// alone. A filesystem without user xattrs refuses the mark; only a later
+// restart's copy-up then still resets the volume's root.
+func markMountpoint(root, parent int, name string) {
+	var top, dir unix.Stat_t
+	if unix.Fstat(root, &top) != nil || unix.Fstat(parent, &dir) != nil || top.Dev != dir.Dev {
+		return
+	}
+	fd, err := unix.Openat(parent, name, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return
+	}
+	defer unix.Close(fd)
+	_ = unix.Fsetxattr(fd, mountpointMark, []byte("1"), 0)
+}
+
+// attachMount moves the detached mount b onto its target in the current
+// root, making missing directories (or the target file) on the way.
 func attachMount(b detachedMount) error {
 	current, err := unix.Open("/", unix.O_PATH|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
 	if err != nil {
@@ -197,8 +239,10 @@ func attachMount(b detachedMount) error {
 	defer unix.Close(root)
 	parts := strings.Split(strings.TrimPrefix(b.target, "/"), "/")
 	for i, part := range parts {
-		dir := i < len(parts)-1 || b.dir
-		next, err := openTarget(root, current, part, strings.Join(parts[:i+1], "/"), dir, b.device)
+		last := i == len(parts)-1
+		dir := !last || b.dir
+		mark := last && b.dir && b.copyFD >= 0
+		next, err := openTarget(root, current, part, strings.Join(parts[:i+1], "/"), dir, b.device, mark)
 		if err != nil {
 			return err
 		}
@@ -208,7 +252,10 @@ func attachMount(b detachedMount) error {
 	return unix.MoveMount(b.fd, "", current, "", unix.MOVE_MOUNT_F_EMPTY_PATH|unix.MOVE_MOUNT_T_EMPTY_PATH)
 }
 
-func openTarget(root, parent int, name, path string, dir, device bool) (int, error) {
+// openTarget opens one component of a mount target below root, creating
+// it in parent when missing. mark tags a directory it creates with
+// mountpointMark (see markMountpoint).
+func openTarget(root, parent int, name, path string, dir, device, mark bool) (int, error) {
 	flags := unix.O_PATH | unix.O_CLOEXEC
 	if dir {
 		flags |= unix.O_DIRECTORY
@@ -221,8 +268,14 @@ func openTarget(root, parent int, name, path string, dir, device bool) (int, err
 	fd, err := open()
 	if err == unix.ENOENT {
 		if dir {
-			if err := unix.Mkdirat(parent, name, 0755); err != nil && err != unix.EEXIST {
+			err := unix.Mkdirat(parent, name, 0755)
+			if err != nil && err != unix.EEXIST {
 				return -1, err
+			}
+			// Only the directory this call made: one that already existed
+			// may be the image's, whose metadata a volume should get.
+			if err == nil && mark {
+				markMountpoint(root, parent, name)
 			}
 		} else {
 			file, err := unix.Openat(parent, name, unix.O_CREAT|unix.O_EXCL|unix.O_WRONLY|unix.O_CLOEXEC, 0644)
