@@ -50,6 +50,8 @@ func parseSignal(raw string) (uint32, error) {
 	return 0, fmt.Errorf("%w: invalid Linux signal %q", errInvalid, raw)
 }
 
+// killHTTP sends a signal (SIGKILL by default) to a running container; for
+// SIGKILL it answers once the container has exited.
 func (e *Engine) killHTTP(w http.ResponseWriter, r *http.Request) {
 	signal := sigKill
 	if raw := r.URL.Query().Get("signal"); raw != "" {
@@ -70,6 +72,11 @@ func (e *Engine) killHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if err == nil {
 			err = e.signalRun(r.Context(), c, done, signal)
+		}
+		// A SIGKILL is answered once the container has exited, as Docker
+		// does: a start or rm right after it must not find it still running.
+		if err == nil && signal == sigKill {
+			err = waitKilled(r.Context(), done)
 		}
 	}
 	if err != nil {
@@ -191,11 +198,16 @@ func (e *Engine) signalRun(ctx context.Context, c *container, done <-chan struct
 	return nil
 }
 
+// stopWithContext signals a container and waits for it to exit, sending
+// SIGKILL once timeout seconds pass (never when timeout is -1).
 func (e *Engine) stopWithContext(ctx context.Context, c *container, done <-chan struct{}, signal uint32, timeout int64) error {
 	if err := e.signalRun(ctx, c, done, signal); err != nil {
 		return err
 	}
-	if timeout < 0 || signal == sigKill {
+	if signal == sigKill {
+		return waitKilled(ctx, done)
+	}
+	if timeout < 0 {
 		return waitStopped(ctx, done)
 	}
 	timer := time.NewTimer(time.Duration(timeout) * time.Second)
@@ -209,7 +221,7 @@ func (e *Engine) stopWithContext(ctx context.Context, c *container, done <-chan 
 		if err := e.signalRun(ctx, c, done, sigKill); err != nil {
 			return err
 		}
-		return waitStopped(ctx, done)
+		return waitKilled(ctx, done)
 	}
 }
 
@@ -268,6 +280,30 @@ func (e *Engine) StopContainers(ctx context.Context) error {
 	return err
 }
 
+// killWait bounds the wait for an exit after SIGKILL, as Docker's kill
+// does: an exit the guest never reports must not hold the request, and the
+// container's operation lock, forever.
+var killWait = 10 * time.Second
+
+// waitKilled waits for done after a SIGKILL, for at most killWait. A nil
+// done (nothing was running) returns at once.
+func waitKilled(ctx context.Context, done <-chan struct{}) error {
+	if done == nil {
+		return nil
+	}
+	timer := time.NewTimer(killWait)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return fmt.Errorf("container did not exit within %v of SIGKILL", killWait)
+	}
+}
+
+// waitStopped waits for done or for ctx to end.
 func waitStopped(ctx context.Context, done <-chan struct{}) error {
 	select {
 	case <-done:
