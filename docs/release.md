@@ -24,8 +24,14 @@ Fabo 是 Go 项目，版本号不存在源码里，只来自 git 标签 `vX.Y.Z`
 2. 提交 `chore(release): <版本>`。
 3. 打注释标签 `v<版本>`，推送分支和标签。**打标签和推送前先问用户。**
 4. 门禁：`make release-check TAG=v<版本>`（`scripts/release-check.sh`），不过就停。
-5. 从标签构建：`make guest kernel disk app dmg`。随包的 Go 二进制（`fabo`、`fabo-desktop`、`fabo-daemon`、guest 的 `fabo-init`，以及 `make linux`）都用 `-s -w` 去掉符号表和 DWARF，体积约少三分之一，panic 调用栈仍有函数名和行号。单独调试引擎的 `make daemon` 保留调试信息。
-6. 生成内核源码包 `scripts/ci/kernel-source.sh target/Fabo-<版本>-kernel-source.tar.xz`，和 DMG 一起附到 GitHub Release `v<版本>`。
+5. 从标签构建：`FABO_SHARE_SERVER=edge.share.talkwork.vip FABO_NOTARY_PROFILE=aster-notary make release-mac`
+   （`scripts/macos-release.sh`）。它构建 arm64 与 x86_64 两个 DMG、两个 Linux 压缩包、内核源码包和 `SHA256SUMS`，
+   两个 DMG 先签名再同时提交公证；内核和数据盘模板已存在就不重编，内核改动后加 `FABO_REBUILD_KERNEL=1`。
+   缺 `FABO_SHARE_SERVER` 会直接报错：不带它的包没有默认中继，用户得先 `fabo share login --server` 才能用公网共享。
+   Windows 的 MSI、更新源 `latest-windows-*.json` 和 `SHA256SUMS-windows` 由 CI 构建并上传：从 master 开分支
+   `release/windows-v<版本>-ci`，照上一个版本的 `.github/workflows/windows-v<版本>.yml` 改版本号后推送，
+   工作流在 x64 和 ARM64 上做安装 / 卸载验证，通过后才上传。随包的 Go 二进制（`fabo`、`fabo-desktop`、`fabo-daemon`、guest 的 `fabo-init`，以及 `make linux`）都用 `-s -w` 去掉符号表和 DWARF，体积约少三分之一，panic 调用栈仍有函数名和行号。单独调试引擎的 `make daemon` 保留调试信息。
+6. 把 `target/` 下的两个 DMG、两个 `fabo-<版本>-linux-*.tar.gz`、内核源码包和 `SHA256SUMS` 附到 GitHub Release `v<版本>`。
    `guest/kernel/SOURCE_OFFER.md` 承诺了这个下载地址（GPL 要求），不能漏。公证时传 `FABO_NOTARY_PROFILE`。
 
 没有「推进到下一个开发版」的提交：标签之后的构建自动变成开发版。日常 push 不动版本。
@@ -50,7 +56,7 @@ Fabo 是 Go 项目，版本号不存在源码里，只来自 git 标签 `vX.Y.Z`
 ## 现状
 
 - macOS 的 app 和 DMG 能从本仓库构建；Windows 的安装目录用 `make windows` 在任意系统构建，MSI 在 Windows 上用
-  `scripts/windows-msi.ps1` 构建（不做代码签名；尚未实际发布过，见 [Fabo for Windows](windows.md)）。更新源（feed）的托管、
+  `scripts/windows-msi.ps1` 构建（不做代码签名，发版时由 CI 构建，见上文第 5 步和 [Fabo for Windows](windows.md)）。更新源（feed）的托管、
   Linux 包的发版流程还没有迁移，见 [功能对齐基线](compatibility-baseline.md)。
 - `docs/releases/` 是上游 Kiri 0.1.x 的发版说明，留作对照。
 - `NOTICE` 由 `python3 scripts/notice.py` 生成：随包 Go 二进制实际链接的模块与 Go 运行时的许可证、

@@ -38,7 +38,7 @@ FABO_SHARE_SERVER ?=
 export FABO_SHARE_SERVER
 SHARE_LDFLAGS := $(if $(FABO_SHARE_SERVER),-X github.com/OpenFabrica/Fabo/engine/sharetunnel.DefaultServer=$(FABO_SHARE_SERVER))
 
-.PHONY: release-check help check guest kernel disk daemon app app-dev dev dmg linux windows clean
+.PHONY: release-mac release-check help check guest kernel disk daemon app app-dev dev dmg linux windows clean
 
 help:
 	@echo "make check     vet and test engine and desktop; compile the Linux- and Windows-only tests"
@@ -51,6 +51,7 @@ help:
 	@echo "               its window shows the installed app's engine, containers and images"
 	@echo "               (FABO_OWN_ENGINE=1: its own engine; FLAVOR=name builds Fabo <Name>.app)"
 	@echo "make dev       run the desktop with automatic reload on source changes"
+	@echo "make release-mac  both DMGs (notarized at once), Linux archives, kernel source, SHA256SUMS"
 	@echo "make dmg       target/Fabo-<version>-$(ARCH).dmg from the app, notarized when"
 	@echo "               FABO_NOTARY_PROFILE names a notarytool profile"
 	@echo "make linux     target/linux/release: fabo, fabo-daemon, fabo-init"
@@ -124,6 +125,11 @@ dev:
 
 dmg:
 	scripts/macos-dmg.sh $(ARCH) $(VERSION)
+
+# Every macOS-built release file for both architectures, notarized together
+# (scripts/macos-release.sh); needs FABO_SHARE_SERVER and FABO_NOTARY_PROFILE.
+release-mac:
+	scripts/macos-release.sh $(VERSION)
 
 # Static binaries, so one build runs on every distribution.
 linux:
