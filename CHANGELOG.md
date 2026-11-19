@@ -2,7 +2,7 @@
 
 每次发版在最上面加一节 `## <版本> · <日期> · <渠道>`（渠道：`alpha` / `beta` / `rc` / `stable`），面向用户，一行一条。规则见 [docs/release.md](docs/release.md)。
 
-## 未发布
+## 0.7.0 · 2026-11-19 · stable
 
 - 「构建」页改为显示 BuildKit 的构建历史：按状态筛选和搜索，查看每一步的耗时、缓存和输出、失败原因与 Dockerfile 行、lint 警告，产出镜像的分层和安全扫描，可删除单条记录或清理所有失败的构建；构建器设置留在设置 → 构建。
 - 新增 Windows 版：引擎运行在 WSL 2，`fabo-win` 在 `\\.\pipe\fabo` 提供 Docker API（没有其他引擎时也服务 `docker_engine`），首次设置可自动安装 WSL、选择 Fabo Linux 或 Ubuntu、装好 docker CLI / Compose / buildx 并设为默认。
