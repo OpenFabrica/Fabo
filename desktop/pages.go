@@ -39,10 +39,35 @@ func imageColumns() []column {
 	}
 }
 
+// scanStep is the step a running scan has reached, as the engine streams it.
+// Only downloading the scanner has a measurable fraction: updating the
+// vulnerability database and scanning the image run Grype without progress,
+// so their fraction stays 0 and must not be shown as a percentage.
+type scanStep struct {
+	phase string
+	pct   float64
+}
+
+// measured reports whether the step's fraction means anything.
+func (st scanStep) measured() bool { return st.phase == "scanner" }
+
+// words names the step, with its percentage when there is one.
+func (st scanStep) words() string {
+	switch st.phase {
+	case "scanner":
+		return fmt.Sprintf(tr("下载扫描器 %.0f%%", "Downloading scanner %.0f%%"), st.pct*100)
+	case "database":
+		return tr("更新漏洞库", "Updating database")
+	case "scanning":
+		return tr("扫描中", "Scanning")
+	}
+	return tr("准备扫描", "Preparing")
+}
+
 // scanWords summarises what is known about an image's scan for the table.
 func (s *desktop) scanWords(p palette, img image) (string, ui.Color) {
-	if pct, busy := s.scanning[img.ID]; busy {
-		return fmt.Sprintf(tr("扫描中 %.0f%%", "Scanning %.0f%%"), pct*100), p.warn
+	if step, busy := s.scanning[img.ID]; busy {
+		return step.words(), p.warn
 	}
 	result, known := s.scans[img.ID]
 	switch {
@@ -73,10 +98,10 @@ func (s *desktop) scanWords(p palette, img image) (string, ui.Color) {
 // startScan scans an image for known vulnerabilities, showing progress in
 // its row until the result arrives.
 func (s *desktop) startScan(img image) {
-	s.scanning[img.ID] = 0
+	s.scanning[img.ID] = scanStep{}
 	s.run(15*time.Minute, func(ctx context.Context) func() {
-		result, err := s.engine.scan(ctx, img.ref(), func(pct float64) {
-			s.onMain(func() { s.scanning[img.ID] = pct })
+		result, err := s.engine.scan(ctx, img.ref(), func(step scanStep) {
+			s.onMain(func() { s.scanning[img.ID] = step })
 		})
 		return func() {
 			delete(s.scanning, img.ID)
@@ -256,7 +281,7 @@ func (s *desktop) imageDock(c *ui.Context, p palette, img image) {
 		layersTab += fmt.Sprintf(" %d", n)
 	}
 	result := s.scans[img.ID]
-	pct, scanning := s.scanning[img.ID]
+	step, scanning := s.scanning[img.ID]
 	s.dock(c, p, img.ref(), func() { label(c, displaySize(img.Size), p.muted).Shrink(0) },
 		[]string{layersTab, tr("安全扫描", "Security"), tr("信息", "Info")},
 		func() {
@@ -275,8 +300,14 @@ func (s *desktop) imageDock(c *ui.Context, p palette, img image) {
 				switch {
 				case scanning:
 					ui.Column(c).Fill().Grow(1).Center().Gap(12).Children(func() {
-						ui.Text(c, fmt.Sprintf(tr("扫描中 %.0f%%", "Scanning %.0f%%"), pct*100)).FontSize(13).TextColor(p.text)
-						ui.Box(c).Width(260).Children(func() { meter(c, p, pct, 4, p.accent) })
+						ui.Text(c, step.words()).FontSize(13).TextColor(p.text)
+						// Steps without a measurable fraction spin instead of
+						// showing a bar stuck at zero.
+						if step.measured() {
+							ui.Box(c).Width(260).Children(func() { meter(c, p, step.pct, 4, p.accent) })
+						} else {
+							ui.Spinner(c).Size(14, 14)
+						}
 					})
 				case result == nil:
 					if empty(c, p, "shield", tr("尚未扫描", "Not scanned yet"), tr("开始扫描", "Scan now")) {

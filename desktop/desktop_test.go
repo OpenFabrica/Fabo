@@ -907,6 +907,54 @@ func TestImageDockShowsLayersAndStoredScan(t *testing.T) {
 	}
 }
 
+// TestScanReportsPhases checks that a running scan keeps the engine's phase,
+// so the steps without measurable progress do not read as a scan stuck at 0%
+// after the scanner download reached 100%.
+func TestScanReportsPhases(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"phase":"scanner","pct":40}`+"\n"+`{"phase":"scanner","pct":100}`+"\n"+
+			`{"phase":"database","pct":0}`+"\n"+`{"phase":"scanning","pct":0}`+"\n"+
+			`{"result":{"scanned":1,"packages":0,"vulns":[]}}`+"\n")
+	}))
+	defer srv.Close()
+	e := newEngineClient(func(ctx context.Context) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, "tcp", srv.Listener.Addr().String())
+	})
+	var steps []scanStep
+	if _, err := e.scan(context.Background(), "alpine:3.21", func(st scanStep) { steps = append(steps, st) }); err != nil {
+		t.Fatal(err)
+	}
+	want := []scanStep{{"scanner", 0.4}, {"scanner", 1}, {"database", 0}, {"scanning", 0}}
+	if !slices.Equal(steps, want) {
+		t.Fatalf("steps: %v", steps)
+	}
+	var words []string
+	for _, st := range steps {
+		words = append(words, st.words())
+	}
+	if got := strings.Join(words, " | "); got != "Downloading scanner 40% | Downloading scanner 100% | Updating database | Scanning" {
+		t.Fatalf("words: %q", got)
+	}
+
+	// The detail panel names the unmeasured step instead of showing 0%.
+	_, s := newFakeEngine(t)
+	s.navigate(imagesPage)
+	tt := ui.NewTester(s.view, 1180, 760)
+	if err := tt.Click("Details for shop/api:dev"); err != nil {
+		t.Fatal(err)
+	}
+	for _, img := range s.images {
+		if slices.Contains(img.Tags, "shop/api:dev") {
+			s.scanning[img.ID] = scanStep{phase: "database"}
+		}
+	}
+	s.tab[imagesPage] = 1
+	tt.Frame()
+	if _, found := tt.Find("Updating database"); !found || strings.Contains(strings.Join(tt.Texts(), " "), "0%") {
+		t.Fatalf("panel: %q", tt.Texts())
+	}
+}
+
 func TestRunDialogValidatesBeforeSending(t *testing.T) {
 	f, s := newFakeEngine(t)
 	tt := ui.NewTester(s.view, 1180, 760)

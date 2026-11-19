@@ -545,8 +545,9 @@ func (e engineClient) lastScan(ctx context.Context, ref string) (*scanResult, er
 	return result, err
 }
 
-// scan runs a new scan, reporting progress between 0 and 1 as it goes.
-func (e engineClient) scan(ctx context.Context, ref string, progress func(float64)) (*scanResult, error) {
+// scan runs a new scan, reporting each step's phase and its progress
+// between 0 and 1 as it goes.
+func (e engineClient) scan(ctx context.Context, ref string, progress func(scanStep)) (*scanResult, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://localhost/fabo/images/scan?name="+url.QueryEscape(ref), nil)
 	if err != nil {
 		return nil, err
@@ -563,6 +564,7 @@ func (e engineClient) scan(ctx context.Context, ref string, progress func(float6
 	for {
 		line, err := lines.ReadBytes('\n')
 		var step struct {
+			Phase  string      `json:"phase"`
 			Pct    float64     `json:"pct"`
 			Result *scanResult `json:"result"`
 			Error  string      `json:"error"`
@@ -574,7 +576,7 @@ func (e engineClient) scan(ctx context.Context, ref string, progress func(float6
 			case step.Result != nil:
 				return step.Result, nil
 			}
-			progress(step.Pct / 100)
+			progress(scanStep{phase: step.Phase, pct: step.Pct / 100})
 		}
 		if err != nil {
 			return nil, fmt.Errorf("the scan ended without a result")
