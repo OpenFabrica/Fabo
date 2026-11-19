@@ -78,14 +78,28 @@ cleanup
 section "engine"
 t version-server "Fabo" $D version
 t version-api "1.47" $D version --format '{{.Server.APIVersion}}'
+# What Testcontainers needs, asked as docker-java asks: a Docker Engine
+# version (Fabo's own beside it), the image's CMD for "Cmd": [], and exec
+# start answering 200 without Upgrade and 101 with it.
+t version-fabo-component "Fabo=" $D version --format '{{range .Server.Components}}{{.Name}}={{.Version}} {{end}}'
+for c in version cmd exec; do
+  t "testcontainers-$c" "ok $c" python3 "$(dirname "$0")/testcontainers-api.py" "$SOCK" "$c"
+done
+# The script leaves its tc-api-* containers running; later counts by image
+# (filter-ancestor) must not see them.
+$D rm -f tc-api-cmd tc-api-exec >/dev/null 2>&1
 t info-os "Fabo" $D info --format '{{.OperatingSystem}}'
 t info-cgroup "2" $D info --format '{{.CgroupVersion}}'
+# Compose's `up` and `logs -f` read the daemon's time before they attach.
+t info-system-time "$(date -u +%Y-%m-%dT)" $D info --format '{{.SystemTime}}'
 
 section "images"
 t pull-alpine "alpine:latest" $D pull alpine:latest
 t pull-busybox "busybox" $D pull busybox
 t pull-tag "3.21" $D pull alpine:3.21
 t images-list "alpine" $D images
+# Newest first, as Docker lists them.
+t images-newest-first "sorted" bash -c "$D images --format '{{.CreatedAt}}' | sort -rc && echo sorted"
 t image-inspect-arch "arm64" $D image inspect -f '{{.Architecture}}' alpine
 t image-inspect-cmd "/bin/sh" $D image inspect -f '{{.Config.Cmd}}' alpine
 code pull-missing 1 $D pull fabo-does-not-exist/nope:none
@@ -136,6 +150,12 @@ t name "named-one" $D run --rm --name named-one alpine sh -c 'echo named-one'
 t python "3.13" $D run --rm python:3.13-alpine python -c 'import sys;print(sys.version)'
 t node "v22" $D run --rm node:22-alpine node -v
 t debian-image "Valkey server" $D run --rm valkey/valkey valkey-server --version
+# A missing working directory is made by root as 0755, before the user switch
+# and before a read-only root goes read-only, as in Docker.
+t workdir-created-nonroot "/made/for/1000" $D run --rm -u 1000:1000 -w /made/for/1000 alpine pwd
+t workdir-created-nonroot-mode "755 root" $D run --rm -u 1000:1000 -w /made/x alpine stat -c '%a %U' /made/x
+t workdir-created-readonly "/made/ro" $D run --rm --read-only -w /made/ro alpine pwd
+t workdir-created-readonly-nonroot "/made/ro/1000" $D run --rm --read-only -u 1000:1000 -w /made/ro/1000 alpine pwd
 
 section "stdin and terminals"
 t stdin-pipe "3" bash -c "printf 'a\nb\nc\n' | $D run -i --rm alpine wc -l"
@@ -184,6 +204,11 @@ t exec-workdir "/etc" $D exec -w /etc web pwd
 t exec-stdin "into exec" bash -c "echo 'into exec' | $D exec -i web cat"
 t exec-tty "/dev/pts" bash -c "script -q /dev/null $D exec -it web tty < /dev/null"
 t exec-sees-pid1 "nginx" $D exec web sh -c 'cat /proc/1/comm'
+# Each container and each exec leads a session of its own, as with runc, so a
+# program that signals its whole process group can't reach the engine.
+t session-own "SID=1" $D run --rm alpine sh -c 'echo SID=$(cut -d" " -f6 /proc/1/stat)'
+t exec-session-own "own" $D exec web sh -c 's=$(cut -d" " -f6 /proc/$$/stat); [ "$s" = "$$" ] && echo own || echo "session $s, pid $$"'
+t session-kill-group "alive" bash -c "$D run --rm alpine sh -c 'kill -TERM 0' >/dev/null 2>&1; $D exec web echo alive"
 t exec-same-fs "shared" bash -c "$D exec web sh -c 'echo shared > /tmp/x' && $D exec web cat /tmp/x"
 t stop "web" $D stop web
 t stopped-status "Exited" $D ps -a --format '{{.Status}}' --filter name=web
@@ -514,6 +539,14 @@ t vol-rm "tvol" $D volume rm tvol thtml tempty
 t vol-create "made-vol" $D volume create made-vol
 t tmpfs "size=10240k" $D run --rm --tmpfs /scratch:size=10m alpine sh -c 'mount | grep scratch'
 t tmpfs-mount "tmpfs on /t" $D run --rm --mount type=tmpfs,target=/t alpine sh -c 'mount | grep " /t "'
+# A tmpfs volume's root keeps its uid=, gid= and mode= when the image has
+# nothing there to copy up, on the first start and on a later one.
+$D volume create -d local -o type=tmpfs -o device=tmpfs -o o=size=1m,uid=10001,gid=10050,mode=2750 tv-owner >/dev/null
+t tmpfs-volume-owner "10001:10050 2750" $D run --rm -v tv-owner:/t alpine stat -c '%u:%g %a' /t
+$D create --name tv-again -v tv-owner:/t alpine stat -c '%u:%g %a' /t >/dev/null
+$D start -a tv-again >/dev/null 2>&1
+t tmpfs-volume-owner-restart "10001:10050 2750" $D start -a tv-again
+$D rm -f tv-again >/dev/null; $D volume rm tv-owner >/dev/null
 t anon-from-image "volume:/var/lib/postgresql/data" bash -c "$D run -d --name pgv -e POSTGRES_PASSWORD=x postgres:17-alpine >/dev/null; $D inspect -f '{{range .Mounts}}{{.Type}}:{{.Destination}}{{end}}' pgv"
 # Waits for the entrypoint's "init process complete" and then a working query,
 # not for pg_isready: on first start Postgres runs a temporary server to
@@ -536,6 +569,12 @@ t filter-label-none "0" bash -c "$D ps -q --filter label=team=zzz | wc -l | tr -
 t filter-label-and "1" bash -c "$D ps -q --filter label=team=a --filter label=tier=web | wc -l | tr -d ' '"
 t filter-label-key "2" bash -c "$D ps -q --filter label=team | wc -l | tr -d ' '"
 t filter-name "fb" $D ps --filter name=fb --format '{{.Names}}'
+# The name filter is a regular expression, as in Docker: k3d finds its nodes
+# with `^[/]?<node>$` together with label filters.
+t filter-name-regex-k3d "fb" $D ps --filter 'name=^[/]?fb$' --filter label=team=b --format '{{.Names}}'
+t filter-name-regex-optional-slash "fa" $D ps --filter 'name=^/?fa$' --format '{{.Names}}'
+t filter-name-regex-class "2" bash -c "$D ps -q --filter 'name=^f[ab]$' | wc -l | tr -d ' '"
+t filter-name-regex-anchored "0" bash -c "$D ps -q --filter 'name=^[/]?f$' | wc -l | tr -d ' '"
 t filter-status-exited "fx" $D ps --filter status=exited --format '{{.Names}}'
 t filter-exited-code "fx" $D ps -a --filter exited=3 --format '{{.Names}}'
 t filter-ancestor "2" bash -c "$D ps -q --filter ancestor=alpine | wc -l | tr -d ' '"
@@ -615,6 +654,8 @@ t priv-caps "000001ffffffffff" $D run --rm --privileged alpine grep CapEff /proc
 t priv-mount "mounted" $D run --rm --privileged alpine sh -c 'mount -t tmpfs t /mnt && echo mounted'
 t priv-devices "fuse" $D run --rm --privileged alpine ls /dev
 t priv-cgroup-rw "ok" $D run --rm --privileged alpine sh -c 'mkdir /sys/fs/cgroup/sub && echo ok'
+# The guest kernel has loop devices: losetup and mount -o loop work.
+t priv-loop "/dev/loop" $D run --rm --privileged alpine sh -c 'dd if=/dev/zero of=/tmp/d bs=1M count=8 2>/dev/null && losetup -f /tmp/d && losetup -a'
 t unpriv-no-mount "denied" $D run --rm alpine sh -c 'mount -t tmpfs t /mnt 2>/dev/null || echo denied'
 t priv-inspect "true" bash -c "$D run -d --name pv --privileged alpine sleep 30 >/dev/null; $D inspect -f '{{.HostConfig.Privileged}}' pv"
 t priv-exec-caps "000001ffffffffff" $D exec pv grep CapEff /proc/self/status
@@ -770,6 +811,11 @@ t rosetta-binary "x86-64" bash -c "$D run --rm --platform linux/amd64 alpine sh 
 t rosetta-inspect "linux/amd64" $D image inspect -f '{{.Os}}/{{.Architecture}}' alpine
 t rosetta-amd64-only-repo "x86_64" $D run --rm amd64/alpine:3.22 uname -m
 t rosetta-node "v22" $D run --rm --platform linux/amd64 node:22-alpine node --version
+# Rosetta on macOS 15 stops on startup entries it doesn't know ("unhandled
+# auxillary vector type 29"): the kernel gives AT_HWCAP3 (29) only when it
+# says something, which it never does in Fabo's VM. alpine is the amd64 image
+# here, so on Apple silicon this reads what Rosetta was handed.
+t rosetta-no-auxv-29 "no type 29" $D run --rm alpine sh -c 'od -An -v -tu8 -w16 /proc/self/auxv | awk "\$1 == 29 { n++ } END { print n ? \"type 29 given\" : \"no type 29\" }"'
 t native-again "aarch64" bash -c "$D pull -q --platform linux/arm64 alpine >/dev/null && $D pull -q --platform linux/arm64 node:22-alpine >/dev/null && $D run --rm alpine uname -m"
 $D rmi amd64/alpine:3.22 >/dev/null 2>&1
 

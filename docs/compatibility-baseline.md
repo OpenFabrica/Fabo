@@ -1,6 +1,6 @@
 # Fabo 功能对齐基线
 
-初始记录于 2026-11-11，待对齐清单更新于 2026-11-14（前次桌面实现提交 `6c93c03`，本地上游参考 `a649319`）。Fabo 是独立项目，源码里只有 Go。上游 [libracoder/kiri](https://github.com/libracoder/kiri) 是功能对齐的参考，本仓库的起点是上游提交 `4418009e3f9f8cd234e37531348dd900f78e84e1`。
+初始记录于 2026-11-11，待对齐清单更新于 2026-11-19（本地上游参考 `faca538`；上一轮参考 `a649319`，其后上游的增量见「上游 `a649319..faca538` 增量」）。Fabo 是独立项目，源码里只有 Go。上游 [libracoder/kiri](https://github.com/libracoder/kiri) 是功能对齐的参考，本仓库的起点是上游提交 `4418009e3f9f8cd234e37531348dd900f78e84e1`。
 
 目标是覆盖 Kiri 的 Docker API、现有客户端工作流和数据迁移能力，容器引擎与 guest agent 用 Go 实现，MyGo 承担主窗口和托盘。Docker CLI 的交互与流式能力属于引擎兼容范围。上游由 Rust 提供的其余功能按下面的「待对齐功能」逐步补回。架构和构建方式见[开发说明](development.md)和[桌面与引擎说明](desktop-overview.md)。
 
@@ -146,6 +146,64 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | 发版与 Lite | 更新源 JSON、发版 tarball、Kiri Lite 与首次 Docker CLI 下载回退待补；`NOTICE` 需按 Go 依赖重新生成。macOS app 和 DMG 构建脚本已有实现，发布验证另见下表 | 上游 `xtask/src/main.rs` 的 `release`；本仓库 [发版说明](release.md) |
 | CI | 尚无执行 Go vet / 测试 / 构建的工作流；当前仅保留 CodeQL | `.github/workflows/` |
 
+#### 上游 `a649319..faca538` 增量
+
+2026-11-19 逐条核对上游这 74 个提交。
+
+**已在本轮补齐：**
+
+- **内核**：补丁 0004（GRO frag_list 触发的 skb_segment BUG）、0005（AT_HWCAP3 只在非 0 时给出，macOS 14 / 15 的 Rosetta 才能跑 amd64 容器），以及 `CONFIG_BLK_DEV_LOOP`。
+- **guest**：
+  - 每个容器和 exec 自成会话（setsid），`docker stop` / `kill` 仍只发给主进程；
+  - 层和 `docker cp` 允许硬链接指向符号链接（Nix 镜像）；
+  - 缺失的工作目录在切换用户和根变只读之前以 root 0755 创建；
+  - 引擎自建的卷挂载点带 xattr 标记，重启不再把 tmpfs 卷和空卷的根重置为 root 0755；
+  - 文件视图以 O_NONBLOCK 读，`/proc/kmsg` 不再卡住控制循环。
+- **API**：
+  - `/version` 与 `/info` 报 Docker 27.5.1，Fabo 自己的版本在 `FaboVersion` 和 "Fabo" 组件（读取方缺字段时回退旧字段）；
+  - Entrypoint / Cmd 按 Docker 规则合并（`Cmd: []` 取镜像的），inspect 补 `Config.Cmd` / `Entrypoint`；
+  - 不带 `Upgrade` 头的 exec / attach 回 200 加原始流；
+  - `/info` 的 `SystemTime`；
+  - 容器、网络、卷的 name 过滤按正则（k3d），卷列表支持 name / label / dangling / driver；
+  - 镜像列表从新到旧。
+- **状态容错**：
+  - 坏的容器记录、`image-index.json`、`networks.json` 改名为 `*.corrupt-<时间>` 保留，引擎照常启动；
+  - 只要状态目录里还有 `.corrupt-` 文件，层 GC 和卷删除就停用；
+  - 网络引用失效的容器在启动时报 409。
+- **kill**：SIGKILL 等容器退出后才回答（`killed-code`），`kill` 和 `stop` 在 SIGKILL 后最多等 10 s。
+- **动态内存**（早于 `a649319` 的缺口）：VM 配气球设备，daemon 每秒按 guest 上报的已用内存设目标为「已用 + 256 MiB」，收缩每次最多 256 MiB；guest 用 PSI 触发器在内存停顿时发 MemoryPressure，宿主一次加 1 GiB。`FABO_NO_BALLOON=1` 关闭。实测（macOS 27.2.1）：能压住页缓存增长（容器读写 3 GiB 文件后 VM 占用 2.5 GB，关闭时 3.4 GB），但 Apple 的气球不把已用过的页还给 macOS（设备不提供 free page reporting），已涨上去的占用只有休眠或停止 VM 才会回落。
+- **daemon**：VM 启动失败时 daemon 不退出，无 guest 服务并在后台按 10 s 起、翻倍、最多 5 min 重试；原因见 `/fabo/resources` 的 `boot_error`。
+- **启动器与导入**：
+  - shell profile 是悬空链接、读不了或只读时跳过，读失败绝不写入；setup 错误带步骤名；
+  - 导入的卷助手只用 RepoDigests 证明来自官方库的 alpine / busybox / debian / ubuntu，带 `--pull never --entrypoint sh` 运行，不再从源引擎搬镜像。
+  - 与上游不同：源侧不是 create + `docker cp`，而是同样要求官方镜像。
+- **桌面**：Compose 标签给出的文件和目录必须是本机绝对路径、`.yml` / `.yaml`、解析链接后是普通文件且不是 `/net` 或 UNC 网络路径，才会读写、`up` 或打开。
+
+**仍待对齐：**
+
+| 范围 | 待补内容 | 上游提交 |
+| --- | --- | --- |
+| VM 崩溃恢复 | 无主动恢复：`always` / `unless-stopped` 要等下一个需要 guest 的请求；无崩溃退避、崩溃日志和 guest 控制台日志。另：`New` 每次唤醒都按 boot 规则重启，用户 `docker stop` 过的 `always` 容器在空闲休眠再唤醒后会被拉起（读代码推断，未实测） | 193dfd7 |
+| 生命周期细节 | start 已暂停的容器应回 409（现 304）；已停止的容器 stop 应回 304；宿主侧启动失败一律 255，ENOEXEC / 缺解释器的退出码与 runc 不同，`--init` 下无 `/bin/sh` 回退 | f3d5b47、41744d4、ea383a4 |
+| seccomp | 默认拒绝列表缺约 15 项及 `personality` 白名单，`clock_adjtime` 比 Docker 严；`--security-opt seccomp=<json>` 明确报不支持；`docker info` 无 SecurityOptions | 231d230 |
+| Mac 文件改动通知 | bind 挂载的 Mac 侧保存不会触发容器里的 inotify（Vite、nodemon 热重载）；需宿主 FSEvents、协议新消息、guest 注入和内核补丁 0006 | 260cf66 |
+| bind 挂载 `/etc` | `-v /etc/passwd` 等挂上的是 macOS 的文件（上游生成 Linux 版）；Mac 上不存在的路径被拒绝而不是当作 VM 路径 | acfae6e |
+| `/distribution/{name}/json` | 未实现，Watchtower / Arcane / Portainer 的更新检查用它 | 4283aea |
+| 端口 | 端口被占用时不报占用者程序名 | 80a185d |
+| 导入 | 正在使用的卷照拷（可能拷到写到一半的数据），无 `--force`；不导容器的卷、`container:` 网络模式、按 digest 固定的镜像；create 字段不全；CLI 默认源写死 orbstack；无 `tests/import.sh` | ad301e3、af5cf1b |
+| Linux 宿主 | overlay 未固定 `index=off` / `redirect_dir=nofollow,metacopy=off`，开着这些特性的发行版内核上 commit 可能丢数据；启动时不清扫残留的网桥、nft 表和 WSL cgroup | ae3467e、0012871 |
+| USB | 设备掉线后回来不会自动重接；没有等待列表和「停止等待」 | 23226f8、59de5f6 |
+| Windows | Stop 状态不持久化，登录时自启会撤销 Stop；WSL 重启后 bridge 不当场拉起引擎、无 503 原因、`wsl.exe` 调用无超时；不能从 Docker Desktop 导入；引擎版本落后不自动重启 | 2b16713、2e8168b、4df9bfb、7dc72ea |
+| 桌面 | Compose 独立区（结构图、变更计划、冲突检测、项目日志、未创建的服务、`compose down`）；38 种语言与 RTL（MyGo 已支持 RTL）；首次启动和设置里可搜索的语言列表；拉取镜像的仓库选择、标签列表和 GitHub / ECR 网页登录；日志跨行选择；VM 卡片长名称截断；休眠时三处开关按钮不一致；桌面不显示 `boot_error` | ace80dc、ab43ec6、def2b5b、99b63c0、98790f7、ec91e72、89f2d6b、2f8de03、b37ed29 |
+| 测试 | 上游发版前的 `tests/edge.sh`、`tests/upgrade.sh` 未移植 | 177d2d4 |
+
+无需对齐（已有等价行为或架构不同不存在该问题）：
+
+- 1e50ad4、df89116、efcfb17、2124a4e、b7f082f、94adc76、faca538；
+- 5ce108b、baa2d41、58d8d87、63ddbf2；
+- 7846fe0、3c3c321、56a6b30、e85f95d、ccf612b、2182531、94ae06d；
+- 85a0798、876055c、89d37f7、4645536。
+
 #### 待补验证
 
 以下是已实现能力的验收缺口，不表示相应功能尚未开发。这些用例未在本轮重新执行；连续终端与日志的专项验证见上文。
@@ -169,6 +227,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | 范围 | 环境 | 结果 |
 | --- | --- | --- |
 | 上游默认端到端用例 `tests/e2e.sh` | Apple Silicon macOS，隔离的 `fabo-parity` 实例，存储修复前 | **496 通过、17 失败、6 跳过** |
+| 上游默认端到端用例 `tests/e2e.sh`（2026-11-19，对齐 `faca538` 之后） | Apple Silicon macOS，`FABO_OWN_ENGINE=1` 的 Fabo Dev（`~/.fabo-dev`），新内核和 guest | **505 通过、18 失败、6 跳过**。失败项见下表；其中 login / push 一组 9 项是因为用例从真实 `~/.docker` 链接 contexts，而测试机没有 `fabo-dev` context，在 CLI 初始化时就失败，没有测到引擎 |
 | 原版网络用例选集 | Apple Silicon macOS | **105 通过、1 失败**。剩余用例是 `default-bridge-no-names`，同环境的 Rust 原版也失败 |
 | 原版 Finder 用例 | Apple Silicon macOS | **14 通过、0 失败**。额外验证 1,800 项目录分页及退出后的卸载 |
 | 原版存储和绑定挂载用例 | Apple Silicon macOS，存储修复后 | **28 通过、0 失败**。额外验证 Go 重启和 Rust 离线迁移后的匿名卷清理 |
@@ -196,7 +255,8 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | --- | --- | --- |
 | 修复后专项通过 | `bind-mount-missing`、`vol-copyup-under-bind`、`tmpfs-mount`、`rm-v-anon` | 缺失 bind 源返回退出码 125，空卷从镜像填充，tmpfs 显示与原版一致，匿名卷按归属清理 |
 | 同环境 Rust 也失败 | `default-bridge-no-names` | 上游 DNS 对短名称返回了地址 |
-| 待修复 | `killed-code` | `docker kill` 后测试得到 0，原版用例期望 137 |
+| 已修复（2026-11-19） | `killed-code`、`rm-running-refused`、`rm-force` | `docker kill` 现在等 SIGKILL 后的退出再回答；原先紧随其后的 `start` / `rm` 会碰上尚未退出的容器 |
+| 未覆盖（测试环境） | `login-wrong`、`login`、`push`、`push-again`、`push-repo-digest`、`pull-auth`、`pull-no-auth`、`push-no-auth`、`push-failed-no-digest` | 用例要求真实 `~/.docker/contexts` 里有被测实例的 context |
 | 待修复或复验 | `domain-ports-same`、`domain-ports-taken`、`domain-ports-unchanged`、`domain-ports-yield` | 涉及冲突提示、设置回滚和端口让渡 |
 | 待修复 | `filter-images-ref`、`filter-volume-label-only` | 镜像引用筛选和卷标签筛选 |
 | 待复验 | `disconnect-dns-gone` | 断开网络后，客户端报错与用例期望不同。待使用受控上游 DNS 对照 Rust |

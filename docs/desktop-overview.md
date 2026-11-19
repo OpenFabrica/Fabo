@@ -76,7 +76,15 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   networks, volumes and ports; a Config tab that edits the Compose file in
   place (Save, or Save and apply, which runs Compose's `up -d` with
   `DOCKER_HOST` set to the window's engine, through the Compose plugin
-  itself when it is found, so no docker context is needed); and the members. A row's tile is its
+  itself when it is found, so no docker context is needed); and the members.
+  The labels naming the files and folder are any container's to set, so a
+  file is read, written or passed to Compose only when it is an absolute,
+  local `.yaml` / `.yml` path that is a regular file once links are followed
+  (never `/net/…` or a `\\host` / `//host` path, checked by its words before
+  anything looks); otherwise the Config tab says why and offers no editor.
+  The folder Compose runs in and the folder button opens is the
+  `working_dir` label only when it is a local folder, else the first file's
+  own; the button never opens an `.app`. A row's tile is its
   checkbox: the box takes the tile's place while the pointer is on the row,
   and on every row once anything is picked (a row's menu has Select, for
   picking without the pointer); a project's box picks its members. While
@@ -163,6 +171,16 @@ source: the one docker uses when it runs, else a running one. Each item
 then imports through `fabo import <source> <kind> <name>`, one at a time,
 images first; a failed item shows its error and is unticked like the rest.
 The source is only read, and containers arrive stopped.
+
+A volume is copied by a `tar` helper on each side, run with
+`--pull never --entrypoint sh`. Each side's helper is an alpine, busybox,
+debian or ubuntu image whose own `RepoDigests` show that engine pulled it
+under that name from Docker Hub's official library (or `mirror.gcr.io/library`,
+`public.ecr.aws/docker/library`); a re-tagged, loaded or built image never
+qualifies, and nothing is carried from the source to be the helper. Without
+one in Fabo, Fabo pulls `mirror.gcr.io/library/busybox`, else `busybox`
+when no `busybox:latest` of the user's would lose its name; a failed fetch is
+tried once per import. The source needs such an image of its own.
 
 - **Settings → Import** picks the source, lists images, volumes and
   containers with a Select all / Select none per kind (anonymous volumes are
@@ -407,6 +425,18 @@ exactly; a mismatch is refused at Hello. The engine reports the protocol as
 `FaboGuestProtocol` in `/version` and `/info`, as the `fabo-init` component
 that `docker version` lists, and on the engine row of Settings → About. `fabo-guest-check` listens
 on a private test agent directory and reports the hello and stats as JSON.
+
+`/version`'s `Version` and `/info`'s `ServerVersion` are the Docker Engine
+release whose API the engine serves (27.5.1 for API 1.47), because clients
+gate on them as a Docker version: Testcontainers refuses anything below
+1.6.0, so Fabo's own 0.x there read as an ancient engine. Fabo's own release
+is `FaboVersion` in both answers and the `Fabo` component of `docker version`.
+The launcher's version-mismatch warning, `fabo engine restart`, `fabo mcp`'s
+`engine_info`, and the window's stale-engine strip, engine card, status bar
+and About row read `FaboVersion`, falling back to `Version` /
+`ServerVersion` for an engine older than that field. `/info` also carries
+`SystemTime` (RFC 3339, UTC), which Compose 5.7 reads before it attaches.
+
 The daemon serves the Docker API and manages the Go guest. The guest
 executes containers and reports their state over this protocol.
 
@@ -607,6 +637,16 @@ that the engine must remain off until explicitly started, including
 across daemon restarts. `/info` reports VM availability and the manual
 stop flag independently.
 
+When the VM does not boot as the daemon starts, the daemon does not exit
+(launchd would only start it again every 10 seconds, with no socket in
+between). It serves the saved state without a guest, as when stopped, and
+tries the boot again in the background after 10 seconds, doubling up to
+every 5 minutes. A request that needs the guest tries a boot at once and
+returns 503 with the reason. `GET /fabo/resources` carries the last
+failure as `boot_error` until a boot succeeds or the user stops the VM;
+Stop ends the retries and a failed Start begins them again from 10
+seconds. The Linux agent is unchanged: its daemon exits with the agent.
+
 On macOS the VM also sleeps after `FABO_IDLE_SECS` (60 seconds by
 default, 0 disables it). Background UI polls do not reset the timer.
 Running containers, live exec sessions, queued restarts, and in-flight
@@ -623,6 +663,31 @@ stateDiagram-v2
     Asleep --> Stopped: stop
     Stopped --> Awake: explicit wake
 ```
+
+While the VM runs, a memory balloon keeps it at what its processes hold
+(the guest's own cgroup count: anonymous, shared and kernel memory, not the
+page cache) plus 256 MiB, never below 256 MiB nor above its memory setting.
+The daemon samples the guest every second over the session (StatsRequest),
+shrinks the target by at most 256 MiB a sample and grows it at once. The
+guest arms a PSI trigger on `/proc/pressure/memory` (some task stalled
+50 ms of a 500 ms window) and sends MemoryPressure, at most ten times a
+second; each grows the target by 1 GiB, so an allocation never waits for
+the next sample. The balloon device offers deflate-on-OOM, so the guest
+can take pages back from it before it kills anything. `GET
+/fabo/resources` reports `memory_target_mib` and `memory_used_mib` while
+the balloon runs; `FABO_NO_BALLOON=1` turns it off and leaves the VM all
+of its memory.
+
+What the balloon does on macOS: it limits how far the guest's page cache
+grows, so a workload that streams files raises the VM process's memory
+less (writing and reading back 3 GiB in a container: 2.5 GB instead of
+3.4 GB on macOS 27.2). What it does not do: give back memory the VM has
+already used. Apple's `VZVirtioTraditionalMemoryBalloonDevice` takes pages
+from the guest but keeps them in the VM process, and it offers no free
+page reporting or hinting; after a 4 GiB allocation was freed and the
+target fell to 281 MiB, the process kept its 4.3 GB footprint. Only sleep
+or stop returns that memory, and the VM does not sleep while containers
+run.
 
 The VM has one network interface, whose MAC is stable for a given state
 directory. The guest obtains and renews its IPv4 lease, installs the
@@ -812,6 +877,19 @@ container. The prune response counts the bytes removed from the host
 blob cache. Catalog archives outside that cache are user-supplied and
 are kept.
 
+A damaged state file does not keep the engine down. A container record
+(`<id>.json`) that does not parse or hold together, `image-index.json`
+(replaced by an empty index) and `networks.json` (started without custom
+networks) are renamed to `<name>.corrupt-<UTC time>` beside the original
+and logged; a record that cannot be read stays in place. Nothing is
+deleted. While any `*.corrupt-*` file is in the state directory, or a
+record there cannot be read, the loaded containers and images may not be
+all there are, so layer reclamation is skipped (prune reports 0 bytes)
+and volumes are not removed by `volume rm`, `volume prune` or `rm -v`. Removing or repairing
+those files lifts this at the next VM boot. A container whose saved
+network no longer matches `networks.json` still loads and fails to start
+with the reason, and its restart policy does not start it at boot.
+
 #### Offline image archives
 
 ```sh
@@ -851,6 +929,11 @@ Standard Docker CLI can run foreground containers with `docker run --network
 none` or start them detached with `-d`. Before start, Docker registers an
 attach stream and a next-exit wait. The Go daemon upgrades the attach socket
 and flushes the wait headers before the client starts the container.
+As in Docker, attach and exec start answer `101` only when the request
+carries an `Upgrade` header (the docker CLI and Fabo's own clients send one);
+without it (docker-java, so Testcontainers) they answer `200 OK` with
+`application/vnd.docker.raw-stream` and the stream as a body that ends when
+the connection closes, after the exec's exit code is recorded.
 Output is multiplexed using Docker's stream headers. Each subscriber has a
 bounded queue; a client that stops consuming output can lose its attachment.
 `docker run -i` and `docker start -ai` pass stdin to the container pipe.
@@ -925,6 +1008,14 @@ IPC, cgroup and mount namespaces and changes into the container's root before
 resolving the user or command. It applies the same privilege and syscall
 restrictions as the container's initial process.
 
+Every container process and every exec leads a session, and so a process
+group, of its own, as runc gives them. A program that signals its whole
+group (Apache prefork's stop sends `kill(0, SIGTERM)`) then reaches only
+its own processes, never the agent, the daemon on a Linux host, or other
+containers. `docker stop` and `docker kill` still signal the main process
+alone; only the engine's private execs (health checks, internal commands)
+are signalled as a group.
+
 ```mermaid
 sequenceDiagram
     participant Docker as Docker CLI
@@ -971,10 +1062,15 @@ containers and lifecycle requests while a client is slow.
 
 `docker kill` sends a named or numeric Linux signal to the guest. The Kill
 frame has no reply, so it shares the session writer without taking a reply
-slot. `docker stop` sends the container's configured stop signal, waits
-for exit, and sends SIGKILL if the timeout expires. The signal and timeout
-are retained in the container record. A stop timeout of `-1` waits
-without escalating.
+slot. A SIGKILL is answered once the container has exited, as Docker
+answers it, so a `start` or `rm` right after `kill` never finds it still
+running; other signals are answered when sent. `docker stop` sends the
+container's configured stop signal, waits for exit, and sends SIGKILL if
+the timeout expires. The signal and timeout are retained in the container
+record. A stop timeout of `-1` waits without escalating. Every wait for an
+exit after SIGKILL, from `kill` or `stop`, gives up after 10 s with an
+error, so an exit the guest never reports does not hold the request and
+the container's operation lock forever.
 
 `docker rm` removes stopped or created containers. Forced removal sends
 SIGKILL and waits for exit before deleting the record. `docker run --rm`
@@ -994,7 +1090,9 @@ The Go guest accepts LayerQuery and LayerBegin. It verifies the transferred
 blob digest, bounds decompression, unpacks beneath a confined archive root,
 and publishes a completion marker only after successful installation. It
 accepts plain, gzip and zstd tar layers and translates OCI whiteouts for
-overlayfs. Set `FABO_LAYER_DIR` to a private persistent directory to
+overlayfs. A hard link may name a regular file or a symlink; a symlink is
+linked itself and its target, absolute or dangling, is never resolved
+(Nix-built images hard-link symlinks). Set `FABO_LAYER_DIR` to a private persistent directory to
 reuse layers across guest restarts. By default layers live in the temporary
 host-agent directory.
 
@@ -1046,6 +1144,12 @@ with the same identity and syscall restrictions, forwards signals to it,
 reaps adopted children, and reports the workload's exit status. With a
 TTY, the workload gets the terminal foreground process group. The init
 setting persists across restarts and offline Rust migration.
+
+A missing working directory (`-w`, or the image's `WorkingDir`) is made as
+in Docker: by root, mode 0755, after the container's mounts are attached
+(so a directory inside a volume is made in the volume) and before the user
+switch and before a `--read-only` root goes read-only. `-u 1000 -w /missing`
+and `--read-only -w /missing` both start.
 
 `--group-add` accepts numeric GIDs and names from the container's
 `/etc/group`. Explicit additions still apply when the user specifies a
@@ -1329,6 +1433,20 @@ state, health and exit code. State and exit-code filters include stopped
 containers automatically. The WebView uses the list timestamps and exit
 reason for its status and troubleshooting views.
 
+The `name` filter of containers, networks and volumes matches as Docker's
+does: each value first exactly, then as an unanchored Go regular
+expression, against the name with and without a leading `/`; a value that
+is not a valid expression matches only exactly. So `^kind$`, `^/web$` and
+k3d's `^[/]?<node>$` all find their object. `docker volume ls` also takes
+`label`, `label!`, `dangling` (`true`/`1`, `false`/`0`) and `driver`.
+`docker images` lists newest first, then by ID.
+
+A create's `Entrypoint` and `Cmd` merge with the image's by Docker's rules:
+a non-empty `Entrypoint` drops the image's `Cmd`; otherwise an empty or
+missing `Cmd` takes the image's (Testcontainers sends `"Cmd": []`), and a
+missing `Entrypoint` the image's, while `"Entrypoint": []` clears it.
+Inspect reports both in `Config` (`Entrypoint` is `null` when empty).
+
 ```mermaid
 flowchart LR
     Ack[Guest confirms start] --> History[Persist run history]
@@ -1410,7 +1528,14 @@ that step. The guest preserves regular files, symlinks,
 ownership, modes and modification times. A nonempty volume is left
 alone. Use `volume-nocopy` or the legacy `:nocopy` option to skip seeding.
 Volume seeding can leave partial data if interrupted. It does not preserve
-hard-link topology or extended attributes.
+hard-link topology or extended attributes. A mount point the engine itself
+had to create in the container's layer (the image has nothing there) is
+marked with the `user.fabo.mountpoint` xattr, and a later start does not
+seed from it: otherwise every restart copied that root-owned 0755 folder's
+owner and mode over a tmpfs volume's `uid=`, `gid=` and `mode=`, or over an
+empty volume whose root the container had changed. A container created
+before the mark has its mount point already, so it is never marked and
+keeps resetting the volume root on restart until it is recreated.
 
 The `local` driver accepts `type`, `device` and `o` through `docker volume
 create --opt`, Compose `driver_opts` and `--mount ... volume-opt=...`. For
@@ -1669,6 +1794,9 @@ flowchart LR
 
 The guest follows symlinks relative to the container root, including
 absolute targets. It serves file attributes and bounded ranges on demand.
+Only regular files are read, and never in a way that waits: a read that
+would block (`/proc/kmsg`, a trace pipe) returns what it has, since the
+agent answers control messages one at a time.
 The mount requests fresh attributes for file changes. When a container
 stops, its folder disappears and its existing handles return stale until
 the container runs again. The desktop file browser uses the same mount.

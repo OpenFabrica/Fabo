@@ -5,7 +5,7 @@ Fabo 是 Go 项目，版本号不存在源码里，只来自 git 标签 `vX.Y.Z`
 ## 版本号从哪来
 
 - `Makefile` 用 `git describe --tags --dirty` 取版本，去掉前缀 `v`，传给构建：
-  `-ldflags "-X main.engineRelease=<版本>"` 写进 `fabo-daemon`（Docker API 的 `/version`、桌面关于页），
+  `-ldflags "-X main.engineRelease=<版本>"` 写进 `fabo-daemon`（Docker API `/version` 和 `/info` 的 `FaboVersion` 字段与 "Fabo" 组件、桌面关于页；`Version` / `ServerVersion` 报的是兼容的 Docker 版本 27.5.1），
   `-X main.release=<版本>` 写进启动器 `fabo`（`fabo --version`），`scripts/macos-app.sh` 写进 `Info.plist`。
   直接 `go build` 不注入时，`fabo --version` 显示 `0.0.0-dev`。
 - 两次发版之间的构建自动带开发标记，例如 `0.1.3-2-g1a2b3c4-dirty`：上个标签之后第 2 个提交，工作区有未提交改动。

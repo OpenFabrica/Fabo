@@ -58,8 +58,10 @@ Apple silicon and Intel Macs (macOS 14+), Windows 10 and 11 (x86-64 and Arm, thr
 - **Mac integration**: container files at `~/Fabo` in Finder (read-only
   NFS, always current), SSH agent forwarding at
   `/run/host-services/ssh-auth.sock`
-- **Memory**: a balloon gives unused memory back while running, and the VM
-  sleeps after 60 s idle (the daemon stays at ~15 MB; waking takes ~0.15 s)
+- **Memory**: a balloon keeps a running VM at what its processes hold plus
+  256 MiB, which limits how far its file cache grows; memory the VM has
+  already used goes back to macOS only when it sleeps (after 60 s idle) or
+  stops. The daemon stays at ~15 MB; waking takes ~0.15 s
 - **The window**: containers, images, volumes and networks, with Compose
   projects grouped (start, stop, restart or remove a whole project); each
   container has its own page with details, live logs (find, level filter),

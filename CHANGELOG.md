@@ -13,6 +13,17 @@
 - Windows 设置新增「资源」（WSL 的 CPU 与内存，写入 `.wslconfig`）和「诊断」（打开日志文件夹、生成脱敏报告）。
 - Windows 设置 → 构建可选普通 `docker build` 用 Docker 还是 Fabo；退出或卸载时还原。
 - Windows 安装包（MSI，x64 与 Arm64）改为由 `make windows` 与 `scripts/windows-msi.ps1` 构建；尚未在 Windows 上验收，暂未发布。
+- Apple 芯片上的 amd64 容器在 macOS 14 / 15 的 Rosetta 下能正常启动；特权容器里可以用 `losetup` 和 `mount -o loop`。
+- Testcontainers（Java、.NET、Mongo 等）、Compose 5.7 和 k3d 能在 Fabo 上运行：引擎报 Docker 27.5.1，`Cmd: []` 使用镜像的命令，exec 不带 Upgrade 头时回 200，`/info` 带 `SystemTime`，名称过滤按正则匹配。
+- `docker kill` 等容器真正退出后才返回；`docker images` 按创建时间从新到旧排列；`docker volume ls` 支持过滤。
+- 容器里向整个进程组发信号（如 Apache 停止时）不会再影响引擎和其他容器。
+- `-u` 非 root 用户或 `--read-only` 容器在工作目录不存在时也能启动；tmpfs 卷和空卷重启后保留原来的属主和权限。
+- 用 Nix 构建的镜像（如 Supabase Postgres）能正常拉取。
+- 在 Finder 里打开 `/proc/kmsg` 这类文件不会再卡住引擎。
+- 状态文件损坏时引擎照常启动，坏文件改名为 `*.corrupt-*` 保留；VM 启动失败时引擎不再反复退出，而是在后台重试。
+- shell 配置文件是失效链接或只读（Nix home-manager）时，首次打开 Fabo 不再失败，也不会截断这些文件。
+- 安全：导入卷时只用官方 alpine / busybox 镜像做中转；Compose 页只读写本机的 `.yml` / `.yaml` 文件。
+- 运行中的 VM 用内存气球限制文件缓存的增长，大量读写文件时占用的 Mac 内存更少；已经用过的内存仍要等 VM 休眠或停止才会归还。
 
 ## 0.6.0 · 2026-11-18 · stable
 
