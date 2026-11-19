@@ -90,6 +90,8 @@ type prefs struct {
 	// CtxBack is the context Switch back returns to.
 	CtxSnooze int64  `json:"ctx_snooze,omitempty"`
 	CtxBack   string `json:"ctx_back,omitempty"`
+	// Tables keeps, per page, the column widths and sort of its table.
+	Tables map[string]tableLayout `json:"tables,omitempty"`
 }
 
 // prefsPath places the file in the installation's state directory, which is
@@ -192,6 +194,10 @@ var icons = map[string]*ui.SVG{
 	"import":   lineIcon(`<path d="M12 3v11M8 10l4 4 4-4M4 14v5a1 1 0 001 1h14a1 1 0 001-1v-5"/>`),
 	"download": lineIcon(`<path d="M12 4v11M8 11l4 4 4-4M5 20h14"/>`),
 	"shield":   lineIcon(`<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z"/>`),
+	// A scanned image's shields: tinted inside, with a check when clean and
+	// an exclamation mark when something was found.
+	"shield-check": lineIcon(`<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z" fill="currentColor" fill-opacity="0.2"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/>`),
+	"shield-alert": lineIcon(`<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z" fill="currentColor" fill-opacity="0.2"/><path d="M12 8.2v4.6M12 15.9h.01" stroke-width="2"/>`),
 	// The panel's maximize and restore: two corners pointing out, or in.
 	"expand":   lineIcon(`<path d="M14 5h5v5M10 19H5v-5"/>`),
 	"collapse": lineIcon(`<path d="M15 4v5h5M9 20v-5H4"/>`),
@@ -234,14 +240,26 @@ func pointerFor(disabled bool) ui.Cursor {
 // iconButton is a small square button showing only an icon. Its label names
 // it for assistive technology and for tests.
 func iconButton(c *ui.Context, p palette, icon, label string, disabled bool) ui.Element {
+	return toneIconButton(c, p, icon, label, disabled, ui.Color{})
+}
+
+// toneIconButton is an iconButton drawn in tone, as red for a destructive
+// action or green for a done one; a zero tone is the plain muted icon.
+func toneIconButton(c *ui.Context, p palette, icon, label string, disabled bool, tone ui.Color) ui.Element {
 	b := ui.ButtonBase(c).Label(label).Tooltip(label).Size(28, 28).Shrink(0).Center().Radius(7).Disabled(disabled).Cursor(pointerFor(disabled))
+	plain := tone == (ui.Color{})
 	ink := p.muted
-	if b.Hovered() && !disabled {
+	if !plain {
+		ink = tone
+	}
+	switch {
+	case disabled:
+		ink = ink.Alpha(0.35)
+	case b.Hovered() && plain:
 		b.Background(p.raised)
 		ink = p.text
-	}
-	if disabled {
-		ink = p.muted.Alpha(0.4)
+	case b.Hovered():
+		b.Background(tone.Alpha(0.12))
 	}
 	b.Children(func() { ui.Icon(c, icons[icon]).Size(15, 15).TextColor(ink) })
 	return b

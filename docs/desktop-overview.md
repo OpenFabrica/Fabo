@@ -356,8 +356,18 @@ daemon on macOS, Linux and Windows WSL. Go serves
 `/fabo/images/sbom` while the VM is stopped. The daemon resolves the image
 to its config digest, prepares an OCI layout from its local layers, and runs
 the checksum-pinned Grype release. Scanner downloads and database updates
-use the daemon's proxy settings. If an update fails, Grype can use a valid
-cached database.
+use the daemon's proxy settings. The database is updated at most once a day
+(`scanner/db-updated` records the last success); scans in between use the
+cached copy. If an update fails, Grype can use a valid cached database, and
+the next scan tries the update again.
+
+The desktop keeps the images table's security current by itself: when the
+image list arrives it reads each image's last scan, and scans, one image at
+a time, those never scanned, so existing images are scanned once and pulled
+images as they appear. Each image is tried once per session and an automatic
+scan fails without a notice. The row's shield shows the result: plain before
+a scan, a green check when clean, an exclamation mark in red for critical or
+high findings, amber for medium and blue for low only.
 
 Each successful scan publishes its result and CycloneDX SBOM together.
 History is keyed by image digest, survives daemon restart, and retains the

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"net/http"
@@ -95,9 +96,89 @@ func (s *desktop) scanWords(p palette, img image) (string, ui.Color) {
 	return strings.Join(parts, " · "), p.warn
 }
 
+// scanRank orders images by their findings, the worst last: unknown and
+// unscanned first, then clean, then by critical, high, medium and low counts.
+func (s *desktop) scanRank(img image) int {
+	result, known := s.scans[img.ID]
+	if !known {
+		return -2
+	}
+	if result == nil {
+		return -1
+	}
+	n := result.counts()
+	return n[0]*1_000_000_000 + n[1]*1_000_000 + n[2]*1_000 + min(len(result.Vulns), 999)
+}
+
+// scanShield picks the scan button's icon and tone from the last scan:
+// plain before any scan, a green check when clean, and an exclamation mark
+// in red for critical or high findings, amber for medium and blue for low.
+func (s *desktop) scanShield(p palette, img image) (string, ui.Color) {
+	result := s.scans[img.ID]
+	if result == nil {
+		return "shield", ui.Color{}
+	}
+	if len(result.Vulns) == 0 {
+		return "shield-check", p.ok
+	}
+	n := result.counts()
+	switch {
+	case n[0]+n[1] > 0:
+		return "shield-alert", p.err
+	case n[2] > 0:
+		return "shield-alert", p.warn
+	}
+	return "shield-alert", p.link
+}
+
+// autoScan keeps every image's security known: it reads the engine's last
+// scan of the next image not yet looked at, and scans it when it never was,
+// so that existing images are scanned once and pulled ones as they arrive.
+// Images go one at a time; each is tried once per session, so a failing
+// scan does not repeat.
+func (s *desktop) autoScan() {
+	if s.autoScanning || s.engine.http == nil {
+		return
+	}
+	for _, img := range s.images {
+		if s.scanChecked[img.ID] {
+			continue
+		}
+		s.scanChecked[img.ID] = true
+		if _, busy := s.scanning[img.ID]; busy {
+			continue
+		}
+		if _, known := s.scans[img.ID]; known && s.scans[img.ID] != nil {
+			continue
+		}
+		s.autoScanning = true
+		s.run(15*time.Second, func(ctx context.Context) func() {
+			result, err := s.engine.lastScan(ctx, img.ref())
+			return func() {
+				if err == nil && result != nil {
+					s.scans[img.ID] = result
+				}
+				if err != nil || result != nil {
+					s.autoScanning = false
+					s.autoScan()
+					return
+				}
+				s.scanThen(img, func() {
+					s.autoScanning = false
+					s.autoScan()
+				})
+			}
+		})
+		return
+	}
+}
+
 // startScan scans an image for known vulnerabilities, showing progress in
 // its row until the result arrives.
-func (s *desktop) startScan(img image) {
+func (s *desktop) startScan(img image) { s.scanThen(img, nil) }
+
+// scanThen is startScan that calls done, when set, once the scan ends.
+func (s *desktop) scanThen(img image, done func()) {
 	s.scanning[img.ID] = scanStep{}
 	s.run(15*time.Minute, func(ctx context.Context) func() {
 		result, err := s.engine.scan(ctx, img.ref(), func(step scanStep) {
@@ -105,8 +186,15 @@ func (s *desktop) startScan(img image) {
 		})
 		return func() {
 			delete(s.scanning, img.ID)
+			if done != nil {
+				defer done()
+			}
 			if err != nil {
-				s.notices = append(s.notices, err.Error())
+				// Automatic scans fail quietly; the row stays unscanned
+				// and a manual scan reports the reason.
+				if done == nil {
+					s.notices = append(s.notices, err.Error())
+				}
 				return
 			}
 			s.scans[img.ID] = result
@@ -189,7 +277,15 @@ func (s *desktop) imagesView(c *ui.Context, p palette) {
 			s.form = form{kind: "pull"}
 		}
 	})
-	cols := imageColumns()
+	cols := s.layoutColumns(imagesPage, imageColumns())
+	sortedBy(s, imagesPage, shown, []func(a, b image) int{
+		func(a, b image) int { return compareFold(a.ref(), b.ref()) },
+		func(a, b image) int { return cmp.Compare(a.ID, b.ID) },
+		func(a, b image) int { return cmp.Compare(a.Size, b.Size) },
+		func(a, b image) int { return cmp.Compare(s.scanRank(a), s.scanRank(b)) },
+		func(a, b image) int { return cmp.Compare(len(s.imageUsers(a)), len(s.imageUsers(b))) },
+		func(a, b image) int { return cmp.Compare(a.Created, b.Created) },
+	})
 	// Size, Security, three buttons and the padding take about 380; below
 	// 520 the name would have less than 140 left.
 	narrow, tight := s.narrow(), s.listWidth() < 520
@@ -201,11 +297,14 @@ func (s *desktop) imagesView(c *ui.Context, p palette) {
 		actionsWidth = 124
 	}
 	if !s.dockMax {
-		optional := imageOptional
-		if tight {
-			optional = imageTight
+		var hidden []int
+		switch {
+		case tight:
+			hidden = imageTight
+		case narrow:
+			hidden = imageOptional
 		}
-		tableHeader(c, p, narrowColumns(cols, narrow, optional...), actionsWidth, nil)
+		s.sortHeader(c, p, imagesPage, cols, hidden, actionsWidth)
 		if len(shown) == 0 {
 			title := tr("没有匹配的镜像", "No matching images")
 			if len(s.images) == 0 {
@@ -219,7 +318,7 @@ func (s *desktop) imagesView(c *ui.Context, p palette) {
 					rc, img := r.Context, shown[r.Index]
 					users := len(s.imageUsers(img))
 					s.tableRow(rc, p, img.ID, img.ref(), actionsWidth, nil, func() {
-						cell(rc, 0, cols[0].grow).Children(func() { label(rc, img.ref(), p.text).FontWeight(500) })
+						cell(rc, cols[0].width, cols[0].grow).Children(func() { label(rc, img.ref(), p.text).FontWeight(500) })
 						if !narrow {
 							cell(rc, cols[1].width, 0).Children(func() { label(rc, shortID(img.ID), p.muted) })
 						}
@@ -249,10 +348,11 @@ func (s *desktop) imagesView(c *ui.Context, p palette) {
 							s.saveImage(img)
 						}
 						_, scanning := s.scanning[img.ID]
-						if iconButton(rc.Key("scan"), p, "shield", tr("扫描 ", "Scan ")+img.ref(), scanning).Clicked() {
+						shield, scanTone := s.scanShield(p, img)
+						if toneIconButton(rc.Key("scan"), p, shield, tr("扫描 ", "Scan ")+img.ref(), scanning, scanTone).Clicked() {
 							s.startScan(img)
 						}
-						if iconButton(rc.Key("delete"), p, "trash", tr("删除 ", "Delete ")+img.ref(), users > 0).Clicked() {
+						if toneIconButton(rc.Key("delete"), p, "trash", tr("删除 ", "Delete ")+img.ref(), users > 0, p.err).Clicked() {
 							s.pending = &confirmation{
 								title: tr("删除镜像 ", "Delete image ") + img.ref() + tr("？", "?"), ok: tr("删除", "Delete"),
 								run: func() {
@@ -419,11 +519,25 @@ func (s *desktop) volumesView(c *ui.Context, p palette) {
 			s.form = form{kind: "volume"}
 		}
 	})
-	cols := []column{{tr("名称", "Name"), 0, 1, false}, {tr("驱动", "Driver"), 80, 0, false}, {tr("大小", "Size"), 86, 0, true},
-		{tr("使用者", "Used by"), 0, 1.2, false}, {tr("创建", "Created"), 86, 0, false}}
+	cols := s.layoutColumns(volumesPage, []column{{tr("名称", "Name"), 0, 1, false}, {tr("驱动", "Driver"), 80, 0, false}, {tr("大小", "Size"), 86, 0, true},
+		{tr("使用者", "Used by"), 0, 1.2, false}, {tr("创建", "Created"), 86, 0, false}})
+	// Sizes come from the disk usage, which may not have arrived yet.
+	volumeSize := func(v volume) int64 {
+		if s.disk == nil {
+			return -1
+		}
+		return s.disk.volumes[v.Name]
+	}
+	sortedBy(s, volumesPage, shown, []func(a, b volume) int{
+		func(a, b volume) int { return compareFold(a.Name, b.Name) },
+		func(a, b volume) int { return cmp.Compare(a.Driver, b.Driver) },
+		func(a, b volume) int { return cmp.Compare(volumeSize(a), volumeSize(b)) },
+		func(a, b volume) int { return cmp.Compare(len(s.volumeUsers(a.Name)), len(s.volumeUsers(b.Name))) },
+		func(a, b volume) int { return cmp.Compare(a.Created, b.Created) },
+	})
 	const actionsWidth = 28
 	if !s.dockMax {
-		tableHeader(c, p, cols, actionsWidth, nil)
+		s.sortHeader(c, p, volumesPage, cols, nil, actionsWidth)
 		if len(shown) == 0 {
 			title := tr("没有匹配的卷", "No matching volumes")
 			if len(s.volumes) == 0 {
@@ -441,10 +555,10 @@ func (s *desktop) volumesView(c *ui.Context, p palette) {
 						names[i] = x.Name
 					}
 					s.tableRow(rc, p, v.Name, v.Name, actionsWidth, nil, func() {
-						cell(rc, 0, cols[0].grow).Children(func() { label(rc, v.Name, p.text).FontWeight(500) })
+						cell(rc, cols[0].width, cols[0].grow).Children(func() { label(rc, v.Name, p.text).FontWeight(500) })
 						cell(rc, cols[1].width, 0).Children(func() { label(rc, v.Driver, p.muted) })
 						cell(rc, cols[2].width, 0).Children(func() { number(rc, size(v), p.text) })
-						cell(rc, 0, cols[3].grow).Children(func() {
+						cell(rc, cols[3].width, cols[3].grow).Children(func() {
 							if len(names) > 0 {
 								label(rc, strings.Join(names, ", "), p.text)
 							} else {
@@ -453,7 +567,7 @@ func (s *desktop) volumesView(c *ui.Context, p palette) {
 						})
 						cell(rc, cols[4].width, 0).Children(func() { label(rc, since(s.now, v.Created), p.muted) })
 					}, func() {
-						if iconButton(rc.Key("delete"), p, "trash", tr("删除 ", "Delete ")+v.Name, len(users) > 0).Clicked() {
+						if toneIconButton(rc.Key("delete"), p, "trash", tr("删除 ", "Delete ")+v.Name, len(users) > 0, p.err).Clicked() {
 							s.pending = &confirmation{
 								title: tr("删除卷 ", "Delete volume ") + v.Name + tr("？", "?"),
 								body:  tr("卷里的数据无法恢复。", "Its data cannot be recovered."), ok: tr("删除", "Delete"),
@@ -498,8 +612,16 @@ func (s *desktop) networksView(c *ui.Context, p palette) {
 			s.form = form{kind: "network"}
 		}
 	})
-	cols := []column{{tr("名称", "Name"), 0, 1, false}, {tr("驱动", "Driver"), 80, 0, false}, {tr("子网", "Subnet"), 150, 0, false},
-		{tr("网关", "Gateway"), 120, 0, false}, {tr("容器", "Containers"), 70, 0, false}, {tr("创建", "Created"), 86, 0, false}}
+	cols := s.layoutColumns(networksPage, []column{{tr("名称", "Name"), 0, 1, false}, {tr("驱动", "Driver"), 80, 0, false}, {tr("子网", "Subnet"), 150, 0, false},
+		{tr("网关", "Gateway"), 120, 0, false}, {tr("容器", "Containers"), 70, 0, false}, {tr("创建", "Created"), 86, 0, false}})
+	sortedBy(s, networksPage, shown, []func(a, b network) int{
+		func(a, b network) int { return compareFold(a.Name, b.Name) },
+		func(a, b network) int { return cmp.Compare(a.Driver, b.Driver) },
+		func(a, b network) int { return cmp.Compare(a.Subnet, b.Subnet) },
+		func(a, b network) int { return cmp.Compare(a.Gateway, b.Gateway) },
+		func(a, b network) int { return cmp.Compare(len(s.networkUsers(a.Name)), len(s.networkUsers(b.Name))) },
+		func(a, b network) int { return cmp.Compare(a.Created, b.Created) },
+	})
 	const actionsWidth = 28
 	dash := func(rc *ui.Context, text string, ink ui.Color) {
 		if text == "" {
@@ -509,7 +631,7 @@ func (s *desktop) networksView(c *ui.Context, p palette) {
 		label(rc, text, ink)
 	}
 	if !s.dockMax {
-		tableHeader(c, p, cols, actionsWidth, nil)
+		s.sortHeader(c, p, networksPage, cols, nil, actionsWidth)
 		if len(shown) == 0 {
 			empty(c, p, "network", tr("没有匹配的网络", "No matching networks"), "")
 		} else {
@@ -519,7 +641,7 @@ func (s *desktop) networksView(c *ui.Context, p palette) {
 					rc, n := r.Context, shown[r.Index]
 					users := len(s.networkUsers(n.Name))
 					s.tableRow(rc, p, n.ID, n.Name, actionsWidth, nil, func() {
-						cell(rc, 0, cols[0].grow).Gap(8).Children(func() {
+						cell(rc, cols[0].width, cols[0].grow).Gap(8).Children(func() {
 							label(rc, n.Name, p.text).FontWeight(500)
 							if n.builtin() {
 								ui.Text(rc, tr("内置", "built-in")).FontSize(11).TextColor(p.sub).Padding(1, 7).Radius(10).Background(p.soft).Shrink(0)
@@ -537,7 +659,7 @@ func (s *desktop) networksView(c *ui.Context, p palette) {
 						})
 						cell(rc, cols[5].width, 0).Children(func() { label(rc, since(s.now, n.Created), p.muted) })
 					}, func() {
-						if iconButton(rc.Key("delete"), p, "trash", tr("删除 ", "Delete ")+n.Name, n.builtin() || users > 0).Clicked() {
+						if toneIconButton(rc.Key("delete"), p, "trash", tr("删除 ", "Delete ")+n.Name, n.builtin() || users > 0, p.err).Clicked() {
 							s.pending = &confirmation{
 								title: tr("删除网络 ", "Delete network ") + n.Name + tr("？", "?"), ok: tr("删除", "Delete"),
 								run: func() {
