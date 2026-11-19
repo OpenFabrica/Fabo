@@ -111,24 +111,32 @@ func (s *setup) run(args []string) error {
 		return err
 	}
 	n := s.in.names
-	if err := s.writeContext(); err != nil {
+	// Each step's error says which step it was: on first launch it is all
+	// the log has to go on.
+	step := func(what string, err error) error {
+		if err == nil {
+			return nil
+		}
+		return fmt.Errorf("%s: %w", what, err)
+	}
+	if err := step("writing the docker context", s.writeContext()); err != nil {
 		return err
 	}
 	fmt.Fprintf(s.out, "docker context `%s` → unix://%s\n", n.context, s.in.socket())
 	if flags["--use"] && !n.flavored {
-		if err := s.useContext(); err != nil {
+		if err := step("making Fabo docker's default", s.useContext()); err != nil {
 			return err
 		}
 		fmt.Fprintln(s.out, "docker now uses Fabo by default (`docker context use default` to switch back)")
 	}
 	if contents := s.contents(); contents != "" {
-		if err := s.bundledCLI(contents); err != nil {
+		if err := step("setting up the fabo and docker commands", s.bundledCLI(contents)); err != nil {
 			return err
 		}
 	}
 	if !flags["--no-agent"] {
 		plist, err := s.installAgent()
-		if err != nil {
+		if err := step("starting the engine at login", err); err != nil {
 			return err
 		}
 		fmt.Fprintf(s.out, "fabo daemon starts at login (%s)\n", plist)

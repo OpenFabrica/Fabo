@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -86,6 +87,99 @@ func readProject(name string, members []container) composeProject {
 	return pr
 }
 
+// composePathError is why a project's Compose file or folder is not read,
+// written or opened. Error translates when it is shown, not when made.
+type composePathError struct{}
+
+// Error says the label's path is not a local Compose file or folder.
+func (composePathError) Error() string {
+	return tr("这个项目的标签指向的不是本机上的 .yaml 或 .yml Compose 文件，Fabo 不会读写它。",
+		"This project's labels don't point to a local .yaml or .yml Compose file, so Fabo won't read or write it.")
+}
+
+// errComposePath is returned for any label path that fails composeFile or
+// projectFolder.
+var errComposePath error = composePathError{}
+
+// composeLike reports whether a path names a YAML file by its extension.
+func composeLike(name string) bool {
+	ext := strings.ToLower(filepath.Ext(name))
+	return ext == ".yaml" || ext == ".yml"
+}
+
+// remotePath reports whether reading a path makes the system contact
+// another host: `\\host\share\x`, `//host/share/x`, `\\?\UNC\…`, a `\\.\`
+// device, or the Mac's /net/<host>/… automounts.
+func remotePath(f string) bool {
+	// macOS mounts another host's exports under /net/<host>/ on first look:
+	// checked on the path with `.` and `..` resolved as written (never by
+	// looking, which would mount it), in any case (the disk ignores it).
+	n := f
+	if strings.HasPrefix(f, "/") && !strings.HasPrefix(f, "//") {
+		n = path.Clean(f)
+	}
+	if n = strings.ToLower(n); n == "/net" || strings.HasPrefix(n, "/net/") {
+		return true
+	}
+	w := strings.ReplaceAll(f, "/", `\`)
+	if rest, ok := strings.CutPrefix(w, `\\?\`); ok {
+		// `\\?\C:\x` is a local drive; any other `\\?\` form is not.
+		drive := len(rest) >= 2 && rest[1] == ':' && ('a' <= rest[0]|0x20 && rest[0]|0x20 <= 'z')
+		return !drive
+	}
+	return strings.HasPrefix(w, `\\`)
+}
+
+// composeFile is a Compose file Fabo may read into the window and write on
+// Save, as it really is: the label names an absolute, local path to a .yaml
+// or .yml file that is a regular file once links are followed. The labels
+// it comes from are any container's to set, so nothing else is touched.
+func composeFile(f string) (string, bool) {
+	// The words alone first: a network path is never looked at.
+	if !filepath.IsAbs(f) || !composeLike(f) || remotePath(f) {
+		return "", false
+	}
+	real, err := filepath.EvalSymlinks(f)
+	if err != nil || remotePath(real) || !composeLike(real) {
+		return "", false
+	}
+	if info, err := os.Stat(real); err != nil || !info.Mode().IsRegular() {
+		return "", false
+	}
+	return real, true
+}
+
+// composeDir is a project folder from its label: absolute, and a local
+// folder once links are followed.
+func composeDir(d string) (string, bool) {
+	if !filepath.IsAbs(d) || remotePath(d) {
+		return "", false
+	}
+	real, err := filepath.EvalSymlinks(d)
+	if err != nil || remotePath(real) {
+		return "", false
+	}
+	if info, err := os.Stat(real); err != nil || !info.IsDir() {
+		return "", false
+	}
+	return real, true
+}
+
+// projectFolder is the folder Compose runs in and the folder button opens:
+// the working_dir label when it is a local folder (composeDir), else the
+// first Compose file's own, as `docker compose -f` alone would take.
+func projectFolder(pr composeProject) (string, bool) {
+	if dir, ok := composeDir(pr.workDir); ok {
+		return dir, true
+	}
+	if len(pr.files) > 0 {
+		if file, ok := composeFile(pr.files[0]); ok {
+			return filepath.Dir(file), true
+		}
+	}
+	return "", false
+}
+
 // projectDock shows a Compose project: where and how it was brought up,
 // what its members share, its Compose file to edit, and the members
 // themselves. Its buttons act on all of them.
@@ -113,7 +207,14 @@ func (s *desktop) projectDock(c *ui.Context, p palette, name string, members []c
 			each(true, s.stopContainer)
 		}
 		if pr.workDir != "" && iconButton(c.Key("open-dir"), p, "folder", tr("打开项目目录", "Open the project folder"), false).Clicked() {
-			c.OpenURL((&url.URL{Scheme: "file", Path: pr.workDir}).String())
+			// The folder comes from a label any container can set: only a
+			// local folder is opened, never a network path, nor an app
+			// bundle (a folder too, but opening one launches it).
+			if dir, ok := projectFolder(pr); ok && !strings.EqualFold(filepath.Ext(dir), ".app") {
+				c.OpenURL((&url.URL{Scheme: "file", Path: dir}).String())
+			} else {
+				s.notices = append(s.notices, errComposePath.Error())
+			}
 		}
 		if s.canPack() && iconButton(c.Key("pack-project"), p, "archive", tr("打包项目", "Pack the project"), s.working["pack"]).Clicked() {
 			s.pack(nil, name, name)
@@ -202,13 +303,22 @@ func (s *desktop) composeConfigTab(c *ui.Context, p palette, pr composeProject) 
 	})
 }
 
-// loadCompose reads one of a project's Compose files off the main thread.
+// loadCompose reads one of a project's Compose files off the main thread,
+// only when the label names a local Compose file (composeFile).
 func (s *desktop) loadCompose(key, path string, at int) {
 	s.compose = composeEditor{key: key, path: path, fileAt: at}
 	s.run(5*time.Second, func(context.Context) func() {
-		data, err := os.ReadFile(path)
+		var data []byte
+		err := errComposePath
+		if real, ok := composeFile(path); ok {
+			data, err = os.ReadFile(real)
+		}
 		return func() {
 			if s.compose.key != key {
+				return
+			}
+			if errors.Is(err, errComposePath) {
+				s.compose.problem = err.Error()
 				return
 			}
 			if err != nil {
@@ -226,17 +336,21 @@ func (s *desktop) loadCompose(key, path string, at int) {
 }
 
 // saveCompose writes the edited file, keeping its permissions, and with
-// apply brings the project up again from all of its files.
+// apply brings the project up again from all of its files. The path is
+// checked again as it is written: it may have changed since it was read.
 func (s *desktop) saveCompose(pr composeProject, apply bool) {
 	e := &s.compose
 	key, path, text := e.key, e.path, e.text
 	e.busy, e.problem = true, ""
 	s.run(10*time.Minute, func(ctx context.Context) func() {
-		mode := os.FileMode(0o644)
-		if info, err := os.Stat(path); err == nil {
-			mode = info.Mode().Perm()
+		err := errComposePath
+		if real, ok := composeFile(path); ok {
+			mode := os.FileMode(0o644)
+			if info, statErr := os.Stat(real); statErr == nil {
+				mode = info.Mode().Perm()
+			}
+			err = os.WriteFile(real, []byte(text), mode)
 		}
-		err := os.WriteFile(path, []byte(text), mode)
 		if err == nil && apply {
 			err = composeUp(ctx, pr)
 		}
@@ -260,11 +374,22 @@ func (s *desktop) saveCompose(pr composeProject, apply bool) {
 
 // composeUp runs Compose's up -d for a project from its directory against
 // the window's own engine, named by DOCKER_HOST so that no docker context
-// or plugin setting of the user's is needed.
+// or plugin setting of the user's is needed. Every file and the folder come
+// from labels, so each must be a local one first.
 func composeUp(ctx context.Context, pr composeProject) error {
 	args := []string{"-p", pr.name}
+	if len(pr.files) == 0 {
+		return errComposePath
+	}
 	for _, f := range pr.files {
+		if _, ok := composeFile(f); !ok {
+			return errComposePath
+		}
 		args = append(args, "-f", f)
+	}
+	dir, ok := projectFolder(pr)
+	if !ok {
+		return errComposePath
 	}
 	args = append(args, "up", "-d")
 	tool, err := composeCLI()
@@ -276,7 +401,7 @@ func composeUp(ctx context.Context, pr composeProject) error {
 	}
 	cmd := exec.CommandContext(ctx, tool, args...)
 	hideConsole(cmd)
-	cmd.Dir = pr.workDir
+	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "DOCKER_HOST="+engineHost())
 	out, err := cmd.CombinedOutput()
 	if err != nil {

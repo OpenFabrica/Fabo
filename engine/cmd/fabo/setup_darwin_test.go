@@ -137,6 +137,119 @@ func TestCommandLinksAreAddedOnceAndTakenBackExactly(t *testing.T) {
 	}
 }
 
+// TestADanglingProfileLinkDoesNotStopSetup: a profile that is a link to
+// nowhere (a dotfiles folder that moved, or one whose file is gone) is
+// passed over, not the end of the app's first launch.
+func TestADanglingProfileLinkDoesNotStopSetup(t *testing.T) {
+	s := sandbox(t, "com.openfabrica.fabo")
+	h := s.in.home
+	// Its folder gone, and its folder there without the file.
+	if err := os.Symlink(filepath.Join(h, "dotfiles-gone/zshrc"), filepath.Join(h, ".zshrc")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(h, "dotfiles"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(h, "dotfiles/zprofile"), filepath.Join(h, ".zprofile")); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.bundledCLI(s.contents()); err != nil {
+		t.Fatal(err)
+	}
+	for _, link := range []string{".zshrc", ".zprofile"} {
+		if _, err := os.Readlink(filepath.Join(h, link)); err != nil {
+			t.Errorf("the user's %s is no longer a link: %v", link, err)
+		}
+	}
+	if _, err := os.Lstat(filepath.Join(h, "dotfiles-gone")); err == nil {
+		t.Error("made a folder where the link points")
+	}
+	if _, err := os.Lstat(filepath.Join(h, "dotfiles/zprofile")); err == nil {
+		t.Error("made a file where the link points")
+	}
+	if !strings.Contains(read(t, filepath.Join(h, ".bash_profile")), profileMark) {
+		t.Error("the other profiles did not get the line")
+	}
+	if err := s.removeShellPath(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestAnUnreadableProfileIsLeftAlone: a profile Fabo can't read is left
+// exactly as it was, never replaced by Fabo's lines alone; one that isn't
+// UTF-8 is still read, so it keeps every byte.
+func TestAnUnreadableProfileIsLeftAlone(t *testing.T) {
+	s := sandbox(t, "com.openfabrica.fabo")
+	h := s.in.home
+	zshrc, zprofile := filepath.Join(h, ".zshrc"), filepath.Join(h, ".zprofile")
+	latin1 := "# caf\xe9 settings\nexport EDITOR=vim\n"
+	write(t, zshrc, latin1)
+	write(t, zprofile, "export SECRET_PLACE=1\n")
+	if err := os.Chmod(zprofile, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(zprofile, 0o644) })
+	// A folder by a profile's name cannot be read as one either.
+	if err := os.MkdirAll(filepath.Join(h, ".bash_profile"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.shellPath(); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, zshrc); !strings.HasPrefix(got, latin1+"\n"+profileMark+"\n") {
+		t.Errorf(".zshrc = %q", got)
+	}
+	// root reads through the mode: nothing unreadable to try then.
+	if f, err := os.Open(zprofile); err == nil {
+		f.Close()
+	} else {
+		os.Chmod(zprofile, 0o644)
+		if got := read(t, zprofile); got != "export SECRET_PLACE=1\n" {
+			t.Errorf("unreadable .zprofile became %q", got)
+		}
+	}
+	if info, err := os.Stat(filepath.Join(h, ".bash_profile")); err != nil || !info.IsDir() {
+		t.Errorf(".bash_profile is no longer a folder: %v", err)
+	}
+}
+
+// TestAReadOnlyProfileDoesNotStopSetup, as Nix home-manager sets a Mac up: a
+// profile Fabo can read but not write (a link into a read-only store) is
+// passed over, whether or not Fabo's line is in it already, and the other
+// profiles get the line.
+func TestAReadOnlyProfileDoesNotStopSetup(t *testing.T) {
+	withLine := "# managed elsewhere\n\n" + profileMark + "\n" + shLine + "\n"
+	for _, text := range []string{"# managed elsewhere\n", withLine} {
+		s := sandbox(t, "com.openfabrica.fabo")
+		h := s.in.home
+		managed := filepath.Join(h, "store/zshrc")
+		write(t, managed, text)
+		if err := os.Chmod(managed, 0o444); err != nil {
+			t.Fatal(err)
+		}
+		// root writes through the mode: nothing read-only to try then.
+		if f, err := os.OpenFile(managed, os.O_APPEND|os.O_WRONLY, 0); err == nil {
+			f.Close()
+			t.Skip("running as root")
+		}
+		if err := os.Symlink(managed, filepath.Join(h, ".zshrc")); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.bundledCLI(s.contents()); err != nil {
+			t.Fatal(err)
+		}
+		if got := read(t, managed); got != text {
+			t.Errorf("the read-only profile became %q", got)
+		}
+		if _, err := os.Readlink(filepath.Join(h, ".zshrc")); err != nil {
+			t.Error("the user's link is no longer a link")
+		}
+		if !strings.Contains(read(t, filepath.Join(h, ".zprofile")), profileMark) {
+			t.Error("the other profiles did not get the line")
+		}
+	}
+}
+
 func TestSetupLeavesAnotherEnginesChoicesAlone(t *testing.T) {
 	s := sandbox(t, "com.openfabrica.fabo")
 	write(t, filepath.Join(s.root, "Applications/OrbStack.app/x"), "")

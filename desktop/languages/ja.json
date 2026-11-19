@@ -949,5 +949,6 @@
   "Other port": "その他のポート",
   "on %s": "%s のこのポート",
   "Type the port below": "下にポートを入力",
-  "Skip checking the server's certificate (for self-signed ones)": "サーバー証明書を検証しない（自己署名証明書用）"
+  "Skip checking the server's certificate (for self-signed ones)": "サーバー証明書を検証しない（自己署名証明書用）",
+  "This project's labels don't point to a local .yaml or .yml Compose file, so Fabo won't read or write it.": "このプロジェクトのラベルはローカルの .yaml / .yml Compose ファイルを指していないため、Fabo は読み書きしません。"
 }

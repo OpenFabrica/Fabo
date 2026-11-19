@@ -949,5 +949,6 @@
   "Other port": "Otro puerto",
   "on %s": "en %s",
   "Type the port below": "Escribe el puerto abajo",
-  "Skip checking the server's certificate (for self-signed ones)": "No comprobar el certificado del servidor (para autofirmados)"
+  "Skip checking the server's certificate (for self-signed ones)": "No comprobar el certificado del servidor (para autofirmados)",
+  "This project's labels don't point to a local .yaml or .yml Compose file, so Fabo won't read or write it.": "Las etiquetas de este proyecto no apuntan a un archivo Compose .yaml o .yml local, así que Fabo no lo leerá ni lo modificará."
 }

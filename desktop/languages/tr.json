@@ -949,5 +949,6 @@
   "Other port": "Başka port",
   "on %s": "%s üzerinde",
   "Type the port below": "Portu aşağıya yazın",
-  "Skip checking the server's certificate (for self-signed ones)": "Sunucu sertifikasını denetleme (kendinden imzalı için)"
+  "Skip checking the server's certificate (for self-signed ones)": "Sunucu sertifikasını denetleme (kendinden imzalı için)",
+  "This project's labels don't point to a local .yaml or .yml Compose file, so Fabo won't read or write it.": "Bu projenin etiketleri yerel bir .yaml veya .yml Compose dosyasını göstermiyor; bu yüzden Fabo onu okumaz ve değiştirmez."
 }

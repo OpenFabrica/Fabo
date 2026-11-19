@@ -949,5 +949,6 @@
   "Other port": "其他連接埠",
   "on %s": "連線到 %s 的這個連接埠",
   "Type the port below": "在下方填寫連接埠",
-  "Skip checking the server's certificate (for self-signed ones)": "不驗證伺服器憑證（自簽憑證時使用）"
+  "Skip checking the server's certificate (for self-signed ones)": "不驗證伺服器憑證（自簽憑證時使用）",
+  "This project's labels don't point to a local .yaml or .yml Compose file, so Fabo won't read or write it.": "這個專案的標籤指向的不是本機上的 .yaml 或 .yml Compose 檔案，Fabo 不會讀寫它。"
 }

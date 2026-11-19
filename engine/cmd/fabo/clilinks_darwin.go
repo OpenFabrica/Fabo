@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -141,26 +143,50 @@ func (s *setup) profiles() []profile {
 	return list
 }
 
-// shellPath appends the marked PATH line to each profile that lacks it.
+// shellPath appends the marked PATH line to each profile that lacks it. A
+// profile that can't be read or written is passed over (and logged), not the
+// end of setup: a link to a dotfiles folder that moved, or a read-only link
+// Nix home-manager made, failed every first launch of the app.
 func (s *setup) shellPath() error {
 	for _, p := range s.profiles() {
-		raw, _ := os.ReadFile(p.file)
+		// A link to nothing: writing through it fails when the target's
+		// folder is gone, or makes a file where it points. It stays as the
+		// user left it.
+		if _, err := os.Lstat(p.file); err == nil && !exists(p.file) {
+			skipProfile(p.file, errors.New("a link to nothing"))
+			continue
+		}
+		// Only a profile Fabo could read, or one that isn't there, is
+		// written: a read error must never turn into a profile holding only
+		// Fabo's lines.
+		raw, err := os.ReadFile(p.file)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			skipProfile(p.file, err)
+			continue
+		}
 		text := string(raw)
 		if strings.Contains(text, profileMark) {
 			continue
-		}
-		if err := os.MkdirAll(filepath.Dir(p.file), 0o755); err != nil {
-			return err
 		}
 		sep := "\n"
 		if text == "" || strings.HasSuffix(text, "\n") {
 			sep = ""
 		}
-		if err := writeProfile(p.file, text+sep+"\n"+profileMark+"\n"+p.line+"\n"); err != nil {
-			return err
+		err = os.MkdirAll(filepath.Dir(p.file), 0o755)
+		if err == nil {
+			err = writeProfile(p.file, text+sep+"\n"+profileMark+"\n"+p.line+"\n")
+		}
+		if err != nil {
+			skipProfile(p.file, err)
 		}
 	}
 	return nil
+}
+
+// skipProfile logs a shell profile setup leaves as it is. Standard error is
+// the log: setup's own output is discarded when the app is opened.
+func skipProfile(file string, err error) {
+	fmt.Fprintf(os.Stderr, "fabo: shell profile %s skipped: %v\n", file, err)
 }
 
 // removeShellPath takes the marked lines back out, and removes the fish

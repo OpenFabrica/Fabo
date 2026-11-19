@@ -949,5 +949,6 @@
   "Other port": "다른 포트",
   "on %s": "%s의 이 포트",
   "Type the port below": "아래에 포트를 입력하세요",
-  "Skip checking the server's certificate (for self-signed ones)": "서버 인증서를 확인하지 않음(자체 서명 인증서용)"
+  "Skip checking the server's certificate (for self-signed ones)": "서버 인증서를 확인하지 않음(자체 서명 인증서용)",
+  "This project's labels don't point to a local .yaml or .yml Compose file, so Fabo won't read or write it.": "이 프로젝트의 레이블이 로컬 .yaml 또는 .yml Compose 파일을 가리키지 않으므로 Fabo는 이 파일을 읽거나 쓰지 않습니다."
 }

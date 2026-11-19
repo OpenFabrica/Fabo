@@ -949,5 +949,6 @@
   "Other port": "Port lain",
   "on %s": "di %s",
   "Type the port below": "Ketik port di bawah",
-  "Skip checking the server's certificate (for self-signed ones)": "Jangan periksa sertifikat server (untuk yang ditandatangani sendiri)"
+  "Skip checking the server's certificate (for self-signed ones)": "Jangan periksa sertifikat server (untuk yang ditandatangani sendiri)",
+  "This project's labels don't point to a local .yaml or .yml Compose file, so Fabo won't read or write it.": "Label proyek ini tidak mengarah ke file Compose .yaml atau .yml lokal, jadi Fabo tidak akan membaca atau menulisnya."
 }

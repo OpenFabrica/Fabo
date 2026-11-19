@@ -66,6 +66,9 @@ type importer struct {
 	client         *commandClient
 	docker, source string
 	ctx            context.Context
+	// helperPullFailed is set once fetching a volume helper into Fabo
+	// failed, so the rest of an import does not try again per volume.
+	helperPullFailed bool
 }
 
 func (i *importer) command(source bool, args ...string) *exec.Cmd {
@@ -235,18 +238,137 @@ func pipeImport(producer, consumer *exec.Cmd) error {
 func (i *importer) image(name string) error {
 	return pipeImport(i.command(true, "save", name), i.command(false, "load", "-q"))
 }
-func (i *importer) helperImage() (string, error) {
-	for _, img := range []string{"alpine:latest", "busybox:latest", "alpine:3.22", "debian:trixie", "ubuntu:24.04"} {
-		if _, e := i.output(true, "image", "inspect", img); e == nil {
-			if _, e := i.output(false, "image", "inspect", img); e != nil {
-				if e = i.image(img); e != nil {
-					return "", e
-				}
-			}
-			return img, nil
+
+// tarImages are official images with `tar` and `sh`: one of these does
+// either half of a volume copy.
+var tarImages = []string{"alpine", "busybox", "debian", "ubuntu"}
+
+// officialHomes are where an official image's repository lives: Docker Hub
+// as the docker CLI and Fabo's engine (go-containerregistry) write it, and
+// Docker Hub's two public mirrors.
+var officialHomes = []string{"", "library/", "docker.io/library/", "index.docker.io/library/", "mirror.gcr.io/library/", "public.ecr.aws/docker/library/"}
+
+// officialDigest reports whether a RepoDigests entry shows the engine pulled
+// the image from an official repository of tarImages, by digest. A name or
+// a tag says nothing (anyone can give an image one), and neither does any
+// other registry or path.
+func officialDigest(repoDigest string) bool {
+	repo, digest, ok := strings.Cut(repoDigest, "@")
+	hexDigits, sha := strings.CutPrefix(digest, "sha256:")
+	if !ok || !sha || len(hexDigits) != 64 || strings.Trim(hexDigits, "0123456789abcdef") != "" {
+		return false
+	}
+	for _, home := range officialHomes {
+		if base, ok := strings.CutPrefix(repo, home); ok && slices.Contains(tarImages, base) {
+			return true
 		}
 	}
-	return "", fmt.Errorf("%s has no alpine or busybox image to read volumes with; pull alpine there first", i.source)
+	return false
+}
+
+// pickHelper is the name to run a volume copy's helper by: a repo:tag of the
+// first of images (records with RepoTags and RepoDigests, as the Engine API
+// and `docker image inspect` give them) whose own record shows it was pulled
+// under that repository from an official one. Run by that name, it is that
+// record; a re-tagged, loaded or built image has no such digest.
+func pickHelper(images []map[string]any) string {
+	strs := func(v any) []string {
+		list, _ := v.([]any)
+		out := make([]string, 0, len(list))
+		for _, x := range list {
+			if s, ok := x.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	for _, image := range images {
+		digests := strs(image["RepoDigests"])
+		for _, name := range strs(image["RepoTags"]) {
+			at := strings.LastIndex(name, ":")
+			if at < 0 || at == len(name)-1 || strings.Contains(name[at+1:], "/") {
+				continue
+			}
+			for _, d := range digests {
+				if repo, _, _ := strings.Cut(d, "@"); repo == name[:at] && officialDigest(d) {
+					return name
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// helperInFabo is pickHelper of the images Fabo has, read from its API.
+func (i *importer) helperInFabo() (string, error) {
+	var images []map[string]any
+	if e := i.client.request("GET", "/images/json", nil, &images); e != nil {
+		return "", e
+	}
+	return pickHelper(images), nil
+}
+
+// helperOnSource is pickHelper of the source's images that are named like an
+// official one with tar. Nothing is pulled on the source.
+func (i *importer) helperOnSource() (string, error) {
+	rows, e := i.rows(true, "image", "ls", "--format", "{{json .}}")
+	if e != nil {
+		return "", e
+	}
+	var names []string
+	for _, row := range rows {
+		repo, tag := textField(row, "Repository"), textField(row, "Tag")
+		if tag == "" || tag == "<none>" {
+			continue
+		}
+		for _, home := range officialHomes {
+			if base, ok := strings.CutPrefix(repo, home); ok && slices.Contains(tarImages, base) {
+				names = append(names, repo+":"+tag)
+				break
+			}
+		}
+	}
+	if len(names) > 0 {
+		images, e := i.rows(true, append([]string{"image", "inspect", "--format", "{{json .}}"}, names...)...)
+		if e != nil {
+			return "", e
+		}
+		if name := pickHelper(images); name != "" {
+			return name, nil
+		}
+	}
+	return "", fmt.Errorf("%s has no official alpine or busybox image to read volumes with: pull alpine there (docker --context %s pull alpine) and import again. A re-tagged or loaded copy does not count", i.source, i.source)
+}
+
+// helperImage is Fabo's half of a volume copy: an official image Fabo has,
+// else busybox fetched by Fabo, from the public mirror, or from Docker Hub
+// when no image of the user's is called busybox:latest (a pull would take
+// the name from it). Nothing is taken from the source: a source image only
+// named like an official one would run in Fabo with the volume writable.
+// A failed pull is tried once per import, not once per volume.
+func (i *importer) helperImage() (string, error) {
+	if name, e := i.helperInFabo(); e != nil || name != "" {
+		return name, e
+	}
+	none := errors.New("Fabo needs one small official image to unpack volumes with: pull alpine or busybox in Fabo (fabo pull alpine) and import again. A re-tagged or loaded copy does not count")
+	if i.helperPullFailed {
+		return "", none
+	}
+	pull := func(name string) bool {
+		_, e := i.output(false, "pull", "-q", name)
+		return e == nil
+	}
+	userBusybox := func() bool {
+		_, e := i.output(false, "image", "inspect", "busybox:latest")
+		return e == nil
+	}
+	if pull("mirror.gcr.io/library/busybox") || (!userBusybox() && pull("busybox")) {
+		if name, e := i.helperInFabo(); e != nil || name != "" {
+			return name, e
+		}
+	}
+	i.helperPullFailed = true
+	return "", none
 }
 func (i *importer) volume(name string) error {
 	if _, err := i.output(true, "volume", "inspect", name); err != nil {
@@ -262,7 +384,14 @@ func (i *importer) volume(name string) error {
 			return fmt.Errorf("volume %s already exists in Fabo; not overwriting it", name)
 		}
 	}
-	image, e := i.helperImage()
+	// Each side's helper is an official image that side pulled itself, run
+	// by that name with sh as its entrypoint and never pulled implicitly:
+	// no image's own ENTRYPOINT runs beside the volume.
+	reader, e := i.helperOnSource()
+	if e != nil {
+		return e
+	}
+	writer, e := i.helperImage()
 	if e != nil {
 		return e
 	}
@@ -270,7 +399,9 @@ func (i *importer) volume(name string) error {
 		return e
 	}
 	nameHelper := fmt.Sprintf("fabo-import-%d-%d", os.Getpid(), time.Now().UnixNano())
-	err := pipeImport(i.command(true, "run", "--name", nameHelper, "--rm", "--network", "none", "--label", "dev.fabo.import-helper=1", "-v", name+":/from:ro", image, "tar", "-C", "/from", "-cf", "-", "."), i.command(false, "run", "--name", nameHelper, "--rm", "-i", "--network", "none", "--label", "dev.fabo.import-helper=1", "-v", name+":/to", image, "tar", "-C", "/to", "-xpf", "-"))
+	err := pipeImport(
+		i.command(true, "run", "--name", nameHelper, "--rm", "--network", "none", "--label", "dev.fabo.import-helper=1", "-v", name+":/from:ro", "--pull", "never", "--entrypoint", "sh", reader, "-c", "tar -C /from -cf - ."),
+		i.command(false, "run", "--name", nameHelper, "--rm", "-i", "--network", "none", "--label", "dev.fabo.import-helper=1", "-v", name+":/to", "--pull", "never", "--entrypoint", "sh", writer, "-c", "tar -C /to -xpf -"))
 	if err == nil {
 		return nil
 	}

@@ -949,5 +949,6 @@
   "Other port": "其他端口",
   "on %s": "连 %s 的这个端口",
   "Type the port below": "在下方填写端口",
-  "Skip checking the server's certificate (for self-signed ones)": "不校验服务器证书（自签名证书时使用）"
+  "Skip checking the server's certificate (for self-signed ones)": "不校验服务器证书（自签名证书时使用）",
+  "This project's labels don't point to a local .yaml or .yml Compose file, so Fabo won't read or write it.": "这个项目的标签指向的不是本机上的 .yaml 或 .yml Compose 文件，Fabo 不会读写它。"
 }
