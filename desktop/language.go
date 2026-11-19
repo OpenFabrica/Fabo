@@ -8,6 +8,11 @@ import (
 	"sync/atomic"
 
 	"github.com/egoist/mygo"
+	// MyGo's own strings (controls, dialogs, menus) for the languages it
+	// ships; without these they stay English inside a translated window.
+	_ "github.com/egoist/mygo/locales/ja"
+	_ "github.com/egoist/mygo/locales/zh-Hans"
+	_ "github.com/egoist/mygo/locales/zh-Hant"
 )
 
 // English keys match tr's second argument. Catalogs are embedded in every
