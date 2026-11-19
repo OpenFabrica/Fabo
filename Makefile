@@ -109,9 +109,16 @@ app: guest
 app-dev: guest
 	scripts/macos-app.sh $(ARCH) $(VERSION) $(or $(FLAVOR),dev)
 
+# The development window borrows the installed app as a shared-engine
+# bundle does (openDesktop in engine/cmd/fabo/desktop.go): its socket, so
+# the window's files are those in ~/.fabo too, and its launcher. Naming a
+# socket yourself opts out of all three, so the window never shows one
+# engine while its fabo commands act on another.
 dev:
-	@if [ -z "$$FABO_LAUNCHER" ] && [ -x /Applications/Fabo.app/Contents/MacOS/fabo ]; then \
-		export FABO_LAUNCHER=/Applications/Fabo.app/Contents/MacOS/fabo; \
+	@if [ -z "$$FABO_SOCKET" ] && [ -x /Applications/Fabo.app/Contents/MacOS/fabo ]; then \
+		export FABO_SOCKET="$$HOME/.fabo/run/docker.sock"; \
+		export FABO_LAUNCHER="$${FABO_LAUNCHER:-/Applications/Fabo.app/Contents/MacOS/fabo}"; \
+		export FABO_SHARED_ENGINE=1; \
 	fi; \
 	exec go -C desktop tool mygo dev
 

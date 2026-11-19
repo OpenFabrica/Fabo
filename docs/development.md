@@ -43,10 +43,13 @@ once, in `packaging/cli-pins.env`.
 Run `make dev` for desktop UI changes. MyGo rebuilds and relaunches the
 window when you save Go source or embedded translations. A failed build
 leaves the previous window running. Press Ctrl+C to stop the session.
-On macOS the window connects to the running engine at
-`~/.fabo/run/docker.sock` by default and uses the launcher in
-`/Applications/Fabo.app` when available. Set `FABO_SOCKET` and
-`FABO_LAUNCHER` for another installation.
+On macOS, with `/Applications/Fabo.app` installed, the window borrows the
+installed app as a `make app-dev` bundle does: its engine at
+`~/.fabo/run/docker.sock`, its launcher, and the files the window keeps
+in `~/.fabo` (`desktop.json`, `debug-sessions.json`, `logs-cleared.json`,
+`k8s.json`). Set `FABO_SOCKET` for another installation, and
+`FABO_LAUNCHER` with it when the window should run that installation's
+`fabo`; with a socket of your own, `make dev` sets no launcher.
 
 Use `make app-dev` to build a full application bundle. Its bundle identifier,
 `com.openfabrica.fabo.dev`, gives it `~/.fabo-dev` and `~/Fabo Dev` instead of the
