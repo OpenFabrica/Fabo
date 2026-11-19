@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"maps"
 	"os"
 	"path/filepath"
@@ -15,9 +16,17 @@ import (
 	"github.com/OpenFabrica/Fabo/engine/internal/hostagent"
 )
 
-// The caller holds pulls and imageOps so no new download or container
-// can publish a reference between this snapshot and reclamation.
+// collectUnusedLayers deletes the layers no image or container refers to,
+// on the host and in the guest. The caller holds pulls and imageOps so no
+// new download or container can publish a reference between this snapshot
+// and reclamation.
 func (e *Engine) collectUnusedLayers() (int64, error) {
+	if len(e.damaged) != 0 {
+		// A container or image record that was not loaded may still use
+		// any layer, and the guest deletes all it is not told to keep.
+		log.Printf("unused image layers kept: %s", e.damageSummary())
+		return 0, nil
+	}
 	keep := map[string]bool{}
 	add := func(layers []hostagent.Layer) {
 		for _, layer := range layers {

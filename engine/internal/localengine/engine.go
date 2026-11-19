@@ -14,6 +14,7 @@ import (
 	"maps"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strconv"
@@ -124,6 +125,11 @@ type Engine struct {
 	vmMemory          uint64
 	volumeRemovals    map[string]bool
 	volumeCleanups    int
+	// damaged names the state files this engine could not load (set aside
+	// as *.corrupt-* or left unreadable in place). While it is not empty,
+	// the containers and images in memory may not be all there are, so
+	// layer cleanup and volume removal are off. Fixed by New.
+	damaged []string
 }
 
 type container struct {
@@ -321,31 +327,34 @@ type VMOptions struct {
 	Domains       *Domains
 }
 
+// New restores the saved state and serves it over conn (nil: no guest).
+// Damaged records do not stop it: they are set aside and listed in
+// e.damaged, which keeps destructive cleanup off (see damaged).
 func New(ctx context.Context, conn net.Conn, images map[string]Image, state *State, vm VMOptions) (*Engine, error) {
-	containers, err := state.restore()
+	containers, skipped, err := state.restoreRecords()
 	if err != nil {
 		return nil, err
 	}
 	networks, err := state.restoreNetworks()
 	if err != nil {
-		return nil, err
-	}
-	for _, c := range containers {
-		for _, ep := range c.endpoints() {
-			if !guestwire.CustomBridge(ep.Network.Bridge) {
-				continue
-			}
-			n, ok := networks[ep.Name]
-			if !ok || n.ID != ep.ID || n.Bridge != ep.Network.Bridge ||
-				!n.matchesEndpoint(ep.Network) {
-				return nil, fmt.Errorf("container %s references an invalid network", c.id)
-			}
+		// Without the network list, containers on custom networks still
+		// load but cannot start (endpointProblem); the copy keeps it all.
+		copy, moveErr := state.setAside("networks.json")
+		if moveErr != nil {
+			return nil, fmt.Errorf("%w (and could not set networks.json aside: %v)", err, moveErr)
 		}
+		log.Printf("networks.json is damaged (%v): kept as %s and started without custom networks", err, filepath.Join(state.dir, copy))
+		networks = make(map[string]dockerNetwork)
 	}
 	index, err := state.restoreImages()
 	if err != nil {
 		return nil, err
 	}
+	setAside, err := state.damagedFiles()
+	if err != nil {
+		return nil, err
+	}
+	damaged := append(skipped, setAside...)
 	catalog := make(map[string]Image, len(images))
 	for ref, image := range images {
 		catalog[ref] = identifyImage(image)
@@ -355,8 +364,21 @@ func New(ctx context.Context, conn net.Conn, images map[string]Image, state *Sta
 	e.buildMirror = vm.BuildMirror
 	e.rosetta = vm.Rosetta
 	e.engineSocket, e.windowsMounts = vm.EngineSocket, vm.WindowsMounts
+	e.damaged = damaged
+	if len(damaged) != 0 {
+		log.Printf("state files in %s were not loaded: %s; until they are repaired or removed, unused image layers are kept and volumes are not removed", state.dir, strings.Join(damaged, ", "))
+	}
 	if err := e.restoreBridgeIPv6(); err != nil {
 		return nil, err
+	}
+	// As in Kiri, a container whose saved networks no longer match still
+	// loads and says why when started, instead of keeping the engine down.
+	unstartable := make(map[string]bool)
+	for _, id := range slices.Sorted(maps.Keys(e.containers)) {
+		if err := e.endpointProblem(e.containers[id]); err != nil {
+			log.Print(err)
+			unstartable[id] = true
+		}
 	}
 	if conn == nil {
 		e.closed = true
@@ -366,7 +388,7 @@ func New(ctx context.Context, conn net.Conn, images map[string]Image, state *Sta
 	e.session = guestwire.NewSession(conn, e.onEvent)
 	e.mu.Lock()
 	for _, c := range e.containers {
-		if c.canRestart(true) {
+		if c.canRestart(true) && !unstartable[c.id] {
 			e.queueRestart(c, true, 100*time.Millisecond)
 		}
 	}
@@ -397,6 +419,28 @@ func New(ctx context.Context, conn net.Conn, images map[string]Image, state *Sta
 		go e.syncGuestClock()
 	}
 	return e, nil
+}
+
+// endpointProblem reports why c's saved networks no longer match the
+// engine's (a network removed or recreated behind its back, or networks.json
+// set aside), or nil. The caller holds e.mu or owns e alone. Such a container
+// is kept and refuses to start rather than join a bridge no network owns.
+func (e *Engine) endpointProblem(c *container) error {
+	for _, ep := range c.endpoints() {
+		switch {
+		case guestwire.CustomBridge(ep.Network.Bridge):
+			n, ok := e.networks[ep.Name]
+			if !ok || n.ID != ep.ID || n.Bridge != ep.Network.Bridge || !n.matchesEndpoint(ep.Network) {
+				return fmt.Errorf("%w: container %s references network %s, which no longer exists or was changed; if networks.json was set aside, restore it from its *%s* copy in %s and restart Fabo, otherwise recreate the network or the container", errConflict, c.name, ep.Name, corruptMark, e.state.dir)
+			}
+		case ep.Network.Bridge == guestwire.DefaultBridge && e.bridgeIPv6Enabled:
+			ip, _, err := ep.Network.IPv6()
+			if err != nil || ip.IsValid() && !e.bridgeNetwork().matchesEndpoint(ep.Network) {
+				return fmt.Errorf("%w: container %s has an IPv6 address outside the default bridge's subnet; recreate the container", errConflict, c.name)
+			}
+		}
+	}
+	return nil
 }
 
 // The VM wall clock can fall behind while its Mac sleeps.
@@ -933,6 +977,9 @@ func (e *Engine) startContainer(c *container, automatic bool) error {
 		} else if owner.state != "running" || owner.attempt == nil || owner.removing {
 			joinErr = fmt.Errorf("%w: cannot join PID namespace of a non running container: %s", errConflict, pid)
 		}
+	}
+	if joinErr == nil {
+		joinErr = e.endpointProblem(c)
 	}
 	previous, code, failure, oom := c.state, c.exit, c.failure, c.oomKilled
 	startedAt, finishedAt, vmStopped := c.startedAt, c.finishedAt, c.vmStopped

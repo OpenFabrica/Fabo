@@ -320,6 +320,12 @@ func (e *Engine) checkVolumeRemoval(name string) (volume, error) {
 	if err != nil {
 		return volume{}, err
 	}
+	if len(e.damaged) != 0 {
+		// A container record that was not loaded may use this volume, and
+		// the check below only sees the loaded ones. Prune and `rm -v`
+		// skip a conflict, so they keep it too.
+		return volume{}, fmt.Errorf("%w: volume %q was not removed: %s, and a container in them may use it; repair or remove those files first", errConflict, name, e.damageSummary())
+	}
 	for _, c := range e.containers {
 		if slices.Contains(c.volumeNames, name) {
 			return volume{}, fmt.Errorf("%w: volume %q is in use", errConflict, name)

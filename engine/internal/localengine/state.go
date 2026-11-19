@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -132,29 +134,39 @@ func saveJSON(dir, name string, value any) error {
 	return os.Rename(tmp.Name(), filepath.Join(dir, name))
 }
 
+// restoreImages reads the image index. An index that cannot be read or
+// parsed is set aside (setAside) and replaced by an empty one, so the engine
+// still starts; the copy keeps layer cleanup off (damagedFiles).
 func (s *State) restoreImages() (imageIndex, error) {
 	raw, err := os.ReadFile(filepath.Join(s.dir, "image-index.json"))
 	if err == nil {
 		var index imageIndex
-		if err := json.Unmarshal(raw, &index); err != nil {
-			return imageIndex{}, fmt.Errorf("read image index: %w", err)
+		if err = json.Unmarshal(raw, &index); err == nil {
+			return index, nil
 		}
-		return index, nil
 	}
-	if !errors.Is(err, os.ErrNotExist) {
-		return imageIndex{}, err
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := s.setAsideIndex("image-index.json", err); err != nil {
+			return imageIndex{}, err
+		}
+		// Write the empty index at once: with no index at all, the next
+		// start would import the legacy images.json instead.
+		if err := saveJSON(s.dir, "image-index.json", imageIndex{}); err != nil {
+			log.Printf("save empty image index: %v", err)
+		}
+		return imageIndex{}, nil
 	}
 	// Import the previous registry-only file when the new index is absent.
 	raw, err = os.ReadFile(filepath.Join(s.dir, "images.json"))
 	if errors.Is(err, os.ErrNotExist) {
 		return imageIndex{}, nil
 	}
-	if err != nil {
-		return imageIndex{}, err
-	}
 	var images map[string]Image
-	if err := json.Unmarshal(raw, &images); err != nil {
-		return imageIndex{}, fmt.Errorf("read legacy image index: %w", err)
+	if err == nil {
+		err = json.Unmarshal(raw, &images)
+	}
+	if err != nil {
+		return imageIndex{}, s.setAsideIndex("images.json", err)
 	}
 	index := imageIndex{Overrides: make(map[string]*Image, len(images))}
 	for ref, image := range images {
@@ -164,12 +176,80 @@ func (s *State) restoreImages() (imageIndex, error) {
 	return index, nil
 }
 
-func (s *State) restore() (map[string]*container, error) {
+// setAsideIndex moves a damaged index file aside after cause made it
+// unusable. If it cannot be moved the start fails as before: going on would
+// let the next change overwrite the only copy with an empty index.
+func (s *State) setAsideIndex(name string, cause error) error {
+	copy, err := s.setAside(name)
+	if err != nil {
+		return fmt.Errorf("read %s: %w (and could not set it aside: %v)", name, cause, err)
+	}
+	log.Printf("%s is damaged (%v): kept as %s and started with an empty image list; unused image layers are kept until that copy is removed", name, cause, filepath.Join(s.dir, copy))
+	return nil
+}
+
+// corruptMark separates a damaged state file's name from the time it was
+// set aside: <name>.corrupt-<time>.
+const corruptMark = ".corrupt-"
+
+// setAside renames a damaged state file to <name>.corrupt-<time> in the same
+// directory and returns the new name. It never deletes: the bytes stay for
+// whoever repairs them, and their presence keeps destructive cleanup off.
+func (s *State) setAside(name string) (string, error) {
+	stamp := time.Now().UTC().Format("20060102T150405.000000000Z")
+	for i := 0; ; i++ {
+		target := name + corruptMark + stamp
+		if i > 0 {
+			target += "-" + strconv.Itoa(i)
+		}
+		// rename(2) replaces an existing file; never replace an earlier copy.
+		if _, err := os.Lstat(filepath.Join(s.dir, target)); errors.Is(err, os.ErrNotExist) {
+			return target, os.Rename(filepath.Join(s.dir, name), filepath.Join(s.dir, target))
+		} else if err != nil {
+			return "", err
+		}
+	}
+}
+
+// damagedFiles lists the state files set aside as damaged, by this start or
+// an earlier one. While any is kept, a container or image may be missing
+// from the engine's view, so nothing is deleted on the strength of that view.
+func (s *State) damagedFiles() ([]string, error) {
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
 		return nil, err
 	}
-	containers := make(map[string]*container)
+	var names []string
+	for _, entry := range entries {
+		if strings.Contains(entry.Name(), corruptMark) {
+			names = append(names, entry.Name())
+		}
+	}
+	return names, nil
+}
+
+// damageSummary says in one short line which state files keep destructive
+// cleanup off; New logs the full list.
+func (e *Engine) damageSummary() string {
+	return fmt.Sprintf("%d state file(s) in %s were not loaded (see the daemon log, or *%s* files there)", len(e.damaged), e.state.dir, corruptMark)
+}
+
+// restore loads the container records; see restoreRecords.
+func (s *State) restore() (map[string]*container, error) {
+	containers, _, err := s.restoreRecords()
+	return containers, err
+}
+
+// restoreRecords loads every usable container record. One that does not
+// parse or does not hold together is set aside (setAside) and one that
+// cannot be read is left where it is; either way the other containers still
+// load. skipped names the records that stayed in place unloaded.
+func (s *State) restoreRecords() (containers map[string]*container, skipped []string, err error) {
+	entries, err := os.ReadDir(s.dir)
+	if err != nil {
+		return nil, nil, err
+	}
+	containers = make(map[string]*container)
 	names := make(map[string]bool)
 	for _, entry := range entries {
 		id, found := strings.CutSuffix(entry.Name(), ".json")
@@ -181,14 +261,29 @@ func (s *State) restore() (map[string]*container, error) {
 		}
 		raw, err := os.ReadFile(filepath.Join(s.dir, entry.Name()))
 		if err != nil {
-			return nil, err
+			// The bytes may be fine (permissions, a passing I/O error), so
+			// the file stays as it is. No container in memory has its ID,
+			// so nothing writes over it.
+			log.Printf("container record %s was not loaded: %v", entry.Name(), err)
+			skipped = append(skipped, entry.Name())
+			continue
 		}
 		var rec savedContainer
 		if err := json.Unmarshal(raw, &rec); err != nil {
-			return nil, fmt.Errorf("read container %s: %w", id, err)
+			skipped = s.setAsideRecord(skipped, entry.Name(), err)
+			continue
 		}
 		if rec.ID != id || rec.Run.ID != id || rec.Name == "" || names[rec.Name] {
-			return nil, fmt.Errorf("invalid container record %s", id)
+			// Of two records with one name, the second is set aside: two
+			// containers cannot answer to the same name.
+			skipped = s.setAsideRecord(skipped, entry.Name(), errors.New("invalid container record"))
+			continue
+		}
+		switch rec.State {
+		case "created", "exited", "starting", "running":
+		default:
+			skipped = s.setAsideRecord(skipped, entry.Name(), fmt.Errorf("invalid container state %q", rec.State))
+			continue
 		}
 		renameLegacyRecord(&rec)
 		if rec.SecurityOpt == nil {
@@ -214,9 +309,7 @@ func (s *State) restore() (map[string]*container, error) {
 		for _, entry := range rec.Logs {
 			c.appendLog(record{stream: entry.Stream, data: entry.Data, at: entry.At})
 		}
-		switch c.state {
-		case "created", "exited":
-		case "starting", "running":
+		if c.state == "starting" || c.state == "running" {
 			c.state, c.exit = "exited", 255
 			c.finishedAt, c.vmStopped = time.Now(), true
 			if c.health != nil {
@@ -224,14 +317,24 @@ func (s *State) restore() (map[string]*container, error) {
 			}
 			c.failure = errors.New("daemon stopped before the container reported its exit")
 			if err := s.save(c); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
-		default:
-			return nil, fmt.Errorf("invalid container state %q in %s", c.state, id)
 		}
 		containers[id] = c
 	}
-	return containers, nil
+	return containers, skipped, nil
+}
+
+// setAsideRecord moves a damaged container record aside and logs why. A
+// record that cannot be moved stays in place and is added to skipped.
+func (s *State) setAsideRecord(skipped []string, name string, cause error) []string {
+	copy, err := s.setAside(name)
+	if err != nil {
+		log.Printf("container record %s is damaged (%v) and was not loaded; it could not be set aside: %v", name, cause, err)
+		return append(skipped, name)
+	}
+	log.Printf("container record %s is damaged (%v): kept as %s and not loaded", name, cause, filepath.Join(s.dir, copy))
+	return skipped
 }
 
 // VMSettings holds the next boot configuration and the explicit stop state.

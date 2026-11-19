@@ -19,7 +19,13 @@ func OpenOfflineImages(ctx context.Context, state *State) (*OfflineImages, error
 	if err != nil {
 		return nil, err
 	}
-	e := &Engine{ctx: ctx, state: state, imageIndex: index, catalog: map[string]Image{}, images: index.references(nil), containers: map[string]*container{}}
+	// A damaged index set aside here or earlier keeps Remove's layer
+	// cleanup off, as in the daemon.
+	damaged, err := state.damagedFiles()
+	if err != nil {
+		return nil, err
+	}
+	e := &Engine{ctx: ctx, state: state, imageIndex: index, catalog: map[string]Image{}, images: index.references(nil), containers: map[string]*container{}, damaged: damaged}
 	return &OfflineImages{e}, nil
 }
 func (s *OfflineImages) Pull(ctx context.Context, reference string) (Image, error) {

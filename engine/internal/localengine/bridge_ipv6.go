@@ -84,7 +84,9 @@ func (e *Engine) restoreBridgeIPv6() error {
 			}
 			ip, _, err := ep.Network.IPv6()
 			if err != nil || ip.IsValid() && !bridge.matchesEndpoint(ep.Network) {
-				return fmt.Errorf("container %s references an invalid default bridge IPv6 endpoint", id)
+				// Left as saved: New logs it and start refuses it
+				// (endpointProblem); the engine itself still comes up.
+				break
 			}
 			if !ip.IsValid() {
 				ip, err := e.allocateIPv6(bridge, netip.Addr{})

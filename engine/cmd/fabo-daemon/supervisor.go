@@ -70,6 +70,9 @@ type supervisor struct {
 	shares *localengine.PublicShares
 	// wakeForShare boots the VM for a share link; tests replace it.
 	wakeForShare func() error
+	// startGuest boots the guest with the given options; tests replace
+	// it. nil runs options.start.
+	startGuest func(ctx context.Context, options guestOptions) (guestConnection, error)
 
 	// life serializes resource updates, VM release, and VM boot.
 	life sync.Mutex
@@ -78,10 +81,29 @@ type supervisor struct {
 	current      *engineInstance
 	active       bool
 	lastActivity time.Time
+	// bootErr is why the VM last failed to boot; nil once it boots or the
+	// user stops it.
+	bootErr error
+	// cancelBootRetry stops the background boot retry; nil when none runs.
+	cancelBootRetry context.CancelFunc
+
+	// closing is set under life once the daemon shuts down: no boot after.
+	closing bool
 }
 
-var errManuallyStopped = errors.New("Fabo guest is stopped")
+var (
+	errManuallyStopped = errors.New("Fabo guest is stopped")
+	errDaemonClosing   = errors.New("the daemon is shutting down")
+)
 
+// The background boot retry waits bootRetryFirst, then twice as long each
+// time, up to bootRetryMax; tests shorten them.
+var (
+	bootRetryFirst = 10 * time.Second
+	bootRetryMax   = 5 * time.Minute
+)
+
+// init opens the proxy, reads the VM settings and brings up the first engine.
 func (s *supervisor) init() error {
 	proxy, err := localengine.OpenProxy(s.state)
 	if err != nil {
@@ -90,6 +112,8 @@ func (s *supervisor) init() error {
 	s.proxy = proxy
 	s.vm = s.options.vmConfiguration()
 	if s.vm == nil {
+		// The Linux agent: the daemon lives as long as the agent's session
+		// (run), so there is nothing to serve without it.
 		return s.wake(false)
 	}
 	settings, err := s.state.LoadVMSettings(s.vm.settings)
@@ -100,15 +124,77 @@ func (s *supervisor) init() error {
 		return err
 	}
 	s.vm.settings = settings
-	if !settings.Stopped {
-		return s.wake(false)
+	return s.startVM()
+}
+
+// startVM boots the VM unless the user stopped it. When it does not boot,
+// the daemon serves without a guest, as when stopped, and tries again in the
+// background: exiting only had launchd start a daemon that failed the same
+// way every 10 s, with no socket for the window to read the reason from.
+func (s *supervisor) startVM() error {
+	var bootErr error
+	if !s.vm.settings.Stopped {
+		if bootErr = s.wake(false); bootErr == nil {
+			return nil
+		}
+		log.Printf("the Fabo VM did not start: %v; serving without it and trying again in %v", bootErr, bootRetryFirst)
 	}
 	engine, err := localengine.New(s.ctx, nil, s.images, s.state, localengine.VMOptions{Events: &s.events, Version: engineRelease, Builder: s.builder, Proxy: s.proxy, EngineSocket: s.socket, WindowsMounts: s.windowsProxy})
 	if err != nil {
-		return err
+		return errors.Join(bootErr, err)
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.current = &engineInstance{engine: engine, handler: engine.Handler()}
+	if bootErr != nil {
+		s.restartBootRetryLocked()
+	}
 	return nil
+}
+
+// restartBootRetryLocked starts the background boot retry from its first
+// delay, replacing one already running. The caller holds mu.
+func (s *supervisor) restartBootRetryLocked() {
+	s.stopBootRetryLocked()
+	ctx, cancel := context.WithCancel(s.ctx)
+	s.cancelBootRetry = cancel
+	// Read the delays once, so a running retry keeps its own schedule.
+	go s.retryBoot(ctx, bootRetryFirst, bootRetryMax)
+}
+
+// stopBootRetryLocked cancels the background boot retry, if any. The caller
+// holds mu.
+func (s *supervisor) stopBootRetryLocked() {
+	if s.cancelBootRetry != nil {
+		s.cancelBootRetry()
+		s.cancelBootRetry = nil
+	}
+}
+
+// nextBootDelay doubles a retry delay up to most.
+func nextBootDelay(delay, most time.Duration) time.Duration {
+	return min(delay*2, most)
+}
+
+// retryBoot boots the VM after a growing delay until it is up, the user
+// stops it, the retry is cancelled, or the daemon shuts down. It holds no
+// lock while waiting; wake itself checks the stop state under life.
+func (s *supervisor) retryBoot(ctx context.Context, delay, most time.Duration) {
+	for {
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
+		err := s.wake(false)
+		if err == nil || errors.Is(err, errManuallyStopped) || errors.Is(err, errDaemonClosing) || ctx.Err() != nil {
+			return
+		}
+		delay = nextBootDelay(delay, most)
+		log.Printf("the Fabo VM did not start: %v; trying again in %v", err, delay)
+	}
 }
 
 func (s *supervisor) isActiveLocked() bool {
@@ -132,9 +218,29 @@ func (s *supervisor) mirrorEngine() *localengine.Engine {
 	return s.current.engine
 }
 
+// wake boots the VM unless it runs already, or, unless explicit, the user
+// stopped it. It records the outcome as bootErr for /fabo/resources, and a
+// boot ends the background retry.
 func (s *supervisor) wake(explicit bool) error {
 	s.life.Lock()
 	defer s.life.Unlock()
+	err := s.wakeLocked(explicit)
+	if !errors.Is(err, errManuallyStopped) && !errors.Is(err, errDaemonClosing) {
+		s.mu.Lock()
+		s.bootErr = err
+		if err == nil {
+			s.stopBootRetryLocked()
+		}
+		s.mu.Unlock()
+	}
+	return err
+}
+
+// wakeLocked is wake's body; the caller holds life.
+func (s *supervisor) wakeLocked(explicit bool) error {
+	if s.closing {
+		return errDaemonClosing
+	}
 	if !explicit && s.vm != nil && s.vm.settings.Stopped {
 		return errManuallyStopped
 	}
@@ -155,7 +261,13 @@ func (s *supervisor) wake(explicit bool) error {
 		options = options.withVMSettings(settings)
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
-	guest, err := options.start(ctx, s.stateDir)
+	start := s.startGuest
+	if start == nil {
+		start = func(ctx context.Context, options guestOptions) (guestConnection, error) {
+			return options.start(ctx, s.stateDir)
+		}
+	}
+	guest, err := start(ctx, options)
 	if err != nil {
 		cancel()
 		return err
@@ -191,6 +303,8 @@ func (s *supervisor) wake(explicit bool) error {
 	return nil
 }
 
+// sleep shuts the VM down; manualStop is the user's Stop, which is saved,
+// ends the background boot retry and clears the last boot failure.
 func (s *supervisor) sleep(manualStop bool) error {
 	s.life.Lock()
 	defer s.life.Unlock()
@@ -202,6 +316,12 @@ func (s *supervisor) sleep(manualStop bool) error {
 		}
 		s.mu.Lock()
 		s.vm.settings = next
+		s.mu.Unlock()
+	}
+	if manualStop {
+		s.mu.Lock()
+		s.stopBootRetryLocked()
+		s.bootErr = nil
 		s.mu.Unlock()
 	}
 	return s.retire(true)
@@ -295,9 +415,14 @@ func (old *engineInstance) shutdown(parent context.Context, graceful bool) error
 	return errors.Join(err, guestErr)
 }
 
+// close shuts the guest down for good: no boot, retried or not, follows.
 func (s *supervisor) close(graceful bool) error {
 	s.life.Lock()
 	defer s.life.Unlock()
+	s.closing = true
+	s.mu.Lock()
+	s.stopBootRetryLocked()
+	s.mu.Unlock()
 	return s.retire(graceful)
 }
 
@@ -567,6 +692,13 @@ func (s *supervisor) manageVM(w http.ResponseWriter, r *http.Request, path strin
 	var err error
 	if path == "/fabo/wake" {
 		err = s.wake(true)
+		// Start that fails while the VM is meant to run (not stopped)
+		// starts the background retry over from its first delay.
+		s.mu.Lock()
+		if err != nil && !errors.Is(err, errDaemonClosing) && !s.vm.settings.Stopped {
+			s.restartBootRetryLocked()
+		}
+		s.mu.Unlock()
 	} else {
 		err = s.sleep(path == "/fabo/stop")
 	}
@@ -619,13 +751,19 @@ func (s *supervisor) resources(w http.ResponseWriter, r *http.Request) {
 	if active {
 		boot, runningNetwork = s.current.boot, s.current.boot.NetworkMode()
 	}
+	bootErr := s.bootErr
 	s.mu.Unlock()
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	out := map[string]any{
 		"cpus": s.vm.settings.CPUs, "memory_mib": s.vm.settings.MemoryMiB, "network": s.vm.settings.NetworkMode(),
 		"running_cpus": boot.CPUs, "running_memory_mib": boot.MemoryMiB, "running_network": runningNetwork, "awake": active,
 		"max_cpus": s.vm.maxCPU, "max_memory_mib": s.vm.maxMemory,
-	})
+	}
+	// Only while the last boot failed, so older clients see no change.
+	if bootErr != nil {
+		out["boot_error"] = bootErr.Error()
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 func supervisorError(w http.ResponseWriter, status int, err error) {
