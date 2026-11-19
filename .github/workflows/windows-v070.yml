@@ -1,0 +1,141 @@
+name: Windows v0.7.0 packages
+
+on:
+  push:
+    branches: [release/windows-v0.7.0-ci]
+
+permissions:
+  contents: read
+
+jobs:
+  # The bundle is built from the release tag, so its binaries are v0.7.0.
+  bundle:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, arm64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: v0.7.0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: engine/go.mod
+          cache: false
+      - name: Build release bundle
+        env:
+          FABO_SHARE_SERVER: edge.share.talkwork.vip
+          FABO_UPDATE_URL: https://github.com/OpenFabrica/Fabo/releases/latest/download/latest-windows-${{ matrix.arch }}.json
+        run: make windows WIN_ARCH=${{ matrix.arch }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: bundle-${{ matrix.arch }}
+          path: target/windows/fabo-windows-${{ matrix.arch }}
+          compression-level: 0
+          if-no-files-found: error
+
+  # The MSI script comes from this branch: the tag's copy has a PowerShell
+  # parse error fixed after it.
+  package:
+    needs: bundle
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, arm64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: bundle-${{ matrix.arch }}
+          path: target/windows/fabo-windows-${{ matrix.arch }}
+      - name: Install WiX
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          wix extension add -g WixToolset.UI.wixext/5.0.2 WixToolset.Util.wixext/5.0.2
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Build MSI
+        shell: pwsh
+        run: ./scripts/windows-msi.ps1 -Version 0.7.0 -Arch ${{ matrix.arch }}
+      - name: Verify x64 install and uninstall
+        if: matrix.arch == 'x86_64'
+        shell: pwsh
+        run: ./installer/windows/verify.ps1 -Msi (Resolve-Path 'target/windows/Fabo-0.7.0-x86_64.msi').Path
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: installer-${{ matrix.arch }}
+          path: |
+            target/windows/Fabo-0.7.0-${{ matrix.arch }}.msi
+            target/windows/latest-windows-${{ matrix.arch }}.json
+          compression-level: 0
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && matrix.arch == 'x86_64'
+        with:
+          name: install-logs-x86_64
+          path: target/windows/msi-verify/
+          if-no-files-found: ignore
+
+  verify-arm64:
+    needs: package
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: installer-arm64
+          path: target/windows
+      - name: Verify ARM64 install and uninstall
+        shell: pwsh
+        run: ./installer/windows/verify.ps1 -Msi (Resolve-Path 'target/windows/Fabo-0.7.0-arm64.msi').Path
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: install-logs-arm64
+          path: target/windows/msi-verify/
+          if-no-files-found: ignore
+
+  # Only installers that installed and uninstalled cleanly reach the release.
+  upload:
+    needs: verify-arm64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: installer-*
+          merge-multiple: true
+      - name: Verify installer bytes against the update feed
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json
+
+          for arch in ("x86_64", "arm64"):
+              msi = Path(f"Fabo-0.7.0-{arch}.msi")
+              feed = json.loads(Path(f"latest-windows-{arch}.json").read_text())
+              with msi.open("rb") as data:
+                  sha256 = hashlib.file_digest(data, "sha256").hexdigest()
+              assert feed["version"] == "0.7.0", feed
+              assert feed["url"] == f"https://github.com/OpenFabrica/Fabo/releases/download/v0.7.0/{msi.name}", feed
+              assert feed["sha256"] == sha256, msi
+              assert feed["size"] == msi.stat().st_size, msi
+              print(f"Verified {msi.name} ({feed['size']} bytes)")
+          PY
+          sha256sum Fabo-0.7.0-x86_64.msi Fabo-0.7.0-arm64.msi > SHA256SUMS-windows
+      - name: Upload the verified files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v0.7.0 -R OpenFabrica/Fabo Fabo-0.7.0-x86_64.msi Fabo-0.7.0-arm64.msi SHA256SUMS-windows
+          gh release upload v0.7.0 -R OpenFabrica/Fabo latest-windows-x86_64.json latest-windows-arm64.json

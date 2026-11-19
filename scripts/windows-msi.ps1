@@ -17,7 +17,7 @@ $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
 $bundle = Join-Path $root "target\windows\fabo-windows-$Arch"
 if (-not (Test-Path (Join-Path $bundle 'fabo-win.exe'))) {
-  throw "no bundle in $bundle: run scripts/windows-bundle.sh $Arch $Version first"
+  throw "no bundle in ${bundle}: run scripts/windows-bundle.sh $Arch $Version first"
 }
 if (-not (Get-Command wix -ErrorAction SilentlyContinue)) {
   throw "wix is not on PATH: dotnet tool install --global wix (see docs/windows.md)"
