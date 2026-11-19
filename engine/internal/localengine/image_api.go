@@ -3,6 +3,7 @@
 package localengine
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -65,6 +66,8 @@ func (e *Engine) pullHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = out.Encode(map[string]string{"status": "Pulled " + ref.Name(), "id": image.ID})
 }
 
+// imagesHTTP serves GET /images/json: the filtered images, newest first as
+// Docker lists them, then by ID so equal times keep one order.
 func (e *Engine) imagesHTTP(w http.ResponseWriter, r *http.Request) {
 	filters, err := parseFilters(r.URL.Query().Get("filters"), "dangling", "label", "reference")
 	if err != nil {
@@ -79,7 +82,10 @@ func (e *Engine) imagesHTTP(w http.ResponseWriter, r *http.Request) {
 	e.mu.Lock()
 	all := e.allImages()
 	rows := make([]map[string]any, 0, len(all))
-	for _, id := range slices.Sorted(maps.Keys(all)) {
+	ids := slices.SortedFunc(maps.Keys(all), func(a, b string) int {
+		return cmp.Or(cmp.Compare(all[b].Created, all[a].Created), strings.Compare(a, b))
+	})
+	for _, id := range ids {
 		image := all[id]
 		tags, digests := e.imageNames(id)
 		refs := e.imageRefs(id)

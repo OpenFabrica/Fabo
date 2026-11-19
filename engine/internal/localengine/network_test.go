@@ -60,7 +60,7 @@ func TestCustomNetworkRestoresAddressReservations(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := restored.containers[id]
-	if c.networkID != n.ID || c.run.Network.IP != ip.As4() || !restored.matchesContainer(c, map[string][]string{"label": {"project=alpha"}}) {
+	if c.networkID != n.ID || c.run.Network.IP != ip.As4() || !restored.matchesContainer(c, map[string][]string{"label": {"project=alpha"}}, nil) {
 		t.Fatalf("restored container: %+v", c)
 	}
 	n = restored.networks[n.Name]

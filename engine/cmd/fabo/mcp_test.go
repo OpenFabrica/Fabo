@@ -39,7 +39,7 @@ func fakeMCPEngine(t *testing.T) string {
 		}
 		switch r.URL.Path {
 		case "/info":
-			w.Write([]byte(`{"ServerVersion":"0.0.0-dev","Containers":3,"ContainersRunning":2,"Images":3,"FaboVmAwake":true}`))
+			w.Write([]byte(`{"ServerVersion":"27.5.1","FaboVersion":"0.0.0-dev","Containers":3,"ContainersRunning":2,"Images":3,"FaboVmAwake":true}`))
 		case "/fabo/domains":
 			w.Write([]byte(`{"http":{"port":80},"https":{"port":8443}}`))
 		case "/containers/json":
@@ -186,10 +186,23 @@ func TestMCPServesReadOnlyTools(t *testing.T) {
 	if scan := result(t, got["8"]); scan["scanned"] != false {
 		t.Fatalf("not scanned: %v", scan)
 	}
-	if info := result(t, got["9"]); info["local_address_suffix"] != "fabo.local" || info["ServerVersion"] != "0.0.0-dev" {
+	if info := result(t, got["9"]); info["local_address_suffix"] != "fabo.local" || info["ServerVersion"] != "27.5.1" || info["FaboVersion"] != "0.0.0-dev" {
 		t.Fatalf("info: %v", info)
 	}
 	if got["10"]["error"] == nil || got["11"]["error"].(map[string]any)["code"] != float64(-32601) || got["null"]["error"].(map[string]any)["code"] != float64(-32700) {
 		t.Fatalf("errors: %v %v %v", got["10"], got["11"], got["null"])
+	}
+}
+
+// An engine older than FaboVersion reported Fabo's release as ServerVersion;
+// engine_info still names it as FaboVersion.
+func TestMCPEngineInfoFromOlderEngine(t *testing.T) {
+	s := &mcpServer{client: newCommandClient(fakeVersionEngine(t, `{"ServerVersion":"0.4.0","Containers":1}`)), names: func() (string, bool) { return "fabo.local", false }}
+	got, err := s.engineInfo()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info := got.(map[string]any); info["FaboVersion"] != "0.4.0" || info["ServerVersion"] != "0.4.0" {
+		t.Fatalf("info: %v", info)
 	}
 }

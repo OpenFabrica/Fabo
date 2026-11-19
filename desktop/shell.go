@@ -563,7 +563,7 @@ func (s *desktop) navButton(c *ui.Context, p palette, n navItem, open, on bool, 
 	return b.Clicked()
 }
 
-// engineCard sits at the foot of the open sidebar: state and version, the
+// engineCard sits at the foot of the open sidebar: state and Fabo version, the
 // switch that starts or stops the engine, and the memory in use. The version
 // is a line of its own whenever the engine answers, not only a tooltip.
 func (s *desktop) engineCard(c *ui.Context, p palette) {
@@ -571,7 +571,7 @@ func (s *desktop) engineCard(c *ui.Context, p palette) {
 	kind, text := s.engineWords()
 	used, total := s.memoryUse()
 	version := ""
-	if v := s.info.ServerVersion; v != "" && v != "0.0.0" {
+	if v := s.info.faboVersion(); v != "" && v != "0.0.0" {
 		version = "v" + v
 	}
 	ui.Column(c.Key("engine-card")).FillWidth().Shrink(0).Margin(0, 0, 8).Padding(6, 12, 10).Gap(8).

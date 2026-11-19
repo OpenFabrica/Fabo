@@ -48,12 +48,14 @@ func (n dockerNetwork) api() map[string]any {
 	}
 }
 
+// networksHTTP serves GET /networks: the built-in and user networks, filtered.
 func (e *Engine) networksHTTP(w http.ResponseWriter, r *http.Request) {
 	filters, err := parseFilters(r.URL.Query().Get("filters"), "name", "id", "driver", "label", "scope", "type")
 	if err != nil {
 		writeError(w, err)
 		return
 	}
+	names := newNameFilter(filters["name"])
 	e.mu.Lock()
 	entries := []dockerNetwork{e.bridgeNetwork(), hostNetwork(), noneNetwork()}
 	entries = append(entries, slices.Collect(maps.Values(e.networks))...)
@@ -61,7 +63,7 @@ func (e *Engine) networksHTTP(w http.ResponseWriter, r *http.Request) {
 	slices.SortFunc(entries, func(a, b dockerNetwork) int { return strings.Compare(a.Name, b.Name) })
 	rows := []map[string]any{}
 	for _, n := range entries {
-		if n.matches(filters) {
+		if n.matches(filters, names) {
 			rows = append(rows, n.api())
 		}
 	}
@@ -370,10 +372,15 @@ func (n dockerNetwork) driver() string {
 	}
 }
 
-func (n dockerNetwork) matches(filters map[string][]string) bool {
+// matches applies a network list's filters; names holds the request's
+// compiled `name` values, matched as regular expressions as in Docker.
+func (n dockerNetwork) matches(filters map[string][]string, names nameFilter) bool {
 	driver, kind := n.driver(), "custom"
 	if !guestwire.CustomBridge(n.Bridge) {
 		kind = "builtin"
+	}
+	if !names.match(n.Name) {
+		return false
 	}
 	for key, values := range filters {
 		if key == "label" {
@@ -385,7 +392,7 @@ func (n dockerNetwork) matches(filters map[string][]string) bool {
 		match := func(value string) bool {
 			switch key {
 			case "name":
-				return strings.Contains(n.Name, value)
+				return true // matched above
 			case "id":
 				return strings.HasPrefix(n.ID, value)
 			case "driver":

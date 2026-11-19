@@ -18,7 +18,17 @@ import (
 )
 
 // Output and exit can arrive before the HTTP upgrade finishes for a short exec.
+// The docker CLI asks to upgrade and gets 101; docker-java (Testcontainers)
+// does not, and gets 200 with the stream as the body, closed after the exit
+// code is recorded.
 func TestExecKeepsImmediateOutputAndExit(t *testing.T) {
+	t.Run("upgrade", func(t *testing.T) { testExecKeepsImmediateOutputAndExit(t, true) })
+	t.Run("plain", func(t *testing.T) { testExecKeepsImmediateOutputAndExit(t, false) })
+}
+
+// testExecKeepsImmediateOutputAndExit runs one short exec, with or without
+// the client's Upgrade header, and checks the reply, its stream and the exit.
+func testExecKeepsImmediateOutputAndExit(t *testing.T, upgrade bool) {
 	c := &container{id: "target", state: "running"}
 	c.nextAttempt()
 	e := &Engine{ctx: t.Context(), containers: map[string]*container{c.id: c}}
@@ -36,6 +46,10 @@ func TestExecKeepsImmediateOutputAndExit(t *testing.T) {
 		req, err := http.NewRequestWithContext(ctx, method, server.URL+path, strings.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
+		}
+		if upgrade && strings.HasSuffix(path, "/start") {
+			req.Header.Set("Connection", "Upgrade")
+			req.Header.Set("Upgrade", "tcp")
 		}
 		res, err := server.Client().Do(req)
 		if err != nil {
@@ -94,8 +108,15 @@ func TestExecKeepsImmediateOutputAndExit(t *testing.T) {
 		peer <- err
 	}()
 	res = request(http.MethodPost, "/exec/"+created.ID+"/start", `{"Detach":false}`)
-	if res.StatusCode != http.StatusSwitchingProtocols {
-		t.Fatalf("start: %s", res.Status)
+	want := http.StatusOK
+	if upgrade {
+		want = http.StatusSwitchingProtocols
+	}
+	if res.StatusCode != want || res.Header.Get("Content-Type") != "application/vnd.docker.raw-stream" {
+		t.Fatalf("start: %s %v", res.Status, res.Header)
+	}
+	if got := res.Header.Get("Upgrade"); (got == "tcp") != upgrade {
+		t.Fatalf("start Upgrade header %q", got)
 	}
 	body, err := io.ReadAll(res.Body)
 	res.Body.Close()

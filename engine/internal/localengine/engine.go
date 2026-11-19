@@ -598,12 +598,7 @@ func (e *Engine) create(name string, cfg Config) (string, error) {
 	if e.remoteGuest && e.guestRelay == nil && len(bindings) != 0 {
 		return "", fmt.Errorf("%w: this VM does not yet support published ports", errInvalid)
 	}
-	if cfg.Entrypoint == nil {
-		cfg.Entrypoint = image.Entrypoint
-	}
-	if cfg.Cmd == nil {
-		cfg.Cmd = image.Cmd
-	}
+	cfg.Entrypoint, cfg.Cmd = mergeCommand(cfg.Entrypoint, cfg.Cmd, image.Entrypoint, image.Cmd)
 	argv := append(append([]string(nil), cfg.Entrypoint...), cfg.Cmd...)
 	if len(argv) == 0 || argv[0] == "" {
 		return "", fmt.Errorf("%w: no command specified", errInvalid)

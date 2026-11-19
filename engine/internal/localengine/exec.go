@@ -125,6 +125,8 @@ func (e *Engine) createExecHTTP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]string{"Id": id})
 }
 
+// startExecHTTP serves POST /exec/{id}/start: detached, or streamed over the
+// hijacked connection (101 when the client asked to upgrade, 200 otherwise).
 func (e *Engine) startExecHTTP(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Detach      bool
@@ -155,7 +157,7 @@ func (e *Engine) startExecHTTP(w http.ResponseWriter, r *http.Request) {
 			_ = e.session.ExecOutputCredit(e.ctx, x.spec.ID, 0)
 		}
 	}()
-	e.streamProcess(w, attachment)
+	e.streamProcess(w, r, attachment)
 }
 
 func (e *Engine) startExec(ctx context.Context, id string, detach bool, size [2]uint16, internal bool) (*execProcess, processAttachment, error) {

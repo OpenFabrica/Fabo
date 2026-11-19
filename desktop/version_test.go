@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -22,6 +23,28 @@ func TestAboutShowsGuestProtocol(t *testing.T) {
 		}
 		return false
 	})
+}
+
+// The window reads the engine's Fabo release from FaboVersion; an engine
+// older than that field (a shared installed engine may be) reported it as
+// ServerVersion and Version, which are now the Docker Engine version.
+func TestFaboVersionFallsBackForOlderEngines(t *testing.T) {
+	var info engineInfo
+	if err := json.Unmarshal([]byte(`{"Name":"fabo","ServerVersion":"27.5.1","FaboVersion":"0.6.0"}`), &info); err != nil || info.faboVersion() != "0.6.0" {
+		t.Fatalf("current /info: %q, %v", info.faboVersion(), err)
+	}
+	info = engineInfo{}
+	if err := json.Unmarshal([]byte(`{"Name":"fabo","ServerVersion":"0.5.0"}`), &info); err != nil || info.faboVersion() != "0.5.0" {
+		t.Fatalf("older /info: %q, %v", info.faboVersion(), err)
+	}
+	var version versionInfo
+	if err := json.Unmarshal([]byte(`{"Version":"27.5.1","FaboVersion":"0.6.0"}`), &version); err != nil || version.fabo() != "0.6.0" {
+		t.Fatalf("current /version: %q, %v", version.fabo(), err)
+	}
+	version = versionInfo{}
+	if err := json.Unmarshal([]byte(`{"Version":"0.5.0"}`), &version); err != nil || version.fabo() != "0.5.0" {
+		t.Fatalf("older /version: %q, %v", version.fabo(), err)
+	}
 }
 
 func TestEngineCardDisclosure(t *testing.T) {

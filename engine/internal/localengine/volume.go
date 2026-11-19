@@ -67,15 +67,66 @@ func (e *Engine) inspectVolumeHTTP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, v)
 }
 
+// listVolumesHTTP serves GET /volumes with Docker's name (a regular
+// expression), label, label!, dangling and driver filters.
 func (e *Engine) listVolumesHTTP(w http.ResponseWriter, r *http.Request) {
+	filters, err := parseFilters(r.URL.Query().Get("filters"), "name", "label", "label!", "dangling", "driver")
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	dangling, err := filterBool(filters, "dangling")
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	names := newNameFilter(filters["name"])
 	e.mu.Lock()
 	volumes, err := e.listVolumes()
+	// Collected under the same hold as the list, so a volume is dangling
+	// exactly when no container of this snapshot references it.
+	used := make(map[string]bool)
+	for _, c := range e.containers {
+		for _, name := range c.volumeNames {
+			used[name] = true
+		}
+	}
 	e.mu.Unlock()
 	if err != nil {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"Volumes": volumes, "Warnings": []string{}})
+	rows := make([]volume, 0, len(volumes))
+	for _, v := range volumes {
+		if names.match(v.Name) && matchesLabels(v.Labels, filters["label"]) &&
+			!slices.ContainsFunc(filters["label!"], func(value string) bool { return hasLabel(v.Labels, value) }) &&
+			matchAny(filters["driver"], func(value string) bool { return value == "local" }) &&
+			(dangling == nil || *dangling == !used[v.Name]) {
+			rows = append(rows, v)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"Volumes": rows, "Warnings": []string{}})
+}
+
+// filterBool reads a boolean list filter as Docker does: true/1 or false/0;
+// nil when absent.
+func filterBool(filters map[string][]string, key string) (*bool, error) {
+	values := filters[key]
+	if len(values) == 0 {
+		return nil, nil
+	}
+	var v bool
+	switch values[0] {
+	case "true", "1":
+		v = true
+	case "false", "0":
+	default:
+		return nil, fmt.Errorf("%w: invalid filter '%s=%s'", errInvalid, key, values[0])
+	}
+	if len(values) != 1 {
+		return nil, fmt.Errorf("%w: invalid filter '%s'", errInvalid, key)
+	}
+	return &v, nil
 }
 
 func (e *Engine) removeVolumeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -182,8 +182,20 @@ type nameState struct {
 }
 
 // versionInfo is the engine's /version answer; FaboGuestProtocol is the
-// host-guest protocol it speaks, as "0.5".
-type versionInfo struct{ Version, ApiVersion, Os, Arch, GoVersion, FaboGuestProtocol string }
+// host-guest protocol it speaks, as "0.5". Version is the Docker Engine
+// version clients gate on; Fabo's own release is FaboVersion.
+type versionInfo struct {
+	Version, FaboVersion, ApiVersion, Os, Arch, GoVersion, FaboGuestProtocol string
+}
+
+// fabo is the Fabo release the engine runs: FaboVersion, or Version from an
+// engine older than that field, which reported Fabo's release there.
+func (v versionInfo) fabo() string {
+	if v.FaboVersion != "" {
+		return v.FaboVersion
+	}
+	return v.Version
+}
 
 // diskUsage sums /system/df; volumes holds each volume's size by name.
 type diskUsage struct {

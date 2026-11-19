@@ -12,13 +12,25 @@ import (
 )
 
 type engineInfo struct {
-	Name, ServerVersion                   string
+	// ServerVersion is the Docker Engine version clients gate on; Fabo's own
+	// release is FaboVersion (read it through faboVersion).
+	Name, ServerVersion, FaboVersion      string
 	FaboVmAwake, FaboVMControls           *bool
 	FaboStopped                           bool
 	Containers, ContainersRunning, Images int
 	// Reported only while a VM is awake.
 	NCPU     int
 	MemTotal int64
+}
+
+// faboVersion is the Fabo release the engine runs: FaboVersion, or
+// ServerVersion from an engine older than that field, which reported Fabo's
+// release there. The window may share an installed engine of either age.
+func (i engineInfo) faboVersion() string {
+	if i.FaboVersion != "" {
+		return i.FaboVersion
+	}
+	return i.ServerVersion
 }
 
 func (i engineInfo) status() string {

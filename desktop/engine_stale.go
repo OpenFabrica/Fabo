@@ -9,14 +9,15 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// staleEngine returns the version of the engine this window talks to when it
+// staleEngine returns the Fabo release of the engine this window talks to
+// (FaboVersion, not the Docker Engine version) when it
 // differs from the window's own, as when an update or reinstall replaced the
 // app while the old engine kept running: replacing the app does not restart
 // it. A development window (0.0.0-dev) compares nothing, nor does one that
 // borrows the installed app's engine (FABO_SHARED_ENGINE): that engine
 // rightly runs the installed version, not the window's.
 func (s *desktop) staleEngine() (string, bool) {
-	engine := s.info.ServerVersion
+	engine := s.info.faboVersion()
 	if release == "0.0.0-dev" || os.Getenv("FABO_SHARED_ENGINE") != "" || !s.connected || s.info.Name != "fabo" || engine == "" {
 		return "", false
 	}

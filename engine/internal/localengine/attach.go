@@ -40,6 +40,8 @@ func (e *Engine) waitHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{"StatusCode": code, "Error": failure})
 }
 
+// attachHTTP serves POST /containers/{id}/attach: the container's output, and
+// its stdin when asked, over the hijacked connection.
 func (e *Engine) attachHTTP(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	if !flagSet(q, "stream") {
@@ -109,7 +111,7 @@ func (e *Engine) attachHTTP(w http.ResponseWriter, r *http.Request) {
 		outputError = listener.failure
 	}
 
-	e.streamProcess(w, processAttachment{
+	e.streamProcess(w, r, processAttachment{
 		id: c.id, query: q, tty: tty, logs: logs, output: stream,
 		attempt: attempt, inputCtx: inputCtx, cancelInput: inputCancel,
 		onInput:     func() { inputStarted = true },
@@ -149,7 +151,24 @@ type processAttachment struct {
 	outputError func() error
 }
 
-func (e *Engine) streamProcess(w http.ResponseWriter, a processAttachment) {
+// streamHead starts the raw stream of an attach or exec start as Docker does:
+// it checks that the Upgrade header is present, not its value. A client that
+// asked to upgrade (the docker CLI, Fabo's own clients) gets 101; one that
+// did not (docker-java, so Testcontainers) gets 200 OK with the stream as a
+// body that ends when the connection closes. A 101 to a client that never
+// asked for it made docker-java stop reading early and see an exec with no
+// ExitCode.
+func streamHead(r *http.Request) string {
+	if _, upgrade := r.Header["Upgrade"]; upgrade {
+		return "HTTP/1.1 101 Switching Protocols\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n"
+	}
+	return "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n"
+}
+
+// streamProcess hijacks the connection of an attach or exec start, answers
+// with streamHead, forwards stdin when attached, and streams the process's
+// output until it ends.
+func (e *Engine) streamProcess(w http.ResponseWriter, r *http.Request, a processAttachment) {
 	conn, rw, err := http.NewResponseController(w).Hijack()
 	if err != nil {
 		writeError(w, err)
@@ -174,7 +193,7 @@ func (e *Engine) streamProcess(w http.ResponseWriter, a processAttachment) {
 	if err := conn.SetWriteDeadline(time.Now().Add(15 * time.Second)); err != nil {
 		return
 	}
-	if _, err := rw.WriteString("HTTP/1.1 101 Switching Protocols\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n"); err != nil {
+	if _, err := rw.WriteString(streamHead(r)); err != nil {
 		return
 	}
 	if err := rw.Flush(); err != nil {

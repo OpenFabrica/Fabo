@@ -318,6 +318,10 @@ func (s *mcpServer) listContainers(project string, running bool) (any, error) {
 	return map[string]any{"containers": out}, nil
 }
 
+// engineInfo is the engine_info tool: the engine's versions and state from
+// /info, and how local addresses are named. ServerVersion is the Docker
+// Engine version; FaboVersion is Fabo's release, which an engine older than
+// that field reported as ServerVersion.
 func (s *mcpServer) engineInfo() (any, error) {
 	var info map[string]any
 	if err := s.client.request("GET", "/info", nil, &info); err != nil {
@@ -325,10 +329,13 @@ func (s *mcpServer) engineInfo() (any, error) {
 	}
 	a := s.addresses()
 	result := map[string]any{"local_address_suffix": a.suffix, "local_address_scheme": a.scheme}
-	for _, key := range []string{"ServerVersion", "Containers", "ContainersRunning", "Images", "NCPU", "MemTotal", "FaboVmAwake", "FaboStopped"} {
+	for _, key := range []string{"ServerVersion", "FaboVersion", "Containers", "ContainersRunning", "Images", "NCPU", "MemTotal", "FaboVmAwake", "FaboStopped"} {
 		if v, ok := info[key]; ok {
 			result[key] = v
 		}
+	}
+	if _, ok := result["FaboVersion"]; !ok && result["ServerVersion"] != nil {
+		result["FaboVersion"] = result["ServerVersion"]
 	}
 	return result, nil
 }

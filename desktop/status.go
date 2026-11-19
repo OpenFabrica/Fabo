@@ -19,7 +19,8 @@ func (s *desktop) statusBar(c *ui.Context, p palette) {
 		ui.Row(c.Key("status-engine")).Shrink(0).Gap(7).AlignItems(ui.Center).Children(func() {
 			dot(c, p, kind)
 			statusText(c, p.muted, s.vmName()+" · "+text)
-			if v := s.info.ServerVersion; s.connected && v != "" && v != "0.0.0" {
+			// The engine's Fabo release, not the Docker Engine version.
+			if v := s.info.faboVersion(); s.connected && v != "" && v != "0.0.0" {
 				ink := p.muted
 				if _, stale := s.staleEngine(); stale {
 					ink = p.warn

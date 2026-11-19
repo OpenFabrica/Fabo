@@ -3,6 +3,7 @@
 package main
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
@@ -26,14 +27,16 @@ func engineCommand(args []string) error {
 	return in.restartEngine()
 }
 
-// engineVersion is the version the engine at client answers with, or "" if
-// it does not answer or is not a Fabo engine.
+// engineVersion is the Fabo release the engine at client runs, or "" if it
+// does not answer or is not a Fabo engine. That is FaboVersion; Version is
+// now the Docker Engine version clients gate on, and was Fabo's own only on
+// an engine older than FaboVersion, so it is the fallback.
 func engineVersion(client *http.Client) string {
-	var v struct{ Version, FaboEngine string }
+	var v struct{ Version, FaboVersion, FaboEngine string }
 	if get(client, "/version", &v) != nil || v.FaboEngine != "go" {
 		return ""
 	}
-	return v.Version
+	return cmp.Or(v.FaboVersion, v.Version)
 }
 
 // staleEngine returns the engine's version when it differs from this

@@ -1006,7 +1006,7 @@ func (s *desktop) domainPorts(c *ui.Context, p palette, suffix string) {
 	remark(c, p, strings.Join(notes, " "))
 }
 
-// aboutPane says what is running.
+// aboutPane says what is running, with the engine's Fabo release.
 func (s *desktop) aboutPane(c *ui.Context, p palette) {
 	ui.Row(c.Key("brand")).FillWidth().Gap(14).AlignItems(ui.Center).Padding(0, 0, 18).BorderWidth(0, 0, 1, 0).BorderColor(p.line).Children(func() {
 		ui.Image(c, markIcon).Size(52, 52)
@@ -1017,7 +1017,7 @@ func (s *desktop) aboutPane(c *ui.Context, p palette) {
 	})
 	engine, vm := tr("未运行", "Not running"), ""
 	if s.connected {
-		engine = "Fabo " + s.version.Version + " · Docker API " + s.version.ApiVersion
+		engine = "Fabo " + s.version.fabo() + " · Docker API " + s.version.ApiVersion
 		if p := s.version.FaboGuestProtocol; p != "" {
 			engine += " · " + tr("协议", "protocol") + " " + p
 		}

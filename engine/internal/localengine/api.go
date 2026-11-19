@@ -20,14 +20,44 @@ import (
 
 const apiVersion = "1.47"
 
+// dockerEngineVersion is the Docker Engine release whose API Fabo serves
+// (apiVersion 1.47: Docker 27.3 to 27.5), reported as /version's Version and
+// /info's ServerVersion. Clients gate on it as a Docker version
+// (Testcontainers wants at least 1.6.0), so Fabo's own 0.x there read as an
+// ancient engine. Fabo's own release is FaboVersion and the "Fabo"
+// component. Moves with apiVersion.
+const dockerEngineVersion = "27.5.1"
+
 // guestProtocol is the host-guest protocol this engine speaks, as "0.6".
 var guestProtocol = guestwire.ProtocolString(guestwire.Version)
 
+// version is Fabo's own release, reported as FaboVersion; "fabo-go" when the
+// build injected none.
 func (e *Engine) version() string {
 	if e.release != "" {
 		return e.release
 	}
 	return "fabo-go"
+}
+
+// versionHTTP answers /version with the Docker Engine version clients gate
+// on, and Fabo's own release beside it as FaboVersion and a "Fabo" component.
+func (e *Engine) versionHTTP(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, 200, map[string]any{
+		"Platform": map[string]string{"Name": "Fabo"},
+		// docker version lists each component and reads every Details value
+		// as a string; fabo-init is the guest agent, shown with the
+		// host-guest protocol the engine speaks.
+		"Components": []map[string]any{{"Name": "Engine", "Version": dockerEngineVersion, "Details": map[string]string{
+			"ApiVersion": apiVersion, "MinAPIVersion": "1.24", "Arch": runtime.GOARCH, "Os": "linux",
+			// docker version reads the Go version from here, not the top level.
+			"GoVersion": runtime.Version(),
+		}}, {"Name": "Fabo", "Version": e.version(), "Details": map[string]string{}}, {"Name": "fabo-init", "Version": e.version(), "Details": map[string]string{
+			"Protocol": guestProtocol,
+		}}},
+		"Version": dockerEngineVersion, "FaboVersion": e.version(), "FaboEngine": "go", "FaboGuestProtocol": guestProtocol,
+		"ApiVersion": apiVersion, "MinAPIVersion": "1.24", "Os": "linux", "Arch": runtime.GOARCH, "GoVersion": runtime.Version(),
+	})
 }
 
 var versionPrefix = regexp.MustCompile(`^/v[0-9]+\.[0-9]+/`)
@@ -40,6 +70,7 @@ func APIPath(path string) string {
 	return path
 }
 
+// Handler routes the Docker Engine API and Fabo's /fabo extensions.
 func (e *Engine) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /_ping", func(w http.ResponseWriter, r *http.Request) {
@@ -48,22 +79,7 @@ func (e *Engine) Handler() http.Handler {
 		w.Header().Set("OSType", "linux")
 		fmt.Fprint(w, "OK")
 	})
-	mux.HandleFunc("GET /version", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]any{
-			"Platform": map[string]string{"Name": "Fabo"},
-			// docker version lists each component; fabo-init is the guest
-			// agent, shown with the host-guest protocol the engine speaks.
-			"Components": []map[string]any{{"Name": "Engine", "Version": e.version(), "Details": map[string]string{
-				"ApiVersion": apiVersion, "MinAPIVersion": "1.24", "Arch": runtime.GOARCH, "Os": "linux",
-				// docker version reads the Go version from here, not the top level.
-				"GoVersion": runtime.Version(),
-			}}, {"Name": "fabo-init", "Version": e.version(), "Details": map[string]string{
-				"Protocol": guestProtocol,
-			}}},
-			"Version": e.version(), "FaboEngine": "go", "FaboGuestProtocol": guestProtocol, "ApiVersion": apiVersion, "MinAPIVersion": "1.24",
-			"Os": "linux", "Arch": runtime.GOARCH, "GoVersion": runtime.Version(),
-		})
-	})
+	mux.HandleFunc("GET /version", e.versionHTTP)
 	mux.HandleFunc("GET /info", e.infoHTTP)
 	mux.HandleFunc("GET /system/df", e.diskUsageHTTP)
 	mux.HandleFunc("GET /events", e.eventsHTTP)
@@ -362,6 +378,7 @@ func (e *Engine) createHTTP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 201, map[string]any{"Id": id, "Warnings": []string{}})
 }
 
+// listHTTP serves GET /containers/json: the filtered containers, newest first.
 func (e *Engine) listHTTP(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	filters, err := parseFilters(query.Get("filters"), "label", "label!", "name", "status", "id", "health", "ancestor", "network", "exited", "volume")
@@ -378,10 +395,11 @@ func (e *Engine) listHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	all := flagSet(query, "all") || len(filters["status"]) > 0 || len(filters["exited"]) > 0
+	names := newNameFilter(filters["name"])
 	e.mu.Lock()
 	matched := make([]*container, 0, len(e.containers))
 	for _, c := range e.containers {
-		if (!all && c.state != "running" && c.restartTimer == nil) || !e.matchesContainer(c, filters) {
+		if (!all && c.state != "running" && c.restartTimer == nil) || !e.matchesContainer(c, filters, names) {
 			continue
 		}
 		matched = append(matched, c)
@@ -463,6 +481,7 @@ func formatUptime(age time.Duration) string {
 	}
 }
 
+// inspectHTTP serves GET /containers/{id}/json in Docker's inspect shape.
 func (e *Engine) inspectHTTP(w http.ResponseWriter, r *http.Request) {
 	e.mu.Lock()
 	c, err := e.find(r.PathValue("id"))
@@ -527,12 +546,14 @@ func (e *Engine) inspectHTTP(w http.ResponseWriter, r *http.Request) {
 		path = c.run.Argv[0]
 		args = append(args, c.run.Argv[1:]...)
 	}
+	entrypoint, cmd := inspectCommand(c.entrypoint, c.run.Argv)
 	body := map[string]any{
 		"Id": c.id, "Name": "/" + c.name, "Image": imageID, "RestartCount": c.restartCount,
 		"Created": time.Unix(c.created, 0).UTC().Format(time.RFC3339),
 		"Path":    path, "Args": args,
 		"Config": map[string]any{
-			"Image": c.image, "Tty": c.run.Flags&guestwire.RunTTY != 0, "ExposedPorts": c.exposedPorts, "Labels": c.labels,
+			"Image": c.image, "Entrypoint": entrypoint, "Cmd": cmd,
+			"Tty": c.run.Flags&guestwire.RunTTY != 0, "ExposedPorts": c.exposedPorts, "Labels": c.labels,
 			"Env": c.run.Env, "Hostname": c.run.Hostname, "Domainname": c.run.Domainname, "WorkingDir": c.run.Cwd,
 			"OpenStdin": c.run.Flags&guestwire.RunStdin != 0, "AttachStdin": c.run.Flags&guestwire.RunStdin != 0,
 		},
@@ -555,6 +576,40 @@ func (e *Engine) inspectHTTP(w http.ResponseWriter, r *http.Request) {
 	body["Mounts"] = e.containerMounts(c)
 	e.mu.Unlock()
 	writeJSON(w, 200, body)
+}
+
+// mergeCommand merges a create's Entrypoint and Cmd with the image's by
+// Docker's rules: a non-empty Entrypoint drops the image's Cmd; otherwise an
+// empty or missing Cmd takes the image's (Testcontainers sends "Cmd": [] for
+// Ryuk, redis and the like), and a missing Entrypoint the image's, while
+// "Entrypoint": [] clears it.
+func mergeCommand(entrypoint, cmd, imageEntrypoint, imageCmd []string) ([]string, []string) {
+	if len(entrypoint) != 0 {
+		return entrypoint, cmd
+	}
+	if entrypoint == nil {
+		entrypoint = imageEntrypoint
+	}
+	if len(cmd) == 0 {
+		cmd = imageCmd
+	}
+	return entrypoint, cmd
+}
+
+// inspectCommand splits a container's argv into the Config.Entrypoint (null
+// when empty, as Docker shows it) and Config.Cmd that inspect reports. A
+// record whose stored entrypoint is not a prefix of its argv, as from an
+// older or migrated record, reports the whole argv as Cmd rather than
+// slicing out of range under e.mu.
+func inspectCommand(entrypoint, argv []string) ([]string, []string) {
+	if len(entrypoint) > len(argv) || !slices.Equal(entrypoint, argv[:len(entrypoint)]) {
+		entrypoint = nil
+	}
+	cmd := append([]string{}, argv[len(entrypoint):]...)
+	if len(entrypoint) == 0 {
+		return nil, cmd
+	}
+	return slices.Clone(entrypoint), cmd
 }
 
 func (e *Engine) containerMounts(c *container) []map[string]any {
