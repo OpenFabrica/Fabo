@@ -152,6 +152,12 @@ func (s *Scanner) prepareGrype(ctx context.Context, client *http.Client, env []s
 			return "", err
 		}
 	}
+	// The database is refreshed at most once per dbMaxAge; scans in between
+	// reuse the cached copy without asking the network.
+	stamp := filepath.Join(dir, dbStamp)
+	if info, err := os.Stat(stamp); err == nil && time.Since(info.ModTime()) < dbMaxAge {
+		return grype, nil
+	}
 	if err := progress("database", 0); err != nil {
 		return "", err
 	}
@@ -159,9 +165,20 @@ func (s *Scanner) prepareGrype(ctx context.Context, client *http.Client, env []s
 		if status := runGrype(ctx, grype, s.cache(), env, "open cached vulnerability database", "db", "status"); status != nil {
 			return "", err
 		}
+		// An offline scan uses the cached copy but retries the update next time.
+		return grype, nil
 	}
+	_ = os.WriteFile(stamp, nil, 0600)
+	_ = os.Chtimes(stamp, time.Now(), time.Now())
 	return grype, nil
 }
+
+// dbStamp marks, by its modification time, the last successful database
+// update; dbMaxAge is how long that copy is used before updating again.
+const (
+	dbStamp  = "db-updated"
+	dbMaxAge = 24 * time.Hour
+)
 
 func runGrype(ctx context.Context, binary, cache string, env []string, action string, args ...string) error {
 	cmd := exec.CommandContext(ctx, binary, args...)
