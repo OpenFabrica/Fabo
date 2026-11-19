@@ -112,6 +112,17 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 
 验证见 [CLI 工具说明](cli-tools.md) 的 Share 一节；公网服务器和真实 GitHub OAuth App 尚未验证。
 
+### 构建页（2026-11-19 对齐）
+
+桌面「构建」页对照上游 `crates/kiri/src/builds.rs`（`list` / `detail` / `layers` / `remove`）和 `ui/index.html` 的 `renderBuilds` / `buildDetail` / `blLayers` / `blSecurity`，由窗口经 docker CLI 的 `buildx history` 读取 BuildKit 自己的构建历史（`desktop/builds.go`、`desktop/builds_view.go`）。构建器的状态、缓存上限和清理缓存只留在设置 → 构建，与上游一致。与上游的差别：
+
+- 用 `DOCKER_HOST` 指向本安装的 socket，而不是 `--context`；只认 endpoint 为本安装 context 且 `buildx_buildkit_<node>` 容器已存在的 docker-container builder，共用一个节点的 builder（`fabo` 与 `fabo-build`）都会问到，同一条构建只留一条，取能给出名称的那个 builder 的记录：buildx 把构建的名称、上下文和 Dockerfile 路径记在执行构建的 builder 的本地状态里，经另一个 builder 读出来是空的。
+- 版式按本仓库的列表 + 详情坞：列表在左、详情在右，元信息放在详情坞标题下；状态筛选、搜索、「清理 N 个失败的构建」与上游相同。
+- 首次进入页面读一次（可能唤醒 VM），之后只在 VM 醒着时每 15 秒、有构建在跑时每 2 秒读一次。
+- 英文界面里失败状态显示为 BuildKit 自己的 "Error"（"Failed" 已被容器的「异常」占用）。
+
+验证：`make check` 通过；`desktop/testdata/builds` 是 buildx v0.38.1 对 Fabo 托管 BuildKit 的真实输出（成功、`RUN exit 3` 失败、两条 lint 警告、无名称的经典 `POST /build`），解析、builder 过滤、参数校验和页面交互都以它为准。隔离的 `~/.fabo-dev` 引擎 + 临时 `DOCKER_CONFIG` 上，`FABO_LIVE_SOCKET=… go -C desktop test -run TestLiveBuilds` 用真实 CLI 读出全部记录，逐条读取步骤、分层和安全扫描成功。构建进行中时 `history logs` 会跟随到构建结束，窗口因此只读 2 秒内已有的进度：实测进行中的构建显示为构建中，步骤在 2 秒内出现，按进程组结束后没有残留的 `docker-buildx` 进程；`-race` 构建的真实窗口在构建进行中打开构建页 30 秒，无竞态和崩溃（画面未人工查看）。未在 Linux / Windows 窗口上运行。
+
 ### 待对齐功能
 
 下面只列当前仍有实现差异的范围；已实现但缺少实机覆盖的内容另列于「待补验证」。容器环境与端口设置、仓库登录及认证拉取、Kubernetes 基本管理已随 `6c93c03` 完成，连续终端与日志由上述增量补齐，不再作为整组缺失功能；范围和限制见 [桌面高级操作](desktop-advanced.md)。
@@ -122,6 +133,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | --- | --- | --- |
 | 终端工作区扩展 | 宿主多会话和容器交互式 TTY 已实现；待复刻上游底部面板、横向 / 纵向分屏及完整终端搜索入口 | `ui/index.html` 的内嵌终端面板 |
 | 文件浏览增强 | 当前依赖运行中容器的 `ls`，仅列目录和文件名；待补文件信息、预览、下载及从桌面打开 Finder 文件位置等操作。Finder 只读浏览与容器 archive API 已有实现 | `ui/detail.rs`、`ui/index.html` |
+| 构建工作容器 | 构建页已对齐（见上文）；上游在容器列表里隐藏 `buildx_buildkit_*` 容器、在设置 → 构建里显示 BuildKit 镜像与缓存卷占用，本仓库的容器页仍列出构建器容器 | `ui/index.html` 的 `isBuildWorker`、`builderPref` |
 | 扫描历史与导出 | 镜像分层、最新扫描和重新扫描已有界面；待接扫描历史选择和 CycloneDX SBOM 导出。引擎已有 `/fabo/images/scans`、`/fabo/images/sbom` | `ui/index.html` 的扫描历史 / `savesbom`，`ui/mod.rs` |
 | Kubernetes 转发 | Pods / Services、持续日志、Pod 删除、集群启停和网络设置已有界面；待补 Pod / ClusterIP 的本地端口转发入口及生命周期管理。引擎已有 `/fabo/k8s/forward` 接口 | `ui/k8s.rs`、`ui/index.html` |
 | 首次引导 | macOS launcher 的首次设置已实现；桌面尚无首次语言选择及 Linux 设置检查、修复、跳过和恢复流程 | `ui/lang.rs`、`ui/linux.rs` 的 `onboarding`、`ui/index.html` |
@@ -246,7 +258,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | 网络 | IPv4/IPv6 桥接和 IPAM、静态 IP/MAC、端口发布、动态网络连接、共享和 host 网络、别名 DNS、`--domainname`、`--link`、Mac 宿主服务访问。端口发布支持 TCP/UDP |
 | 存储 | 命名和匿名卷、嵌套 bind 下的镜像内容初始化、tmpfs、双向 `docker cp`、`diff`、`export`、`commit`。旧 Go 记录缺少匿名卷归属时保留卷数据 |
 | 镜像与构建 | 拉取、标签、归档导入导出、历史、清理、仓库登录和推送、Compose、BuildKit/Buildx、Apple Silicon 上的 Rosetta |
-| macOS 与桌面 | Go VM 启停、空闲休眠、资源设置，Finder 只读浏览，MyGo 主窗口（深浅主题、15 种语言、可折叠侧栏；概览、容器、镜像、卷、网络、构建器、设置；详情坞含持续日志、交互式容器终端、文件浏览、环境变量与端口设置、镜像分层与安全扫描；仓库登录与凭据拉取；Kubernetes Pods / Services、持续 Pod 日志与集群管理；原生宿主多会话终端）、托盘 |
+| macOS 与桌面 | Go VM 启停、空闲休眠、资源设置，Finder 只读浏览，MyGo 主窗口（深浅主题、15 种语言、可折叠侧栏；概览、容器、镜像、卷、网络、构建历史（步骤、分层、安全扫描）、设置；详情坞含持续日志、交互式容器终端、文件浏览、环境变量与端口设置、镜像分层与安全扫描；仓库登录与凭据拉取；Kubernetes Pods / Services、持续 Pod 日志与集群管理；原生宿主多会话终端）、托盘 |
 | 安装与数据 | macOS 和 Linux 已验证 Rust 离线导入。Windows：WSL 引擎、Go 宿主、首次设置、更新、域名、代理中继、USB、资源、诊断、构建选择与 MSI 打包链已实现，平台验证范围见上表 |
 
 ## 最近一次全量回归的失败项

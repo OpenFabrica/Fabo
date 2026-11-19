@@ -1376,8 +1376,22 @@ func TestScreenshots(t *testing.T) {
 		shot("volumes-"+theme, s)
 		s.navigate(networksPage)
 		shot("networks-"+theme, s)
+		_, history := newFakeHistory(t)
+		s.buildsFake = &history
 		s.navigate(buildsPage)
 		shot("builds-"+theme, s)
+		s.selectRow("fabo-build/" + badBuild)
+		shot("builds-failed-"+theme, s)
+		s.selectRow("fabo-build/" + okBuild)
+		if rec, ok := s.buildRecord(s.selected[buildsPage]); ok {
+			s.showBuild(rec)
+		}
+		s.bl.open["[2/4] RUN echo hello && sleep 1"] = true
+		shot("builds-steps-"+theme, s)
+		s.tab[buildsPage] = 1
+		shot("builds-layers-"+theme, s)
+		s.tab[buildsPage] = 0
+		s.selectRow("")
 		s.navigate(sharePage)
 		s.refresh()
 		s.selectRow("sh-web")

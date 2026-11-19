@@ -314,3 +314,70 @@ func TestLiveDebugContainerNetwork(t *testing.T) {
 		t.Fatalf("the server does not name its client %s", sender)
 	}
 }
+
+// TestLiveBuilds reads the build history of a live engine through the real
+// docker CLI, with the docker configuration the caller names
+// (DOCKER_CONFIG). It only reads: nothing is built or removed. With
+// FABO_SHOTS set it renders the page.
+func TestLiveBuilds(t *testing.T) {
+	socket := os.Getenv("FABO_LIVE_SOCKET")
+	if socket == "" {
+		t.Skip("set FABO_LIVE_SOCKET to read builds from a live engine")
+	}
+	t.Setenv("FABO_SOCKET", socket)
+	s := newDesktop(newEngineClient(dialEngine))
+	t.Cleanup(s.closeInteractive)
+	s.prefs.Lang = "en"
+	s.contextName = strings.TrimPrefix(filepath.Base(filepath.Dir(filepath.Dir(socket))), ".")
+	s.refresh()
+	s.navigate(buildsPage)
+	if s.bl.err != "" || len(s.bl.items) == 0 {
+		t.Fatalf("no builds: err=%q, %d builds", s.bl.err, len(s.bl.items))
+	}
+	tt := ui.NewTester(s.view, 1280, 800)
+	shot := func(name string) {
+		if dir := os.Getenv("FABO_SHOTS"); dir != "" {
+			file, err := os.Create(filepath.Join(dir, name+".png"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			png.Encode(file, tt.Image())
+			file.Close()
+		}
+	}
+	for _, x := range s.bl.items {
+		s.selectRow(x.key())
+		start := time.Now()
+		tt.Frame()
+		tt.Frame()
+		// A running build's steps arrive with what it has done so far,
+		// not when it ends.
+		if took := time.Since(start); took > 10*time.Second {
+			t.Fatalf("%s: the steps took %s", x.title(), took)
+		}
+		if s.bl.detail == nil || s.bl.detailErr != "" {
+			t.Fatalf("%s: no detail: %s", x.title(), s.bl.detailErr)
+		}
+		if len(s.bl.detail.Steps) == 0 {
+			t.Fatalf("%s: no steps", x.title())
+		}
+		s.tab[buildsPage] = 1
+		tt.Frame()
+		tt.Frame()
+		if s.bl.layersErr != "" {
+			t.Fatalf("%s: layers: %s", x.title(), s.bl.layersErr)
+		}
+		shot("live-layers-" + x.ID)
+		s.tab[buildsPage] = 2
+		tt.Frame()
+		tt.Frame()
+		shot("live-security-" + x.ID)
+		s.tab[buildsPage] = 0
+		tt.Frame()
+		shot("live-steps-" + x.ID)
+		t.Logf("%s %s: %d steps, %d warnings, %d images", x.title(), x.Status, len(s.bl.detail.Steps), len(s.bl.detail.Warnings), len(s.bl.layers.Images))
+		if x.ID == s.bl.items[min(5, len(s.bl.items)-1)].ID {
+			break
+		}
+	}
+}

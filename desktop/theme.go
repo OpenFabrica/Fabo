@@ -157,6 +157,10 @@ var markIcon = func() *ui.Bitmap {
 
 // icons are the line icons of the design, on a 24 unit grid.
 var icons = map[string]*ui.SVG{
+	"minus":    lineIcon(`<path d="M6 12h12"/>`),
+	"bolt":     lineIcon(`<path d="M13 3L5 13h6l-1 8 8-10h-6l1-8z"/>`),
+	"alert":    lineIcon(`<path d="M12 4l9 16H3L12 4zM12 10v4M12 17h.01"/>`),
+	"clock":    lineIcon(`<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>`),
 	"grid":     lineIcon(`<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>`),
 	"box":      lineIcon(`<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zM4 7.5l8 4.5 8-4.5M12 12v9"/>`),
 	"layers":   lineIcon(`<path d="M12 4l9 5-9 5-9-5 9-5zM3 14l9 5 9-5"/>`),

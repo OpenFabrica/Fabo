@@ -813,8 +813,7 @@ func (s *desktop) networkModeRows(c *ui.Context, p palette) {
 	})
 }
 
-// builderRows are the builder's state and cache, shown by the Builds page
-// and by Settings → Builds.
+// builderRows are the builder's state and cache, shown by Settings → Builds.
 func (s *desktop) builderRows(c *ui.Context, p palette) {
 	b := s.builder
 	pref(c, p, tr("Fabo 的构建器", "Fabo's builder"), b.Image, func() {

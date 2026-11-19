@@ -202,7 +202,7 @@ func (s *desktop) toggleSidebar() {
 
 // searchable reports whether the page has a list the title bar's field filters.
 func searchable(page string) bool {
-	return page == containersPage || page == imagesPage || page == volumesPage || page == networksPage || page == kubernetesPage || page == machinesPage || page == usbPage || page == debugPage
+	return page == containersPage || page == imagesPage || page == volumesPage || page == networksPage || page == buildsPage || page == kubernetesPage || page == machinesPage || page == usbPage || page == debugPage
 }
 
 // strip is the window's title bar, on the shell's grey: the traffic lights,
@@ -425,6 +425,9 @@ func (s *desktop) sidebar(c *ui.Context, p palette) {
 	counts := map[string]int{containersPage: len(s.containers), imagesPage: len(s.images), volumesPage: len(s.volumes), networksPage: len(s.networks), machinesPage: len(s.machines)}
 	if n := s.debugLive(); n > 0 {
 		counts[debugPage] = n
+	}
+	if s.bl.read {
+		counts[buildsPage] = len(s.bl.items)
 	}
 	if s.page == debugPage && open {
 		width = debugMenuWidth

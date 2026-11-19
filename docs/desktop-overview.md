@@ -134,9 +134,32 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   k3s node. The dock shows details and live Pod logs, starting with 2,000
   lines, with a container and previous-run choice. Pod deletion asks for confirmation.
   Browsing never starts the cluster, and passive execs use background headers.
-- **Builds.** The engine keeps no record of past builds. The page shows the
-  BuildKit builder from `/fabo/builder`, sets its cache limit, and clears
-  the build cache.
+- **Builds.** BuildKit's own history of `docker build`, `docker buildx
+  build`, Compose builds and the classic `POST /build`, newest first, read
+  by the window through the docker CLI (`docker buildx history ls`,
+  `inspect`, `logs --progress rawjson`, `inspect attachment`, `rm`) with
+  `DOCKER_HOST` set to the engine. Only docker-container builders on this
+  installation's context whose `buildx_buildkit_<node>` container already
+  exists are asked, so the page never creates a builder or pulls BuildKit;
+  builders sharing a node (`fabo` and `fabo-build`) are each asked and a
+  build is listed once, from the builder that ran it, since buildx keeps a
+  build's name, context and Dockerfile with that builder only. Without a
+  buildx plugin the page
+  is empty. The list filters by state (building, completed, failed,
+  canceled) and by the search, removes a record or every failed one, and
+  opens the newest build. The panel shows duration, steps and warnings,
+  the failing step with its Dockerfile lines, and four tabs: Steps (all,
+  ran, cached or failed; BuildKit's internal steps on demand; each step's
+  time against the slowest and its output, up to 256 KiB), Layers (the
+  image the build made per platform, from the manifest and config kept
+  with the record: its own layers apart from the base image's, and how it
+  runs), Security (the same Grype scan as the image's page once the image
+  is in Fabo, matched by config digest) and Info. The page reads the
+  history at each visit, which can wake a sleeping VM and resume a paused
+  builder; after that it reads every 15 s, or every 2 s while a build
+  runs, only while the VM is awake. These are CLI reads without the
+  background header, so the open page keeps the VM awake. The builder's
+  state, cache limit and cache clearing are in Settings → Builds.
 - **Overview.** Counts, the engine's CPU history and memory, disk use, the
   five busiest containers, and the last hour's events.
 - **Settings.** Six sections laid out as Fabo's are, each row a title, an

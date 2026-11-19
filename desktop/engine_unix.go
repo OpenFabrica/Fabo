@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"syscall"
 )
 
 // engineSocket is where the engine listens: FABO_SOCKET, else the system
@@ -58,3 +59,12 @@ const singleInstance = false
 
 // hideConsole does nothing outside Windows.
 func hideConsole(*exec.Cmd) {}
+
+// endGroup puts a command in a process group of its own and, when its
+// context ends, kills the whole group: the docker CLI runs a plugin
+// (docker-buildx) as a child, which killing docker alone would leave
+// behind, still holding the output pipes.
+func endGroup(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+}

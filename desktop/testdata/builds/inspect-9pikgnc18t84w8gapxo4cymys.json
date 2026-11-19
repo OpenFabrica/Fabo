@@ -1,0 +1,32 @@
+{
+  "Name": "ok",
+  "Ref": "9pikgnc18t84w8gapxo4cymys",
+  "Context": "ok",
+  "Dockerfile": "Dockerfile",
+  "StartedAt": "2026-11-19T11:50:39.891725883+08:00",
+  "CompletedAt": "2026-11-19T11:50:45.680587094+08:00",
+  "Duration": 5788861211,
+  "Status": "completed",
+  "NumCompletedSteps": 9,
+  "NumTotalSteps": 9,
+  "NumCachedSteps": 0,
+  "Config": {},
+  "Materials": [
+    {
+      "URI": "pkg:docker/alpine@3.20?platform=linux%2Farm64",
+      "Digests": [
+        "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+      ]
+    }
+  ],
+  "Attachments": [
+    {
+      "Digest": "sha256:49fc11b5d82b488e72e6c3b57e8e56a30e3c8607ab5d37c2425f0b985771a4de",
+      "Type": "application/vnd.oci.image.manifest.v1+json"
+    },
+    {
+      "Digest": "sha256:3bbd86f4d06489fef05e92b6cee130a43c22c82dcf194a081931c68bc4cbdfa4",
+      "Type": "https://slsa.dev/provenance/v1"
+    }
+  ]
+}

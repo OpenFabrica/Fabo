@@ -225,6 +225,9 @@ type desktop struct {
 	shares      shareUI
 	debug       debugUI
 	usb         usbUI
+	// bl is the Builds page; buildsFake replaces the docker CLI in tests.
+	bl         buildsUI
+	buildsFake *buildHistory
 	// rowHovered is whether the pointer is on the table row being built.
 	rowHovered     bool
 	containerDraft containerSettings
@@ -521,6 +524,9 @@ func (s *desktop) refresh() {
 	if s.page == usbPage {
 		s.refreshUSB()
 	}
+	if s.page == buildsPage {
+		s.refreshBuilds()
+	}
 	page := s.page
 	wantDisk := page == overviewPage && s.disk == nil
 	// The containers page shows which containers are shared. The account
@@ -555,8 +561,7 @@ func (s *desktop) refresh() {
 		now := time.Now().Unix()
 		var events []engineEvent
 		var disk *diskUsage
-		var builder builderInfo
-		var builderErr, eventsErr error
+		var eventsErr error
 		var shares shareInfo
 		sharesErr := errSkipped
 		var billing shareAccount
@@ -577,8 +582,6 @@ func (s *desktop) refresh() {
 			if wantDisk && info.awake() {
 				disk, _ = e.diskUsage(ctx)
 			}
-		case buildsPage:
-			builderErr = e.get(ctx, "/fabo/builder", &builder)
 		}
 		return func() {
 			s.refreshing, s.connected, s.problem, s.info, s.now = false, true, "", info, now
@@ -606,9 +609,6 @@ func (s *desktop) refresh() {
 			}
 			if disk != nil {
 				s.disk = disk
-			}
-			if builderErr == nil && page == buildsPage {
-				s.builder = builder
 			}
 			if sharesErr == nil {
 				if !shares.Account.SignedIn || shares.Account.Login != s.shares.info.Account.Login || shares.Account.Server != s.shares.info.Account.Server {
@@ -731,6 +731,11 @@ func (s *desktop) navigate(page string) {
 	s.settingsFor = ""
 	if page == overviewPage {
 		s.disk = nil
+	}
+	// Each visit reads the build history once at once, even from a
+	// sleeping VM; later reads wait for the VM to be awake.
+	if page == buildsPage {
+		s.bl.visited = false
 	}
 	s.refreshing = false
 	s.refresh()

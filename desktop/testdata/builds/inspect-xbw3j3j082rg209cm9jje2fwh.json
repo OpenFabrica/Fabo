@@ -1,0 +1,20 @@
+{
+  "Name": "bad",
+  "Ref": "xbw3j3j082rg209cm9jje2fwh",
+  "Context": "bad",
+  "Dockerfile": "Dockerfile",
+  "StartedAt": "2026-11-19T11:50:45.756211635+08:00",
+  "CompletedAt": "2026-11-19T11:50:46.276529219+08:00",
+  "Duration": 520317584,
+  "Status": "failed",
+  "Error": {
+    "Code": 2,
+    "Message": "process \"/bin/sh -c exit 3\" did not complete successfully: exit code: 3",
+    "Name": "[3/4] RUN exit 3",
+    "Sources": "RG9ja2VyZmlsZTozCi0tLS0tLS0tLS0tLS0tLS0tLS0tCiAgIDEgfCAgICAgRlJPTSBhbHBpbmU6My4yMAogICAyIHwgICAgIFJVTiBlY2hvIGJlZm9yZQogICAzIHwgPj4+IFJVTiBleGl0IDMKICAgNCB8ICAgICBSVU4gZWNobyBhZnRlcgogICA1IHwgICAgIAotLS0tLS0tLS0tLS0tLS0tLS0tLQoK"
+  },
+  "NumCompletedSteps": 6,
+  "NumTotalSteps": 7,
+  "NumCachedSteps": 1,
+  "Config": {}
+}

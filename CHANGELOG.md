@@ -4,6 +4,7 @@
 
 ## 未发布
 
+- 「构建」页改为显示 BuildKit 的构建历史：按状态筛选和搜索，查看每一步的耗时、缓存和输出、失败原因与 Dockerfile 行、lint 警告，产出镜像的分层和安全扫描，可删除单条记录或清理所有失败的构建；构建器设置留在设置 → 构建。
 - 新增 Windows 版：引擎运行在 WSL 2，`fabo-win` 在 `\\.\pipe\fabo` 提供 Docker API（没有其他引擎时也服务 `docker_engine`），首次设置可自动安装 WSL、选择 Fabo Linux 或 Ubuntu、装好 docker CLI / Compose / buildx 并设为默认。
 - Windows 窗口与托盘：设置向导、引擎启动 / 停止、新版本下载与重启安装，登录信息存入 Windows 凭据管理器。
 - Windows 的 `fabo` 命令：docker 子命令、`fabo k8s`、`fabo machine` 等可直接在 PowerShell / cmd 中使用。

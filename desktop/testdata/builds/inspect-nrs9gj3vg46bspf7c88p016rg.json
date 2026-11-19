@@ -1,0 +1,32 @@
+{
+  "Name": "warn",
+  "Ref": "nrs9gj3vg46bspf7c88p016rg",
+  "Context": "/tmp/fabo-bh/warn",
+  "Dockerfile": "Dockerfile",
+  "StartedAt": "2026-11-19T11:51:26.602321655+08:00",
+  "CompletedAt": "2026-11-19T11:51:27.159757738+08:00",
+  "Duration": 557436083,
+  "Status": "completed",
+  "NumCompletedSteps": 6,
+  "NumTotalSteps": 6,
+  "NumCachedSteps": 1,
+  "Config": {},
+  "Materials": [
+    {
+      "URI": "pkg:docker/alpine@3.20?platform=linux%2Farm64",
+      "Digests": [
+        "sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc"
+      ]
+    }
+  ],
+  "Attachments": [
+    {
+      "Digest": "sha256:11a5767084c4207beb0e38175505f3ecdef92b2026ff0bfd36dcbf857f9135d8",
+      "Type": "application/vnd.oci.image.manifest.v1+json"
+    },
+    {
+      "Digest": "sha256:8ba75d64f2ac1465f960426f5dfe2661f0d92aca9d45c534d9c8c5306486e487",
+      "Type": "https://slsa.dev/provenance/v1"
+    }
+  ]
+}

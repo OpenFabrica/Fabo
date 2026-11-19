@@ -281,7 +281,7 @@ func (s *desktop) imageDock(c *ui.Context, p palette, img image) {
 		layersTab += fmt.Sprintf(" %d", n)
 	}
 	result := s.scans[img.ID]
-	step, scanning := s.scanning[img.ID]
+	_, scanning := s.scanning[img.ID]
 	s.dock(c, p, img.ref(), func() { label(c, displaySize(img.Size), p.muted).Shrink(0) },
 		[]string{layersTab, tr("安全扫描", "Security"), tr("信息", "Info")},
 		func() {
@@ -297,31 +297,40 @@ func (s *desktop) imageDock(c *ui.Context, p palette, img image) {
 			case 0:
 				s.layersTab(c, p, img)
 			case 1:
-				switch {
-				case scanning:
-					ui.Column(c).Fill().Grow(1).Center().Gap(12).Children(func() {
-						ui.Text(c, step.words()).FontSize(13).TextColor(p.text)
-						// Steps without a measurable fraction spin instead of
-						// showing a bar stuck at zero.
-						if step.measured() {
-							ui.Box(c).Width(260).Children(func() { meter(c, p, step.pct, 4, p.accent) })
-						} else {
-							ui.Spinner(c).Size(14, 14)
-						}
-					})
-				case result == nil:
-					if empty(c, p, "shield", tr("尚未扫描", "Not scanned yet"), tr("开始扫描", "Scan now")) {
-						s.startScan(img)
-					}
-				case len(result.Vulns) == 0:
-					empty(c, p, "check", tr("未发现已知漏洞", "No known vulnerabilities"), "")
-				default:
-					s.findingsTab(c, p, result)
-				}
+				s.scanPane(c, p, img)
 			case 2:
 				keyValues(c, p, s.detail.fields)
 			}
 		})
+}
+
+// scanPane is an image's Security tab, shared by the Images page and a
+// build's panel: the running scan's progress, the offer to scan, or the
+// findings of the last scan.
+func (s *desktop) scanPane(c *ui.Context, p palette, img image) {
+	result := s.scans[img.ID]
+	step, scanning := s.scanning[img.ID]
+	switch {
+	case scanning:
+		ui.Column(c).Fill().Grow(1).Center().Gap(12).Children(func() {
+			ui.Text(c, step.words()).FontSize(13).TextColor(p.text)
+			// Steps without a measurable fraction spin instead of
+			// showing a bar stuck at zero.
+			if step.measured() {
+				ui.Box(c).Width(260).Children(func() { meter(c, p, step.pct, 4, p.accent) })
+			} else {
+				ui.Spinner(c).Size(14, 14)
+			}
+		})
+	case result == nil:
+		if empty(c, p, "shield", tr("尚未扫描", "Not scanned yet"), tr("开始扫描", "Scan now")) {
+			s.startScan(img)
+		}
+	case len(result.Vulns) == 0:
+		empty(c, p, "check", tr("未发现已知漏洞", "No known vulnerabilities"), "")
+	default:
+		s.findingsTab(c, p, result)
+	}
 }
 
 // layersTab lists the image's layers with each one's share of the size.
@@ -555,18 +564,6 @@ func (s *desktop) networksView(c *ui.Context, p palette) {
 					{tr("网关", "Gateway"), n.Gateway}, {tr("创建", "Created"), strings.TrimPrefix(since(s.now, n.Created), "—")}}))
 			})
 	}
-}
-
-// buildsView shows the builder. The engine keeps no record of past builds,
-// so the page is the builder's state and its cache, the same rows as
-// Settings → Builds.
-func (s *desktop) buildsView(c *ui.Context, p palette) {
-	ui.Scroll(c.Key("builds")).Fill().Grow(1).MinHeight(0).Children(func() {
-		ui.Column(c).FillWidth().MaxWidth(760).Padding(18, 28, 24).Children(func() {
-			s.builderRows(c, p)
-			ui.Text(c, tr("引擎目前不记录构建历史。", "The engine does not keep a build history yet.")).FontSize(12).TextColor(p.muted).Padding(16, 0, 0)
-		})
-	})
 }
 
 // tile is one count of the overview: a card that opens its page. The

@@ -43,3 +43,7 @@ const singleInstance = true
 func hideConsole(c *exec.Cmd) {
 	c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000} // CREATE_NO_WINDOW
 }
+
+// endGroup leaves the command as it is: on Windows the context's kill
+// ends docker.exe, and WaitDelay stops waiting on a plugin that outlives it.
+func endGroup(*exec.Cmd) {}
