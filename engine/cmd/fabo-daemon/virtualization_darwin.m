@@ -95,6 +95,9 @@ static VZVirtualMachineConfiguration *configuration(
     config.memorySize = memory;
     config.socketDevices = @[[[VZVirtioSocketDeviceConfiguration alloc] init]];
     config.entropyDevices = @[[[VZVirtioEntropyDeviceConfiguration alloc] init]];
+    // Lets the daemon take memory the guest is not using back for macOS
+    // (fabo_vm_set_memory_target). It starts at the full memorySize.
+    config.memoryBalloonDevices = @[[[VZVirtioTraditionalMemoryBalloonDeviceConfiguration alloc] init]];
     if (*mac != '\0') {
         VZVirtioNetworkDeviceConfiguration *network =
             [[VZVirtioNetworkDeviceConfiguration alloc] init];
@@ -281,6 +284,22 @@ void fabo_vm_release(void *machine) {
         host->control = nil;
         host->vm = nil;
     });
+}
+
+// fabo_vm_set_memory_target asks the guest, through the balloon, to run in
+// bytes of memory and give the rest back to macOS. The caller keeps the VM
+// from being released meanwhile. Returns 0 when the VM has no balloon.
+int fabo_vm_set_memory_target(void *machine, uint64_t bytes) {
+    FaboVM *host = (__bridge FaboVM *)machine;
+    __block int set = 0;
+    dispatch_sync(host->queue, ^{
+        id device = host->vm.memoryBalloonDevices.firstObject;
+        if ([device isKindOfClass:[VZVirtioTraditionalMemoryBalloonDevice class]]) {
+            ((VZVirtioTraditionalMemoryBalloonDevice *)device).targetVirtualMachineMemorySize = bytes;
+            set = 1;
+        }
+    });
+    return set;
 }
 
 void *fabo_vm_connect(void *machine, uint32_t port, int *fd, char **error) {

@@ -36,6 +36,11 @@ type guestConnection struct {
 	rosetta bool
 	relay   guestwire.RelayDial
 	archive guestwire.RelayDial
+	// balloon sets the VM's memory balloon target in bytes; nil where the
+	// guest is no VM of the daemon's (Linux, WSL).
+	balloon func(bytes uint64) bool
+	// memory is the VM's memory in bytes, the balloon's ceiling.
+	memory uint64
 }
 
 func main() {

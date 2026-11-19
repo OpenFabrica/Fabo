@@ -246,7 +246,7 @@ func (o guestOptions) start(ctx context.Context, stateDir string) (guestConnecti
 	if err != nil {
 		return guestConnection{}, fmt.Errorf("start Fabo VM: %w", errors.Join(err, closeVM()))
 	}
-	return guestConnection{conn: conn, close: closeVM, shares: roots, disk: o.disk != "", relay: dialer.dial, archive: dialer.dial, rosetta: hello.Rosetta}, nil
+	return guestConnection{conn: conn, close: closeVM, shares: roots, disk: o.disk != "", relay: dialer.dial, archive: dialer.dial, rosetta: hello.Rosetta, balloon: dialer.setMemoryTarget, memory: o.memory << 20}, nil
 }
 
 func readVMEvent(reader io.Reader) (byte, error) {

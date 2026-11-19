@@ -27,6 +27,18 @@ func (d *vmRelayDialer) close() {
 	d.mu.Unlock()
 }
 
+// setMemoryTarget sets the VM's balloon target, in bytes. It holds the read
+// lock as dial does, so closeVM cannot release the VM during the call, and
+// reports false once the VM is gone or has no balloon.
+func (d *vmRelayDialer) setMemoryTarget(bytes uint64) bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	if d.machine == nil {
+		return false
+	}
+	return C.fabo_vm_set_memory_target(d.machine, C.uint64_t(bytes)) != 0
+}
+
 func (d *vmRelayDialer) dial(ctx context.Context, port uint32) (net.Conn, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()

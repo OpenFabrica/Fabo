@@ -131,7 +131,7 @@ func (s *Session) read() {
 		switch frame.Kind {
 		case MemoryPressure:
 			s.emit(RunEvent{Kind: frame.Kind})
-		case ErrorMessage, LayerStatusMessage, LayerStoredMessage, AckMessage, ContainerStatsMessage, TopMessage, ListeningMessage,
+		case ErrorMessage, LayerStatusMessage, LayerStoredMessage, AckMessage, StatsMessage, ContainerStatsMessage, TopMessage, ListeningMessage,
 			FileStatReply, FileListReply, FileReadReply:
 			if err := s.reply("", frame); err != nil {
 				s.fail(err)

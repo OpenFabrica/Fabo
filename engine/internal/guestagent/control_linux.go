@@ -55,6 +55,7 @@ func Serve(conn io.ReadWriteCloser, startedNS uint64, layers *LayerStore, runtim
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	go watchMemoryPressure(ctx, write)
 	var measuring atomic.Bool
 	var scratch []byte
 	for {

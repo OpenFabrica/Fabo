@@ -11,6 +11,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -49,6 +50,8 @@ type engineInstance struct {
 	requests sync.WaitGroup
 	inFlight int
 	boot     localengine.VMSettings
+	// balloon drives this VM's memory; nil when it has none or it is off.
+	balloon *balloon
 }
 
 type supervisor struct {
@@ -272,9 +275,16 @@ func (s *supervisor) wakeLocked(explicit bool) error {
 		cancel()
 		return err
 	}
+	// FABO_NO_BALLOON=1 leaves the VM all of its memory while it runs.
+	var vmBalloon *balloon
+	var pressure func()
+	if guest.balloon != nil && guest.memory != 0 && os.Getenv("FABO_NO_BALLOON") == "" {
+		vmBalloon = newBalloon(guest.balloon, guest.memory)
+		pressure = vmBalloon.notifyPressure
+	}
 	engine, err := localengine.New(ctx, guest.conn, s.images, s.state, localengine.VMOptions{
 		Shares: guest.shares, Disk: guest.disk, HostCgroups: guest.cgroups, Relay: guest.relay, Archive: guest.archive, CPUs: settings.CPUs, MemoryMiB: settings.MemoryMiB, Events: &s.events, Version: engineRelease, Builder: s.builder, Proxy: s.proxy, Domains: s.domains, EngineSocket: s.socket, WindowsMounts: s.windowsProxy,
-		Rosetta: guest.rosetta, BuildMirror: s.buildMirror,
+		Rosetta: guest.rosetta, BuildMirror: s.buildMirror, MemoryPressure: pressure,
 	})
 	if err != nil {
 		cancel()
@@ -292,7 +302,12 @@ func (s *supervisor) wakeLocked(explicit bool) error {
 		s.mu.Unlock()
 	}
 	s.mu.Lock()
-	instance := &engineInstance{engine: engine, handler: engine.Handler(), guest: guest, ctx: ctx, cancel: cancel, boot: settings}
+	instance := &engineInstance{engine: engine, handler: engine.Handler(), guest: guest, ctx: ctx, cancel: cancel, boot: settings, balloon: vmBalloon}
+	if vmBalloon != nil {
+		vmBalloon.stats = engine.GuestStats
+		// Ends with ctx, which shutdown cancels before it releases the VM.
+		go vmBalloon.run(ctx, balloonInterval)
+	}
 	if s.vm != nil && guest.relay != nil {
 		instance.usb = newUSBSessions(guest.relay)
 	}
@@ -748,8 +763,10 @@ func (s *supervisor) resources(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	active := s.isActiveLocked()
 	boot, runningNetwork := localengine.VMSettings{}, ""
+	var vmBalloon *balloon
 	if active {
 		boot, runningNetwork = s.current.boot, s.current.boot.NetworkMode()
+		vmBalloon = s.current.balloon
 	}
 	bootErr := s.bootErr
 	s.mu.Unlock()
@@ -757,6 +774,12 @@ func (s *supervisor) resources(w http.ResponseWriter, r *http.Request) {
 		"cpus": s.vm.settings.CPUs, "memory_mib": s.vm.settings.MemoryMiB, "network": s.vm.settings.NetworkMode(),
 		"running_cpus": boot.CPUs, "running_memory_mib": boot.MemoryMiB, "running_network": runningNetwork, "awake": active,
 		"max_cpus": s.vm.maxCPU, "max_memory_mib": s.vm.maxMemory,
+	}
+	// While the balloon runs: what the VM may use now, and what its
+	// processes hold (0 until the first sample).
+	if vmBalloon != nil {
+		out["memory_target_mib"] = vmBalloon.target.Load() >> 20
+		out["memory_used_mib"] = vmBalloon.used.Load() >> 20
 	}
 	// Only while the last boot failed, so older clients see no change.
 	if bootErr != nil {

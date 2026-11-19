@@ -123,6 +123,8 @@ type Engine struct {
 	buildMirror       *BuildMirror
 	vmCPUs            uint
 	vmMemory          uint64
+	// memoryPressure is VMOptions.MemoryPressure; nil ignores the notices.
+	memoryPressure func()
 	volumeRemovals    map[string]bool
 	volumeCleanups    int
 	// damaged names the state files this engine could not load (set aside
@@ -325,6 +327,9 @@ type VMOptions struct {
 	BuildMirror   *BuildMirror
 	Proxy         *Proxy
 	Domains       *Domains
+	// MemoryPressure is called, on the session reader, each time the guest
+	// reports a memory stall. It must not block.
+	MemoryPressure func()
 }
 
 // New restores the saved state and serves it over conn (nil: no guest).
@@ -359,7 +364,7 @@ func New(ctx context.Context, conn net.Conn, images map[string]Image, state *Sta
 	for ref, image := range images {
 		catalog[ref] = identifyImage(image)
 	}
-	e := &Engine{ctx: ctx, sharedEvents: vm.Events, images: index.references(catalog), catalog: catalog, imageIndex: index, containers: containers, networks: networks, state: state, settled: make(chan struct{}), remoteGuest: runtime.GOOS == "darwin", hostCgroups: vm.HostCgroups, guestShares: vm.Shares, guestDisk: vm.Disk, guestRelay: vm.Relay, domains: vm.Domains, guestArchive: vm.Archive, release: vm.Version, builderName: vm.Builder, vmCPUs: vm.CPUs, vmMemory: vm.MemoryMiB}
+	e := &Engine{ctx: ctx, sharedEvents: vm.Events, images: index.references(catalog), catalog: catalog, imageIndex: index, containers: containers, networks: networks, state: state, settled: make(chan struct{}), remoteGuest: runtime.GOOS == "darwin", hostCgroups: vm.HostCgroups, guestShares: vm.Shares, guestDisk: vm.Disk, guestRelay: vm.Relay, domains: vm.Domains, guestArchive: vm.Archive, release: vm.Version, builderName: vm.Builder, vmCPUs: vm.CPUs, vmMemory: vm.MemoryMiB, memoryPressure: vm.MemoryPressure}
 	e.proxy = vm.Proxy
 	e.buildMirror = vm.BuildMirror
 	e.rosetta = vm.Rosetta
@@ -1118,7 +1123,15 @@ func (e *Engine) startContainer(c *container, automatic bool) error {
 	return err
 }
 
+// onEvent applies a guest event to the container or exec it names; a
+// memory-pressure notice names neither and goes to VMOptions.MemoryPressure.
 func (e *Engine) onEvent(event guestwire.RunEvent) {
+	if event.Kind == guestwire.MemoryPressure {
+		if e.memoryPressure != nil {
+			e.memoryPressure()
+		}
+		return
+	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if x := e.execs[event.ID]; x != nil {

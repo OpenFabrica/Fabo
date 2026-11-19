@@ -4,6 +4,7 @@
 package guestwire
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -197,6 +198,23 @@ func ReadStats(rw io.ReadWriter) (Stats, error) {
 	}
 	f, err := readReply(rw, StatsMessage)
 	if err != nil {
+		return Stats{}, err
+	}
+	return DecodeStats(f)
+}
+
+// Stats asks the guest for a resource sample over the session.
+func (s *Session) Stats(ctx context.Context) (Stats, error) {
+	frame, err := s.request(ctx, Frame{Kind: StatsRequest}, StatsMessage, "", nil, 0)
+	if err != nil {
+		return Stats{}, err
+	}
+	return DecodeStats(frame)
+}
+
+// DecodeStats reads a StatsMessage payload.
+func DecodeStats(f Frame) (Stats, error) {
+	if err := expect(f, StatsMessage); err != nil {
 		return Stats{}, err
 	}
 	// The original message has four words. New agents append three fields.

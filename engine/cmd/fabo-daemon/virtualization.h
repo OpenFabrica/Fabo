@@ -9,6 +9,7 @@ int fabo_vm_control(void *machine);
 void fabo_vm_disconnect(void *machine);
 int fabo_vm_stop(void *machine, char **error);
 void fabo_vm_release(void *machine);
+int fabo_vm_set_memory_target(void *machine, uint64_t bytes);
 void *fabo_vm_connect(void *machine, uint32_t port, int *fd, char **error);
 void fabo_vm_close_relay(void *relay);
 void fabo_vm_limits(uint32_t *minCPU, uint32_t *maxCPU, uint64_t *minMemory, uint64_t *maxMemory);

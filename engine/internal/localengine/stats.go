@@ -178,3 +178,12 @@ func containerStatsJSON(id, name string, now, previous statsSample, ceiling uint
 		}},
 	}
 }
+
+// GuestStats asks the guest for its resource sample: what its processes
+// hold, its memory stall and OOM kills. It fails without a guest.
+func (e *Engine) GuestStats(ctx context.Context) (guestwire.Stats, error) {
+	if e.session == nil {
+		return guestwire.Stats{}, errors.New("no guest to sample")
+	}
+	return e.session.Stats(ctx)
+}
