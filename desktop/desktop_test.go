@@ -296,8 +296,16 @@ func newFakeEngine(t *testing.T) (*fakeEngine, *desktop) {
 		case path == "/fabo/images/layers":
 			fmt.Fprint(w, `{"images":[{"layers":[{"by":"ADD rootfs.tar.xz /","size":8703180},{"by":"RUN apk add --no-cache nodejs","size":212013312},{"by":"CMD [\"node\"]","size":0,"empty":true}]}]}`)
 		case path == "/fabo/images/scan":
-			fmt.Fprint(w, `{"scanned":1,"packages":120,"vulns":[{"id":"CVE-2026-1001","severity":"Medium","package":"zlib","version":"1.3.0","fixed":["1.3.1"]},
-			 {"id":"CVE-2026-2002","severity":"High","package":"openssl","version":"3.3.0","fixed":[]}]}`)
+			fmt.Fprint(w, `{"id":"sha256:img-api","scanned":1795084368,"packages":120,"db":"2026-11-19T06:23:17Z","grype":"0.120.1","vulns":[
+			 {"id":"CVE-2026-1001","severity":"Medium","package":"zlib","version":"1.3.0","kind":"apk","fixed":["1.3.1"],
+			  "url":"https://nvd.nist.gov/vuln/detail/CVE-2026-1001","description":"=zlib inflate reads past the window on a crafted stream.","layer":1,"by":"RUN apk add --no-cache nodejs","base":false},
+			 {"id":"CVE-2026-2002","severity":"High","package":"openssl","version":"3.3.0","kind":"apk","fixed":[],"layer":0,"by":"ADD rootfs.tar.xz /","base":true}]}`)
+		case path == "/fabo/images/sbom":
+			if r.URL.Query().Get("at") != "1795084368" {
+				http.Error(w, "unknown scan", http.StatusNotFound)
+				return
+			}
+			fmt.Fprint(w, `{"bomFormat":"CycloneDX","components":[]}`)
 		case path == "/fabo/builder":
 			fmt.Fprint(w, `{"cache_gb":20,"default_cache_gb":20,"cache_limit":21474836480,"idle_secs":600,"image":"moby/buildkit:v0.17.0","state":"running"}`)
 		case path == "/fabo/share/account":
@@ -1372,6 +1380,15 @@ func TestScreenshots(t *testing.T) {
 		s.selectRow("sha256:img-api")
 		s.tab[imagesPage] = 1
 		shot("images-"+theme, s)
+		// A finding opened onto its details, in a narrow panel and a wide one.
+		if result := s.scans["sha256:img-api"]; result != nil {
+			s.findingOpen[findingKey("sha256:img-api", result.Scanned, sortedFindings(result)[1])] = true
+			shot("images-finding-"+theme, s)
+			s.dockMax = true
+			shot("images-finding-wide-"+theme, s)
+			s.dockMax = false
+			clear(s.findingOpen)
+		}
 		s.navigate(volumesPage)
 		shot("volumes-"+theme, s)
 		s.navigate(networksPage)

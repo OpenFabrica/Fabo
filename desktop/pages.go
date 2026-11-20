@@ -388,8 +388,11 @@ func (s *desktop) imageDock(c *ui.Context, p palette, img image) {
 			if iconButton(c.Key("save"), p, "archive", tr("打包 ", "Pack ")+img.ref(), s.working["save:"+img.ID]).Clicked() {
 				s.saveImage(img)
 			}
-			if s.tab[imagesPage] == 1 && result != nil && button(c.Key("rescan"), p, tr("重新扫描", "Rescan"), "", ghostButton, scanning) {
-				s.startScan(img)
+			if s.tab[imagesPage] == 1 && result != nil {
+				if button(c.Key("rescan"), p, tr("重新扫描", "Rescan"), "", ghostButton, scanning) {
+					s.startScan(img)
+				}
+				s.exportMenu(c, p, img, result)
 			}
 		},
 		func(tab int) {
@@ -429,7 +432,7 @@ func (s *desktop) scanPane(c *ui.Context, p palette, img image) {
 	case len(result.Vulns) == 0:
 		empty(c, p, "check", tr("未发现已知漏洞", "No known vulnerabilities"), "")
 	default:
-		s.findingsTab(c, p, result)
+		s.findingsTab(c, p, img, result)
 	}
 }
 
@@ -453,32 +456,136 @@ func (s *desktop) layersTab(c *ui.Context, p palette, img image) {
 	})
 }
 
-// findingsTab lists a scan's findings, the worst first.
-func (s *desktop) findingsTab(c *ui.Context, p palette, result *scanResult) {
-	found := append([]finding(nil), result.Vulns...)
-	sort.SliceStable(found, func(i, j int) bool { return severityRank(found[i].Severity) < severityRank(found[j].Severity) })
-	ui.List(c.Key("findings"), s.list("findings"), len(found)).FillWidth().Grow(1).MinHeight(0).Rows(func(r ui.ListRow) {
-		rc, f := r.Context, found[r.Index]
-		ink := p.muted
-		switch severityRank(f.Severity) {
-		case 0, 1:
-			ink = p.err
-		case 2:
-			ink = p.warn
+// findingKey names a finding of an image's scan for the open rows: the
+// same CVE may hit several packages, and a new scan starts closed.
+func findingKey(imageID string, scanned int64, f finding) string {
+	return fmt.Sprintf("%s@%d/%s/%s/%s", imageID, scanned, f.ID, f.Package, f.Version)
+}
+
+// findingsTab lists a scan's findings, the worst first; a click opens a
+// finding onto its details. A narrow panel keeps the vulnerability, its
+// severity and the package; a wide one adds the version and the fix.
+func (s *desktop) findingsTab(c *ui.Context, p palette, img image, result *scanResult) {
+	found := sortedFindings(result)
+	wide := s.dockMax || s.dockWidth() >= 620
+	columns := func(c *ui.Context, mark, id, severity, pkg, version, fixed func()) {
+		cell(c, 12, 0).Children(mark)
+		cell(c, 150, 0).Children(id)
+		cell(c, 64, 0).Children(severity)
+		cell(c, 0, 1).Children(pkg)
+		if wide {
+			cell(c, 120, 0).Children(version)
+			cell(c, 120, 0).Children(fixed)
 		}
-		ui.Row(rc).FillWidth().Height(26).PaddingX(14).Gap(10).AlignItems(ui.Center).BorderWidth(0, 0, 1, 0).BorderColor(p.line).Children(func() {
-			cell(rc, 170, 0).Children(func() { label(rc, f.ID, p.text) })
-			cell(rc, 84, 0).Children(func() { label(rc, f.Severity, ink).FontWeight(600) })
-			cell(rc, 0, 1).Children(func() { label(rc, f.Package, p.text) })
-			cell(rc, 130, 0).Children(func() { label(rc, f.Version, p.muted) })
-			cell(rc, 130, 0).Children(func() {
-				if len(f.Fixed) > 0 {
-					label(rc, f.Fixed[0], p.ok)
-				} else {
-					label(rc, "—", p.muted)
+	}
+	head := func(text string) func() {
+		return func() { ui.Text(c, text).FontSize(11.5).FontWeight(500).TextColor(p.muted).SingleLine().MinWidth(0) }
+	}
+	ui.Row(c.Key("findings-head")).FillWidth().Height(28).PaddingX(14).Gap(8).AlignItems(ui.Center).Shrink(0).
+		BorderWidth(0, 0, 1, 0).BorderColor(p.line).Children(func() {
+		columns(c, func() {}, head(tr("漏洞", "Vulnerability")), head(tr("等级", "Severity")), head(tr("软件包", "Package")),
+			head(tr("版本", "Version")), head(tr("修复版本", "Fixed in")))
+	})
+	ui.List(c.Key("findings"), s.list("findings"), len(found)).FillWidth().Grow(1).MinHeight(0).
+		ItemKey(func(i int) any { return findingKey(img.ID, result.Scanned, found[i]) }).
+		Rows(func(r ui.ListRow) {
+			rc, f := r.Context, found[r.Index]
+			key := findingKey(img.ID, result.Scanned, f)
+			open := s.findingOpen[key]
+			ink := p.muted
+			switch severityRank(f.Severity) {
+			case 0, 1:
+				ink = p.err
+			case 2:
+				ink = p.warn
+			}
+			ui.Column(rc).FillWidth().BorderWidth(0, 0, 1, 0).BorderColor(p.line).Children(func() {
+				row := clickable(rc.Key("finding")).Label(tr("查看 ", "Details for ") + f.ID).
+					FillWidth().Height(28).PaddingX(14).Gap(8).AlignItems(ui.Center).Justify(ui.Start)
+				if row.Hovered() || open {
+					row.Background(p.hover)
+				}
+				row.Children(func() {
+					columns(rc,
+						func() {
+							icon := "chevron"
+							if open {
+								icon = "down"
+							}
+							ui.Icon(rc, icons[icon]).Size(11, 11).TextColor(p.muted)
+						},
+						func() { label(rc, f.ID, p.text) },
+						func() { label(rc, f.Severity, ink).FontWeight(600) },
+						func() { label(rc, f.Package, p.text) },
+						func() { label(rc, f.Version, p.muted) },
+						func() {
+							if len(f.Fixed) > 0 {
+								label(rc, f.Fixed[0], p.ok)
+							} else {
+								label(rc, "—", p.muted)
+							}
+						})
+				})
+				if row.Clicked() {
+					s.findingOpen[key] = !open
+				}
+				if open {
+					findingDetails(rc, p, f)
 				}
 			})
 		})
+}
+
+// findingDetails is an open finding: what the vulnerability is, the
+// package it was found in, the versions that fix it, the layer that
+// brought the package in, and the advisory to read more.
+func findingDetails(c *ui.Context, p palette, f finding) {
+	ui.Column(c.Key("finding-details")).FillWidth().Padding(8, 16, 14, 36).Gap(8).Background(p.soft).Children(func() {
+		if text := strings.TrimSpace(f.Description); text != "" {
+			ui.Text(c, text).FontSize(12).LineHeight(1.5).TextColor(p.text).Selectable().FillWidth()
+		}
+		item := func(name string, value func()) {
+			ui.Row(c.Key(name)).FillWidth().Gap(12).AlignItems(ui.Start).Children(func() {
+				ui.Text(c, name).Width(72).Shrink(0).FontSize(12).TextColor(p.muted)
+				ui.Row(c).Width(0).Grow(1).MinWidth(0).Gap(6).AlignItems(ui.Center).Children(value)
+			})
+		}
+		code := func(text string, ink ui.Color) ui.Element {
+			return ui.Text(c, text).Font(mono).FontSize(11.5).TextColor(ink).Selectable().MinWidth(0)
+		}
+		item(tr("已安装", "Installed"), func() {
+			code(strings.TrimSpace(f.Package+" "+f.Version), p.text)
+			if f.Kind != "" {
+				// The type is one short word; the package wraps instead.
+				code(f.Kind, p.muted).Shrink(0)
+			}
+		})
+		item(tr("修复版本", "Fixed in"), func() {
+			if len(f.Fixed) > 0 {
+				code(strings.Join(f.Fixed, ", "), p.ok)
+			} else {
+				ui.Text(c, tr("暂无修复版本", "No fix yet")).FontSize(12).TextColor(p.muted)
+			}
+		})
+		if f.Layer != nil {
+			item(tr("来自分层", "From layer"), func() {
+				by := ""
+				if f.By != nil {
+					by = strings.Join(strings.Fields(*f.By), " ")
+				}
+				code(strings.TrimSpace(fmt.Sprintf("#%d %s", *f.Layer+1, by)), p.text)
+				if f.Base != nil && *f.Base {
+					ui.Text(c, tr("基础镜像", "base image")).FontSize(11.5).TextColor(p.muted).Shrink(0)
+				}
+			})
+		}
+		if f.URL != "" {
+			item(tr("公告", "Advisory"), func() {
+				if openLink(c.Key("advisory"), p, "out", f.URL, f.URL) {
+					c.OpenURL(f.URL)
+				}
+			})
+		}
 	})
 }
 

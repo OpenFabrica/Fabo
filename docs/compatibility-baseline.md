@@ -87,7 +87,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 
 原生窗口截图及逐项结果保留在 `target/desktop-advanced-check/`。专用 VM、临时 HOME / Docker 配置 / kubeconfig、测试容器和数据卷均已清理，日常 Dev 引擎未重启。`target/dev/Fabo Advanced.app` 已构建并通过 ad hoc 签名检查，未安装或发布。
 
-该批实现当时的终端与日志限制已由下节增量补齐。剩余边界：Linux 引导、其余 13 种语言、Kubernetes forwards、Import / Diagnostics / Build with、USB 界面，以及文件预览 / 下载和扫描历史 / SBOM 导出尚未补齐。仓库 token 与私有镜像鉴权头由接口测试覆盖，未使用真实私人仓库账号；Linux / Windows 的真实桌面和全量 `tests/e2e.sh` 未在本轮验证。
+该批实现当时的终端与日志限制已由下节增量补齐。剩余边界：Linux 引导、其余 13 种语言、Kubernetes forwards、Import / Diagnostics / Build with、USB 界面，以及文件预览 / 下载和扫描历史尚未补齐。仓库 token 与私有镜像鉴权头由接口测试覆盖，未使用真实私人仓库账号；Linux / Windows 的真实桌面和全量 `tests/e2e.sh` 未在本轮验证。
 
 ### 连续终端与日志（2026-11-14 增量）
 
@@ -134,7 +134,7 @@ Linux 宿主和其余发行版的真实运行、完整 `tests/e2e.sh` 尚未复�
 | 终端工作区扩展 | 宿主多会话和容器交互式 TTY 已实现；待复刻上游底部面板、横向 / 纵向分屏及完整终端搜索入口 | `ui/index.html` 的内嵌终端面板 |
 | 文件浏览增强 | 当前依赖运行中容器的 `ls`，仅列目录和文件名；待补文件信息、预览、下载及从桌面打开 Finder 文件位置等操作。Finder 只读浏览与容器 archive API 已有实现 | `ui/detail.rs`、`ui/index.html` |
 | 构建工作容器 | 构建页已对齐（见上文）；上游在容器列表里隐藏 `buildx_buildkit_*` 容器、在设置 → 构建里显示 BuildKit 镜像与缓存卷占用，本仓库的容器页仍列出构建器容器 | `ui/index.html` 的 `isBuildWorker`、`builderPref` |
-| 扫描历史与导出 | 镜像分层、最新扫描和重新扫描已有界面；待接扫描历史选择和 CycloneDX SBOM 导出。引擎已有 `/fabo/images/scans`、`/fabo/images/sbom` | `ui/index.html` 的扫描历史 / `savesbom`，`ui/mod.rs` |
+| 扫描历史 | 镜像分层、最新扫描、重新扫描、漏洞详情（描述、修复版本、来源分层、公告链接）和导出（CSV、JSON、CycloneDX SBOM）已有界面；待接扫描历史选择。引擎已有 `/fabo/images/scans` | `ui/index.html` 的扫描历史 / `savesbom`，`ui/mod.rs` |
 | Kubernetes 转发 | Pods / Services、持续日志、Pod 删除、集群启停和网络设置已有界面；待补 Pod / ClusterIP 的本地端口转发入口及生命周期管理。引擎已有 `/fabo/k8s/forward` 接口 | `ui/k8s.rs`、`ui/index.html` |
 | 首次引导 | macOS launcher 的首次设置已实现；桌面尚无首次语言选择及 Linux 设置检查、修复、跳过和恢复流程 | `ui/lang.rs`、`ui/linux.rs` 的 `onboarding`、`ui/index.html` |
 | Import / Build with | `fabo import`、`fabo build-with` 已实现；桌面导入流程已对齐（设置 → 导入、列表底部提示条、查看窗口、切换 docker 的对话框与进度卡片）。Windows 窗口已有构建引擎选择（设置 → 构建，另有引擎时问一次）；macOS 窗口仍待补该入口。底部状态栏已显示 `docker → 引擎`，指向其他引擎时可打开切换对话框 | `buildwith.rs`、`ui/index.html` 的 `buildAsk` |

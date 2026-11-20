@@ -245,13 +245,19 @@ func (s *desktop) loadImage() {
 
 // saveImages streams the engine's archive of names into path. The file
 // appears only when complete.
-func (e engineClient) saveImages(ctx context.Context, names []string, path string) (err error) {
+func (e engineClient) saveImages(ctx context.Context, names []string, path string) error {
 	q := url.Values{"names": names}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost/images/get?"+q.Encode(), nil)
+	return e.download(ctx, "/images/get?"+q.Encode(), path)
+}
+
+// download streams the body of a GET of the engine's path into the file
+// at dest, which appears only when complete.
+func (e engineClient) download(ctx context.Context, path, dest string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost"+path, nil)
 	if err != nil {
 		return err
 	}
-	// Reading the image store must not extend the lifetime of an idle VM.
+	// Reading the engine's store must not extend the lifetime of an idle VM.
 	req.Header.Set("X-Fabo-Background", "1")
 	res, err := e.http.Do(req)
 	if err != nil {
@@ -261,6 +267,16 @@ func (e engineClient) saveImages(ctx context.Context, names []string, path strin
 	if res.StatusCode != http.StatusOK {
 		return responseError(res)
 	}
+	return writeWhole(dest, func(w io.Writer) error {
+		_, err := io.Copy(w, res.Body)
+		return err
+	})
+}
+
+// writeWhole writes the file at path through write, into a hidden partial
+// file beside it that takes the name only once complete, so a failure
+// leaves no half-written file behind.
+func writeWhole(path string, write func(io.Writer) error) (err error) {
 	partial, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*.partial")
 	if err != nil {
 		return err
@@ -271,13 +287,13 @@ func (e engineClient) saveImages(ctx context.Context, names []string, path strin
 			os.Remove(partial.Name())
 		}
 	}()
-	if _, err = io.Copy(partial, res.Body); err != nil {
+	if err = write(partial); err != nil {
 		return err
 	}
 	if err = partial.Close(); err != nil {
 		return err
 	}
-	// CreateTemp makes the file private; the archive is an ordinary file.
+	// CreateTemp makes the file private; what is saved is an ordinary file.
 	if err = os.Chmod(partial.Name(), 0o644); err != nil {
 		return err
 	}

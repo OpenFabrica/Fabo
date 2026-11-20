@@ -392,6 +392,12 @@ func button(c *ui.Context, p palette, label, icon string, kind int, disabled boo
 // labeledButton is button with a name for assistive technology and tests
 // that says more than its short text.
 func labeledButton(c *ui.Context, p palette, text, label, icon string, kind int, disabled bool) bool {
+	return buttonElement(c, p, text, label, icon, kind, disabled).Clicked()
+}
+
+// buttonElement draws labeledButton and returns the button itself, for one
+// that does more than report a click, as opening a menu.
+func buttonElement(c *ui.Context, p palette, text, label, icon string, kind int, disabled bool) ui.Element {
 	b := ui.ButtonBase(c).Label(label).Height(32).PaddingX(12).Gap(6).Shrink(0).
 		AlignItems(ui.Center).Justify(ui.Center).Radius(8).Disabled(disabled).Cursor(pointerFor(disabled))
 	bg, ink := p.soft, p.text
@@ -432,7 +438,7 @@ func labeledButton(c *ui.Context, p palette, text, label, icon string, kind int,
 		}
 		ui.Text(c, text).FontSize(12.5).FontWeight(500).TextColor(ink)
 	})
-	return b.Clicked()
+	return b
 }
 
 // filters is the segmented row of list filters: a soft track whose chosen

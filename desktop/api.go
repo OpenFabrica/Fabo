@@ -214,18 +214,31 @@ type layer struct {
 	Empty bool   `json:"empty"`
 }
 
+// finding is one vulnerability a scan matched in a package. Layer, By and
+// Base are unset when the scan could not place the package in a layer.
 type finding struct {
-	ID       string   `json:"id"`
-	Severity string   `json:"severity"`
-	Package  string   `json:"package"`
-	Version  string   `json:"version"`
-	Fixed    []string `json:"fixed"`
+	ID          string   `json:"id"`
+	Severity    string   `json:"severity"`
+	Package     string   `json:"package"`
+	Version     string   `json:"version"`
+	Kind        string   `json:"kind"`
+	Fixed       []string `json:"fixed"`
+	URL         string   `json:"url"`
+	Description string   `json:"description"`
+	Layer       *int     `json:"layer"`
+	By          *string  `json:"by"`
+	Base        *bool    `json:"base"`
 }
 
 // scanResult is a finished image scan; counts tallies findings by severity.
+// Scanned is in Unix seconds; DB is when the vulnerability database was
+// built and Grype the scanner's version.
 type scanResult struct {
+	ID       string    `json:"id"`
 	Scanned  int64     `json:"scanned"`
 	Packages int       `json:"packages"`
+	DB       string    `json:"db"`
+	Grype    string    `json:"grype"`
 	Vulns    []finding `json:"vulns"`
 }
 

@@ -162,7 +162,10 @@ type desktop struct {
 	// a time.
 	scanChecked  map[string]bool
 	autoScanning bool
-	now        int64
+	// findingOpen holds the findings opened onto their details, by
+	// findingKey; rows scrolled out of view lose local state.
+	findingOpen map[string]bool
+	now         int64
 
 	// What the window shows.
 	selected  map[string]string
@@ -259,7 +262,7 @@ func newDesktop(engine engineClient) *desktop {
 	return &desktop{
 		engine: engine, ctx: context.Background(), page: containersPage, follow: true,
 		prefs: defaultPrefs(), credentials: newRegistryStore(), terminals: map[string]*terminalSession{},
-		usage: map[string]*usage{}, scans: map[string]*scanResult{}, scanning: map[string]scanStep{}, scanChecked: map[string]bool{},
+		usage: map[string]*usage{}, scans: map[string]*scanResult{}, scanning: map[string]scanStep{}, scanChecked: map[string]bool{}, findingOpen: map[string]bool{},
 		selected: map[string]string{}, tab: map[string]int{containersPage: 1}, filter: map[string]int{containersPage: 1},
 		collapsed: map[string]bool{}, picked: map[string]bool{}, lists: map[string]*ui.ListState{},
 		filePath: map[string]string{}, working: map[string]bool{}, changing: map[string]string{}, menus: map[string]*moreMenuState{}, now: time.Now().Unix(),

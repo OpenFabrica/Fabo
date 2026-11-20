@@ -124,8 +124,9 @@ The window is a light grey shell holding the title strip and the sidebar, with t
   - Files lists one directory at a time by running `ls -1Ap` in the
     container, so it needs the container running and an `ls` in the image.
 - **Images.** The dock shows layers (`/fabo/images/layers`), the stored
-  scan with a button to scan again (`/fabo/images/scan`), and the image's
-  config. An image in use cannot be removed. A pull shows only that it is
+  scan with buttons to scan again (`/fabo/images/scan`) and to export it,
+  and the image's config. A finding opens onto its details; see
+  [Image layers and security scans](#image-layers-and-security-scans). An image in use cannot be removed. A pull shows only that it is
   running, because the engine reports no per-layer progress.
 - **Volumes and networks.** Both list the containers using them, which open
   the container. A volume in use, a network in use and the three built-in
@@ -368,6 +369,33 @@ images as they appear. Each image is tried once per session and an automatic
 scan fails without a notice. The row's shield shows the result: plain before
 a scan, a green check when clean, an exclamation mark in red for critical or
 high findings, amber for medium and blue for low only.
+
+The Security tab, on an image's panel and on a build's, lists the findings
+worst first: the vulnerability, its severity and the package, plus the
+installed version and the first fixed version when the panel is wide enough.
+A click opens a finding onto its details: Grype's description, the installed
+package and its type, every fixed version or that there is none yet, the
+layer that brought the package in (counted from 1, as the Layers tab, and
+marked when it belongs to the base image) and the advisory link, which
+opens in the browser. Opened findings stay open while the window runs,
+until the image is scanned again.
+
+Export report saves the shown scan through the save dialog, under the
+image's name and the scan's day:
+
+- **CSV table**: one row per finding, worst first, with an English header
+  (`Vulnerability, Severity, Package, Version, Type, Fixed in, Layer,
+  Created by, Base image, URL, Description`) whatever the window's language.
+  A cell starting with `=`, `+`, `-` or `@` gets a leading apostrophe so
+  spreadsheets do not read it as a formula.
+- **JSON report**: the image reference and ID, the scan time (RFC 3339,
+  UTC), the package count, the database build date, the Grype version,
+  counts by severity and every finding with all its fields.
+- **SBOM (CycloneDX)**: the engine's stored SBOM of the same scan, from
+  `/fabo/images/sbom?name=…&at=<scanned>`.
+
+Files are written beside the target under a hidden partial name and take
+the chosen name only once complete.
 
 Each successful scan publishes its result and CycloneDX SBOM together.
 History is keyed by image digest, survives daemon restart, and retains the

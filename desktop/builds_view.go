@@ -954,8 +954,11 @@ func (s *desktop) buildSecurityTab(c *ui.Context, p palette) {
 		ui.Row(c.Key("scan-head")).FillWidth().Padding(10, 16, 0).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, img.ref()).Font(mono).FontSize(11.5).TextColor(p.muted).SingleLine().MinWidth(0).Grow(1)
 			_, scanning := s.scanning[img.ID]
-			if s.scans[img.ID] != nil && button(c.Key("rescan"), p, tr("重新扫描", "Rescan"), "", ghostButton, scanning) {
-				s.startScan(img)
+			if result := s.scans[img.ID]; result != nil {
+				if button(c.Key("rescan"), p, tr("重新扫描", "Rescan"), "", ghostButton, scanning) {
+					s.startScan(img)
+				}
+				s.exportMenu(c, p, img, result)
 			}
 		})
 		s.scanPane(c, p, img)
